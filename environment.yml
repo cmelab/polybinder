@@ -1,0 +1,24 @@
+name: uli
+channels:
+  - conda-forge
+  - omnia
+  - mosdef
+dependencies:
+  - python=3.7
+  - pip
+  - numpy
+  - matplotlib
+  - openbabel
+  - scipy
+  - packmol
+  - oset
+  - parmed
+  - foyer
+  - gsd
+  - openbabel>=3.0.0
+  - networkx
+  - garnett
+  - py3dmol
+  - ele
+
+
