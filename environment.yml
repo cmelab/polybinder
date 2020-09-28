@@ -20,5 +20,5 @@ dependencies:
   - garnett
   - py3dmol
   - ele
-
+  - deepsmiles
 
