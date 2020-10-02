@@ -1,5 +1,5 @@
-import smiles_utils
-from smiles_utils import convert_smiles
+from . import smiles_utils
+convert_smiles = smiles_utils.convert_smiles
 
 def poly_smiles(monomer_string, length=2):
     '''
