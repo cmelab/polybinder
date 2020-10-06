@@ -1,4 +1,4 @@
-name: uli
+name: uli-test
 channels:
   - conda-forge
   - omnia
@@ -8,17 +8,11 @@ dependencies:
   - pip
   - numpy
   - matplotlib
+  - mbuild
+  - hoomd
   - openbabel
-  - scipy
-  - packmol
-  - oset
-  - parmed
   - foyer
   - gsd
-  - openbabel>=3.0.0
-  - networkx
-  - garnett
   - py3dmol
-  - ele
   - deepsmiles
 

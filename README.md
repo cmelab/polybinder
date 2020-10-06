@@ -18,13 +18,3 @@ cd uli-init
 conda env create -f environment.yml  
 conda activate uli
 ```  
-
-3. Install a fork of mBuild:  
-
-```
-git clone git@github.com:chrisjonesBSU/mbuild.git  
-cd mbuild  
-git checkout uli  
-pip install -e .  
-```
-
