@@ -9,10 +9,9 @@ dependencies:
   - numpy
   - matplotlib
   - mbuild
-  - hoomd
   - openbabel
   - foyer
   - gsd
   - py3dmol
   - deepsmiles
-
+  - ele
