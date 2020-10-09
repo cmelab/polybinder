@@ -2,3 +2,5 @@
 **/__pycache__/
 **/trajectories
 *.swp
+*.txt
+/src/*
