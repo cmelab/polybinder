@@ -3,4 +3,5 @@
 **/trajectories
 *.swp
 *.txt
+*.gsd
 /src/*
