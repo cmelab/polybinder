@@ -66,7 +66,7 @@ class Simulation():
         "angle_harmonic_energy"
         ]
 
-    def quench(self, kT, n_steps, shrink_kT=5, shrink_n_steps=1e6):
+    def quench(self, kT, n_steps, shrink_kT=10, shrink_n_steps=1e6):
 
         # Get hoomd stuff set
         create_hoomd_simulation(self.system_pmd, self.ref_distance,
@@ -226,8 +226,7 @@ class System():
         if self.forcefield:
             self.system_pmd = self._type_system() # parmed object after applying FF
 
-
-    def _pack(self, box_expand_factor=6):
+    def _pack(self, box_expand_factor=5):
         mb_compounds = []
         for _length, _n in zip(self.polymer_lengths, self.n_compounds):
             for i in range(_n):
@@ -249,8 +248,8 @@ class System():
             box=[L, L, L],
             edge=1,
             fix_orientation=True)
+        system.Box = mb.box.Box([L, L, L])
         return system
-
 
     def _type_system(self):
         if self.forcefield == 'gaff':
