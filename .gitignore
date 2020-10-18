@@ -4,5 +4,6 @@
 *.swp
 *.txt
 *.gsd
+*.mol2
 *.log
 /src/*
