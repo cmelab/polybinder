@@ -227,7 +227,7 @@ class System():
             self.system_pmd = self._type_system() # parmed object after applying FF
 
 
-    def _pack(self, box_expand_factor=5):
+    def _pack(self, box_expand_factor=6):
         mb_compounds = []
         for _length, _n in zip(self.polymer_lengths, self.n_compounds):
             for i in range(_n):
@@ -247,7 +247,7 @@ class System():
             compound = mb_compounds,
             n_compounds = [1 for i in mb_compounds],
             box=[L, L, L],
-            edge=0.5,
+            edge=1,
             fix_orientation=True)
         return system
 
