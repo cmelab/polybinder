@@ -27,6 +27,8 @@ conda env create -f environment-dev.yml
 conda activate uli-dev
 ```
 Then `pip install -e .` from within each MoSDeF repository. Right now foyer, mBuild, and GAFF_Foyer are required.
-https://github.com/mosdef-hub/foyer
-https://github.com/mosdef-hub/mbuild
+https://github.com/mosdef-hub/foyer  
+
+https://github.com/mosdef-hub/mbuild  
+
 https://github.com/rsdefever/GAFF-foyer.git
