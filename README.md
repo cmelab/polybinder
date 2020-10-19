@@ -33,3 +33,9 @@ https://github.com/mosdef-hub/foyer
 https://github.com/mosdef-hub/mbuild  
 
 https://github.com/rsdefever/GAFF-foyer.git
+
+3. Install this repository
+
+```
+pip install -e .
+```

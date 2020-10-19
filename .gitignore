@@ -8,3 +8,4 @@
 *.pdb
 *.log
 /src/*
+*egg-info

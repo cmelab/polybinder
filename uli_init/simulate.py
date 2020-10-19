@@ -2,9 +2,7 @@ import json
 import os
 import random
 import numpy as np
-from utils import smiles_utils
-from utils import polysmiles
-from utils import base_units
+from uli_init.utils import smiles_utils, polysmiles, base_units
 import hoomd
 import mbuild as mb
 from mbuild.formats.hoomd_simulation import create_hoomd_simulation
