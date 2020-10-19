@@ -21,7 +21,7 @@ conda activate uli
 
 OR  
 
-3. If you want to install the MoSDeF packages (foyer, mbuild, etc..) from source then use the environment-dev.yml file
+If you want to install the MoSDeF packages (foyer, mbuild, etc..) from source then use the environment-dev.yml file
 ```
 conda env create -f environment-dev.yml
 conda activate uli-dev
