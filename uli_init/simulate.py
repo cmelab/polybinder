@@ -64,6 +64,7 @@ class Simulation():
         "angle_harmonic_energy"
         ]
 
+
     def quench(self, kT, n_steps, shrink_kT=10, shrink_n_steps=1e6):
 
         # Get hoomd stuff set
@@ -107,6 +108,7 @@ class Simulation():
         integrator.set_params(kT=kT)
         integrator.randomize_velocities(seed=42)
         hoomd.run(n_steps+shrink_n_steps)
+
 
     def anneal(self,
               kT_init=None,
@@ -176,6 +178,7 @@ class Simulation():
             print('-----------------------------------------------')
             print()
 
+
 class System():
     def __init__(self,
                  molecule,
@@ -224,6 +227,7 @@ class System():
         if self.forcefield:
             self.system_pmd = self._type_system() # parmed object after applying FF
 
+
     def _pack(self, box_expand_factor=5):
         mb_compounds = []
         for _length, _n in zip(self.polymer_lengths, self.n_compounds):
@@ -249,6 +253,7 @@ class System():
         system.Box = mb.box.Box([L, L, L])
         return system
 
+
     def _type_system(self):
         if self.forcefield == 'gaff':
             forcefield = foyer.forcefields.load_GAFF()
@@ -261,6 +266,7 @@ class System():
             pass
         return typed_system
 
+
     def _calculate_L(self):
         '''
         Calcualte the box length needed for entered density
@@ -272,6 +278,7 @@ class System():
         L *= units['cm_to_nm'] # convert cm to nm
         self.target_L = L
         return L
+
 
 def build_molecule(molecule, length, para_weight):
     '''
@@ -295,8 +302,10 @@ def build_molecule(molecule, length, para_weight):
 
     Returns
     -------
-    molecule_string_smiles : str
-        The complete SMILES string of the polymer molecule
+    compound : mBuild.Compound
+        An instance of the single polymer created
+    sequence : list
+        List of the configuration sequence of the finished compound
     '''
     f = open('compounds/{}.json'.format(molecule))
     mol_dict = json.load(f)
@@ -325,6 +334,7 @@ def build_molecule(molecule, length, para_weight):
     molecule_string_smiles = smiles_utils.convert_smiles(deep = molecule_string)
     compound = mb.load(molecule_string_smiles, smiles=True)
     return compound, monomer_sequence
+
 
 def random_sequence(para_weight, length):
     '''
