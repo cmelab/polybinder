@@ -34,7 +34,16 @@ https://github.com/mosdef-hub/mbuild
 
 https://github.com/rsdefever/GAFF-foyer.git
 
-3. Install this repository
+
+4. Install the HOOMD-blue molecular dynamics package:  
+
+`conda install -c conda-forge hoomd`  
+
+OR  
+
+To configure hoomd to run on GPUs, following the installation instructions found in the [hoomd docs](https://hoomd-blue.readthedocs.io/en/stable/installation.html)
+
+4. Install this repository
 
 ```
 pip install -e .
