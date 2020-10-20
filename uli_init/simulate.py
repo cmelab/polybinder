@@ -3,6 +3,7 @@ import os
 import random
 import numpy as np
 from uli_init.utils import smiles_utils, polysmiles, base_units
+from uli_init.compounds import COMPOUND_DIR
 import hoomd
 import mbuild as mb
 from mbuild.formats.hoomd_simulation import create_hoomd_simulation
@@ -28,7 +29,7 @@ class Simulation():
                  ):
 
         self.system = system
-        self.system_pmd = system.system_pmd # Parmed structure
+        self.system_pmd = system.system # Parmed structure
         self.r_cut = r_cut
         self.e_factor = e_factor
         self.tau = tau
@@ -77,7 +78,7 @@ class Simulation():
         integrator.randomize_velocities(seed=42)
 
         # Run shrinking step
-        shrink_gsd = hoomd.dump.gsd("trajectories/traj-shrink.gsd",
+        shrink_gsd = hoomd.dump.gsd("traj-shrink.gsd",
                        period=self.gsd_write, group=_all, phase=0, overwrite=True)
 
         x_variant = hoomd.variant.linear_interp([(0, self.system_pmd.box[0]),
@@ -93,13 +94,13 @@ class Simulation():
         box_updater.disable()
 
         # Run primary simulation
-        hoomd.dump.gsd("trajectories/sim_traj.gsd",
+        hoomd.dump.gsd("sim_traj.gsd",
                        period=self.gsd_write,
                        group=_all,
                        phase=0,
                        overwrite=True)
 
-        hoomd.analyze.log("logs/sim_traj.log",
+        hoomd.analyze.log("sim_traj.log",
                           period=self.log_write,
                           quantities = self.log_quantities,
                           header_prefix="#",
@@ -223,10 +224,10 @@ class System():
         if len(self.n_compounds) != len(self.polymer_lengths):
             raise ValueError('n_compounds and polymer_lengths should be equal length')
 
-        self.system_mb = self._pack() # mBuild object before applying FF
+        self.system = self._pack() # mBuild object before applying FF
+        self.system.save('init.pdb')
         if self.forcefield:
-            self.system_pmd = self._type_system() # parmed object after applying FF
-
+            self.system = self._type_system() # parmed object after applying FF
 
     def _pack(self, box_expand_factor=5):
         mb_compounds = []
@@ -260,7 +261,7 @@ class System():
         elif self.forcefield == 'opls':
             forcefield = foyer.Forcefield(name='oplsaa')
 
-        typed_system = forcefield.apply(self.system_mb)
+        typed_system = forcefield.apply(self.system)
         if self.remove_hydrogens: # not sure how to do this with Parmed yet
             removed_hydrogen_count = 0 # subtract from self.mass
             pass
@@ -307,7 +308,7 @@ def build_molecule(molecule, length, para_weight):
     sequence : list
         List of the configuration sequence of the finished compound
     '''
-    f = open('compounds/{}.json'.format(molecule))
+    f = open('{}/{}.json'.format(COMPOUND_DIR, molecule))
     mol_dict = json.load(f)
     f.close()
     monomer_sequence = random_sequence(para_weight, length)
