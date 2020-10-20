@@ -8,7 +8,7 @@ Installation of uli-init requires the conda package manager
 ### 1. Clone this repository: ###  
 
 ```
-git clone git@github.com:chrisjonesBSU/uli-init.git  
+git clone git@github.com:cmelab/uli-init.git  
 cd uli-init  
 ```
 
