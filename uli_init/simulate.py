@@ -113,7 +113,7 @@ class Simulation():
               kT_final=None,
               step_sequence=None,
               schedule=None,
-              shrink_kT=5,
+              shrink_kT=10,
               shrink_n_steps=1e6):
 
         if not schedule:
