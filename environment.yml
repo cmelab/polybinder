@@ -15,5 +15,7 @@ dependencies:
   - py3dmol
   - deepsmiles
   - ele
+  - signac
+  - signac-flow
   - pip:
     - "--editable=git+git@github.com:rsdefever/GAFF-foyer.git#egg=GAFF-foyer-master"
