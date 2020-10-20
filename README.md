@@ -19,7 +19,7 @@ conda env create -f environment.yml
 conda activate uli
 ```  
 
-** OR ** 
+**OR** 
 
 If you want to install the MoSDeF packages (foyer, mbuild, etc..) from source then use the `environment-dev.yml` file
 ```
@@ -40,7 +40,7 @@ Then `pip install -e .` from within each MoSDeF repository. Right now foyer, mBu
 
 `conda install -c conda-forge hoomd`  
 
-** OR ** 
+**OR** 
 
 To configure hoomd to run on GPUs, following the installation instructions found in the [hoomd docs](https://hoomd-blue.readthedocs.io/en/stable/installation.html)
 
