@@ -1,4 +1,4 @@
-name: uli
+name: uli-dev
 channels:
   - conda-forge
   - omnia
@@ -7,13 +7,20 @@ dependencies:
   - python=3.7
   - pip
   - numpy
+  - packmol
+  - parmed
+  - mdtraj
+  - lark-parser
+  - lxml
+  - openmm 
+  - networkx
+  - scipy
+  - oset
+  - requests
+  - garnett
   - matplotlib
-  - mbuild
   - openbabel
-  - foyer
   - gsd
   - py3dmol
   - deepsmiles
   - ele
-  - pip:
-    - "--editable=git+git@github.com:rsdefever/GAFF-foyer.git#egg=GAFF-foyer-master"

@@ -4,7 +4,9 @@ def base_units():
     units["boltzmann"] = 1.38064852e-23
     units["kj_to_j"] = 1e3
     units["amu_to_kg"] = 1.6605e-27
-    units["nm_to_m"] = 1e-9
+    units["amu_to_g"] = 1.6605e-24
+    units['cm_to_nm'] = 1e7
+    units["m_to_nm"] = 1e-9
     units["mass"] = 32.06
     units["mass_units"] = "amu"
     units["energy"] = 1.046
