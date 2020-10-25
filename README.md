@@ -18,27 +18,11 @@ cd uli-init
 conda env create -f environment.yml  
 conda activate uli
 ```  
-
-***OR*** 
-
-If you want to install the MoSDeF packages (foyer, mbuild, etc..) from source then use the `environment-dev.yml` file
-```
-conda env create -f environment-dev.yml
-conda activate uli-dev
-```
-
-Then `pip install -e .` from within each MoSDeF repository. Right now foyer, mBuild, and GAFF_Foyer are required.  
-
-	- https://github.com/mosdef-hub/foyer  
-
-	- https://github.com/mosdef-hub/mbuild  
-
-	- https://github.com/rsdefever/GAFF-foyer.git
-
-
 ### 3. Install the HOOMD-blue molecular dynamics package: ###  
 
-`conda install -c conda-forge hoomd`  
+```
+conda install -c conda-forge hoomd
+```  
 
 ***OR*** 
 
@@ -49,3 +33,20 @@ To configure hoomd to run on GPUs, following the installation instructions found
 ```
 pip install -e .
 ```
+
+## Basic Usage
+
+So far, essentially all of the functionality lives in the `simulate.py` file
+
+`from uli_init import simulate`
+
+There are two primary classes used to initialize a system and simulation:  
+
+`simulate.System()`
+Used to generate the entire system, and ultimately a paramaterized parmed struture object.
+
+`simulate.Simulation()`
+This class takes in the parmed structure from `System` and initializes one of two possible simulation methods using the Hoomd package
+
+1. quench `Simulation.quench()`
+2. anneal `Simulation.anneal()`
