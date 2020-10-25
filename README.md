@@ -20,7 +20,9 @@ conda activate uli
 ```  
 ### 3. Install the HOOMD-blue molecular dynamics package: ###  
 
-`conda install -c conda-forge hoomd`  
+```
+conda install -c conda-forge hoomd
+```  
 
 ***OR*** 
 
@@ -31,6 +33,8 @@ To configure hoomd to run on GPUs, following the installation instructions found
 ```
 pip install -e .
 ```
+
+## Basic Usage
 
 So far, essentially all of the functionality lives in the `simulate.py` file
 
