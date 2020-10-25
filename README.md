@@ -17,7 +17,6 @@ cd uli-init
 ```
 conda env create -f environment.yml  
 conda activate uli
-
 ```  
 ### 3. Install the HOOMD-blue molecular dynamics package: ###  
 
@@ -47,5 +46,3 @@ This class takes in the parmed structure from `System` and initializes one of tw
 
 1. quench `Simulation.quench()`
 2. anneal `Simulation.anneal()`
-
-
