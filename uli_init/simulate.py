@@ -23,6 +23,8 @@ class Simulation():
                  dt = 0.0001,
                  auto_scale = True,
                  ref_units = None,
+                 shrink_kT = 10,
+                 shrink_steps = 1e6,
                  mode = "gpu",
                  gsd_write = 1e4,
                  log_write = 1e3
@@ -36,23 +38,32 @@ class Simulation():
         self.dt = dt
         self.auto_scale = auto_scale
         self.ref_units = ref_units
+        self.shrink_kT = shrink_kT
+        self.shrink_steps = shrink_steps
         self.mode = mode
         self.gsd_write = gsd_write
         self.log_write = log_write
-        if target_box:
-            self.target_box = target_box
-        else:
-            self.target_box = [self.system.target_L]*3
 
         if ref_units and not auto_scale:
             self.ref_energy = ref_units['energy']
             self.ref_distance = ref_units['distance']
             self.ref_mass = ref_units['mass']
+        elif auto_scale and not ref_units: # Pulled from mBuild hoomd_simulation.py
+            self.ref_mass = max([atom.mass for atom in self.system_pmd.atoms])
+            pair_coeffs = list(set((atom.type,
+                                    atom.epsilon,
+                                    atom.sigma) for atom in self.system_pmd.atoms))
+            self.ref_energy = max(pair_coeffs, key=operator.itemgetter(1))[1]
+            self.ref_distance = max(pair_coeffs, key=operator.itemgetter(2))[2]
 
-        elif auto_scale and not ref_units:
-            self.ref_energy = 1
-            self.ref_distance = 1
-            self.ref_mass = 1
+        self.reduced_target_L = self.system.target_L / self.ref_distance
+        self.reduced_init_L = self.system_pmd.box[0] / self.ref_distance
+
+        #TODO: Use target_box to generate non-cubic simulation volumes
+        if target_box:
+            self.target_box = target_box
+        else:
+            self.target_box = [self.reduced_target_L]*3
 
         self.log_quantities = [
         "temperature",
@@ -64,36 +75,35 @@ class Simulation():
         "bond_harmonic_energy",
         "angle_harmonic_energy"
         ]
-
-
-    def quench(self, kT, n_steps, shrink_kT=10, shrink_n_steps=1e6):
-
-        # Get hoomd stuff set
+        
+        # Initialize Hoomd simulation stuff:
         create_hoomd_simulation(self.system_pmd, self.ref_distance,
                                 self.ref_mass, self.ref_energy,
                                 self.r_cut, self.auto_scale)
         _all = hoomd.group.all()
         hoomd.md.integrate.mode_standard(dt=self.dt)
-        integrator = hoomd.md.integrate.nvt(group=_all, kT=shrink_kT, tau=self.tau) # shrink temp
+        integrator = hoomd.md.integrate.nvt(group=_all, kT=self.shrink_kT, tau=self.tau) # shrink temp
         integrator.randomize_velocities(seed=42)
 
-        # Run shrinking step
+        # Set up shrinking box updater
         shrink_gsd = hoomd.dump.gsd("traj-shrink.gsd",
                        period=self.gsd_write, group=_all, phase=0, overwrite=True)
-
-        x_variant = hoomd.variant.linear_interp([(0, self.system_pmd.box[0]),
-                                                 (shrink_n_steps, self.target_box[0]*10)])
-        y_variant = hoomd.variant.linear_interp([(0, self.system_pmd.box[1]),
-                                                 (shrink_n_steps, self.target_box[1]*10)])
-        z_variant = hoomd.variant.linear_interp([(0, self.system_pmd.box[2]),
-                                                 (shrink_n_steps, self.target_box[2]*10)])
+        x_variant = hoomd.variant.linear_interp([(0, self.reduced_init_L),
+                                                 (self.shrink_steps, self.target_box[0]*10)])
+        y_variant = hoomd.variant.linear_interp([(0, self.reduced_init_L),
+                                                 (self.shrink_steps, self.target_box[1]*10)])
+        z_variant = hoomd.variant.linear_interp([(0, self.reduced_init_L),
+                                                 (self.shrink_steps, self.target_box[2]*10)])
         box_updater = hoomd.update.box_resize(Lx = x_variant, Ly = y_variant, Lz = z_variant)
 
-        hoomd.run_upto(shrink_n_steps)
+
+    def quench(self, kT, n_steps):
+        # Run the shrink portion of simulation
+        hoomd.run_upto(self.shrink_steps)
         shrink_gsd.disable()
         box_updater.disable()
 
-        # Run primary simulation
+        # Set up new gsd and log dumps for actual simulation
         hoomd.dump.gsd("sim_traj.gsd",
                        period=self.gsd_write,
                        group=_all,
@@ -105,55 +115,30 @@ class Simulation():
                           quantities = self.log_quantities,
                           header_prefix="#",
                           overwrite=True, phase=0)
-
+        # Run the primary simulation
         integrator.set_params(kT=kT)
         integrator.randomize_velocities(seed=42)
-        hoomd.run(n_steps+shrink_n_steps)
+        hoomd.run(n_steps+self.shrink_steps)
 
 
     def anneal(self,
               kT_init=None,
               kT_final=None,
               step_sequence=None,
-              schedule=None,
-              shrink_kT=10,
-              shrink_n_steps=1e6):
+              schedule=None
+              )
 
         if not schedule:
             temps = np.linspace(kT_init, kT_final, len(step_sequence))
             temps = [np.round(t, 1) for t in temps]
             schedule = dict(zip(temps, step_sequence))
 
-        # Get hoomd stuff set
-        create_hoomd_simulation(self.system_pmd, self.ref_distance,
-                                self.ref_mass, self.ref_energy,
-                                self.r_cut, self.auto_scale)
-        _all = hoomd.group.all()
-        hoomd.md.integrate.mode_standard(dt=self.dt)
-
-        # Run shrinking step
-        integrator = hoomd.md.integrate.nvt(group=_all, kT=shrink_kT, tau=self.tau) # shrink temp
-        integrator.randomize_velocities(seed=42)
-        shrink_gsd = hoomd.dump.gsd("trajectories/traj-shrink.gsd",
-                       period=self.gsd_write, group=_all, phase=0, overwrite=True)
-
-        x_variant = hoomd.variant.linear_interp([(0, self.system_pmd.box[0]),
-                                                 (shrink_n_steps, self.target_box[0]*10)])
-        y_variant = hoomd.variant.linear_interp([(0, self.system_pmd.box[1]),
-                                                 (shrink_n_steps, self.target_box[1]*10)])
-        z_variant = hoomd.variant.linear_interp([(0, self.system_pmd.box[2]),
-                                                 (shrink_n_steps, self.target_box[2]*10)])
-        box_updater = hoomd.update.box_resize(Lx = x_variant, Ly = y_variant, Lz = z_variant)
-
-        hoomd.run_upto(shrink_n_steps)
-        shrink_gsd.disable()
-        box_updater.disable()
         print('Shrink step finished.')
         print('Anneal Schedule:')
         print(schedule)
         print('-------------------------------')
 
-        # Start annealing steps:
+        # Set up new log and gsd files for simulation:
         anneal_gsd = hoomd.dump.gsd("trajectories/traj-anneal.gsd",
                                    period=self.gsd_write,
                                    group=_all,
@@ -165,8 +150,8 @@ class Simulation():
                           quantities = self.log_quantities,
                           header_prefix="#",
                           overwrite=True, phase=0)
-
-        last_time_step = shrink_n_steps
+        # Start annealing steps:
+        last_time_step = self.shrink_steps
         for kT in schedule:
             print('Running @ Temp = {}'.format(kT))
             n_steps = schedule[kT]
@@ -175,8 +160,6 @@ class Simulation():
             integrator.randomize_velocities(seed=42)
             hoomd.run(last_time_step + n_steps)
             last_time_step += n_steps
-            print('Current time step = {}'.format(last_time_step))
-            print('-----------------------------------------------')
             print()
 
 
