@@ -25,8 +25,6 @@ class Simulation():
                  dt = 0.0001,
                  auto_scale = True,
                  ref_units = None,
-                 shrink_kT = 10,
-                 shrink_steps = 1e6,
                  mode = "gpu",
                  gsd_write = 1e4,
                  log_write = 1e3
@@ -40,8 +38,6 @@ class Simulation():
         self.dt = dt
         self.auto_scale = auto_scale
         self.ref_units = ref_units
-        self.shrink_kT = shrink_kT
-        self.shrink_steps = shrink_steps
         self.mode = mode
         self.gsd_write = gsd_write
         self.log_write = log_write
@@ -59,8 +55,8 @@ class Simulation():
             self.ref_energy = max(pair_coeffs, key=operator.itemgetter(1))[1]
             self.ref_distance = max(pair_coeffs, key=operator.itemgetter(2))[2]
 
-        self.reduced_target_L = self.system.target_L / self.ref_distance
-        self.reduced_init_L = self.system_pmd.box[0] / self.ref_distance
+        self.reduced_target_L = self.system.target_L / self.ref_distance # nm
+        self.reduced_init_L = self.system_pmd.box[0] / self.ref_distance # angstroms
 
         #TODO: Use target_box to generate non-cubic simulation volumes
         if target_box:
