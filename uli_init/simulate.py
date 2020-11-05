@@ -192,6 +192,7 @@ class System():
                  pdi=None,
                  M_n=None,
                  remove_hydrogens=False,
+                 assert_dihedrals=True,
                  seed=24
                 ):
         self.molecule = molecule
@@ -201,6 +202,7 @@ class System():
         self.remove_hydrogens = remove_hydrogens
         self.pdi = pdi
         self.forcefield = forcefield
+        self.assert_dihedral = assert_dihedrals
         self.seed = seed
         self.system_mass = 0
         self.para = 0 # keep track for now to check things are working, maybe keep?
@@ -265,7 +267,8 @@ class System():
         elif self.forcefield == 'opls':
             forcefield = foyer.Forcefield(name='oplsaa')
 
-        typed_system = forcefield.apply(self.system_mb)
+        typed_system = forcefield.apply(self.system_mb,
+                                        assert_dihedral_params=self.assert_dihedral)
         if self.remove_hydrogens: # not sure how to do this with Parmed yet
             removed_hydrogen_count = 0 # subtract from self.mass
             pass
@@ -321,6 +324,8 @@ def build_molecule(molecule, length, para_weight):
     for idx, config in enumerate(monomer_sequence):
         if idx == 0: # append template, but not brackets
             monomer_string = mol_dict['{}_template'.format(config)]
+            if molecule == 'PEEK': # Change oxygen type on the terminal end of the polymer; needs its hydrogen.
+                monomer_string = "O"+monomer_string[1:]
             molecule_string = molecule_string.format(monomer_string)
             if len(monomer_sequence) == 1:
                 molecule_string = molecule_string.replace('{}', '')
