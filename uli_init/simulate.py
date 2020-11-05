@@ -27,7 +27,8 @@ class Simulation():
                  ref_units = None,
                  mode = "gpu",
                  gsd_write = 1e4,
-                 log_write = 1e3
+                 log_write = 1e3,
+                 seed = 42
                  ):
 
         self.system = system
@@ -41,6 +42,7 @@ class Simulation():
         self.mode = mode
         self.gsd_write = gsd_write
         self.log_write = log_write
+        self.seed = seed
 
         if ref_units and not auto_scale:
             self.ref_energy = ref_units['energy']
@@ -86,7 +88,7 @@ class Simulation():
         _all = hoomd.group.all()
         hoomd.md.integrate.mode_standard(dt=self.dt)
         integrator = hoomd.md.integrate.nvt(group=_all, kT=shrink_kT, tau=self.tau) # shrink temp
-        integrator.randomize_velocities(seed=42)
+        integrator.randomize_velocities(seed=self.seed)
         
         # Set up shrinking box_updater:
         shrink_gsd = hoomd.dump.gsd("traj-shrink.gsd",
@@ -117,7 +119,7 @@ class Simulation():
                           overwrite=True, phase=0)
         # Run the primary simulation
         integrator.set_params(kT=kT)
-        integrator.randomize_velocities(seed=42)
+        integrator.randomize_velocities(seed=self.seed)
         hoomd.run(n_steps+shrink_steps)
 
 
@@ -142,7 +144,7 @@ class Simulation():
         _all = hoomd.group.all()
         hoomd.md.integrate.mode_standard(dt=self.dt)
         integrator = hoomd.md.integrate.nvt(group=_all, kT=shrink_kT, tau=self.tau) # shrink temp
-        integrator.randomize_velocities(seed=42)
+        integrator.randomize_velocities(seed=self.seed)
         
         # Set up shrinking box_updater:
         shrink_gsd = hoomd.dump.gsd("traj-shrink.gsd",
@@ -173,7 +175,7 @@ class Simulation():
             n_steps = schedule[kT]
             print('Running for {} steps'.format(n_steps))
             integrator.set_params(kT=kT)
-            integrator.randomize_velocities(seed=42)
+            integrator.randomize_velocities(seed=self.seed)
             hoomd.run(last_time_step + n_steps)
             last_time_step += n_steps
             print()
@@ -189,7 +191,8 @@ class System():
                  forcefield=None,
                  pdi=None,
                  M_n=None,
-                 remove_hydrogens=False
+                 remove_hydrogens=False,
+                 seed=24
                 ):
         self.molecule = molecule
         self.para_weight = para_weight
@@ -198,6 +201,7 @@ class System():
         self.remove_hydrogens = remove_hydrogens
         self.pdi = pdi
         self.forcefield = forcefield
+        self.seed = seed
         self.system_mass = 0
         self.para = 0 # keep track for now to check things are working, maybe keep?
         self.meta = 0
@@ -233,7 +237,7 @@ class System():
         for _length, _n in zip(self.polymer_lengths, self.n_compounds):
             for i in range(_n):
                 polymer, sequence = build_molecule(self.molecule, _length,
-                                        self.para_weight)
+                                        self.para_weight, self.seed)
 
                 mb_compounds.append(polymer)
                 self.para += sequence.count('para')
@@ -280,7 +284,7 @@ class System():
         return L
 
 
-def build_molecule(molecule, length, para_weight):
+def build_molecule(molecule, length, para_weight, seed):
     '''
     `build_molecule` uses SMILES strings to build up a polymer from monomers.
     The configuration of each monomer is determined by para_weight and the
@@ -310,7 +314,7 @@ def build_molecule(molecule, length, para_weight):
     f = open('{}/{}.json'.format(COMPOUND_DIR, molecule))
     mol_dict = json.load(f)
     f.close()
-    monomer_sequence = random_sequence(para_weight, length)
+    monomer_sequence = random_sequence(para_weight, length, seed)
     molecule_string = '{}'
 
     for idx, config in enumerate(monomer_sequence):
@@ -336,7 +340,7 @@ def build_molecule(molecule, length, para_weight):
     return compound, monomer_sequence
 
 
-def random_sequence(para_weight, length):
+def random_sequence(para_weight, length, seed):
     '''
     random_sequence returns a list containing a random sequence of strings 'para' and 'meta'.
     This is used by build_molecule() to create a complete SMILES string of a molecule.
@@ -353,5 +357,6 @@ def random_sequence(para_weight, length):
     meta_weight = 1 - para_weight
     options = ['para', 'meta']
     probability = [para_weight, meta_weight]
+    random.seed(seed)
     sequence = random.choices(options, weights=probability, k=length)
     return sequence
