@@ -233,11 +233,12 @@ class System():
             self.system_pmd = self._type_system() # parmed object after applying FF
 
     def _pack(self, box_expand_factor=5):
+        random.seed(self.seed)
         mb_compounds = []
         for _length, _n in zip(self.polymer_lengths, self.n_compounds):
             for i in range(_n):
                 polymer, sequence = build_molecule(self.molecule, _length,
-                                        self.para_weight, self.seed)
+                                        self.para_weight)
 
                 mb_compounds.append(polymer)
                 self.para += sequence.count('para')
@@ -284,7 +285,7 @@ class System():
         return L
 
 
-def build_molecule(molecule, length, para_weight, seed):
+def build_molecule(molecule, length, para_weight):
     '''
     `build_molecule` uses SMILES strings to build up a polymer from monomers.
     The configuration of each monomer is determined by para_weight and the
@@ -340,7 +341,7 @@ def build_molecule(molecule, length, para_weight, seed):
     return compound, monomer_sequence
 
 
-def random_sequence(para_weight, length, seed):
+def random_sequence(para_weight, length):
     '''
     random_sequence returns a list containing a random sequence of strings 'para' and 'meta'.
     This is used by build_molecule() to create a complete SMILES string of a molecule.
@@ -357,6 +358,5 @@ def random_sequence(para_weight, length, seed):
     meta_weight = 1 - para_weight
     options = ['para', 'meta']
     probability = [para_weight, meta_weight]
-    random.seed(seed)
     sequence = random.choices(options, weights=probability, k=length)
     return sequence
