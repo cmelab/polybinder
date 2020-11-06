@@ -318,7 +318,7 @@ def build_molecule(molecule, length, para_weight):
     f = open('{}/{}.json'.format(COMPOUND_DIR, molecule))
     mol_dict = json.load(f)
     f.close()
-    monomer_sequence = random_sequence(para_weight, length, seed)
+    monomer_sequence = random_sequence(para_weight, length)
     molecule_string = '{}'
 
     for idx, config in enumerate(monomer_sequence):
