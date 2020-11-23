@@ -27,7 +27,8 @@ class Simulation():
                  ref_units = None,
                  mode = "gpu",
                  gsd_write = 1e4,
-                 log_write = 1e3
+                 log_write = 1e3,
+                 seed = 42
                  ):
 
         self.system = system
@@ -41,6 +42,7 @@ class Simulation():
         self.mode = mode
         self.gsd_write = gsd_write
         self.log_write = log_write
+        self.seed = seed
 
         if ref_units and not auto_scale:
             self.ref_energy = ref_units['energy']
@@ -86,7 +88,7 @@ class Simulation():
         _all = hoomd.group.all()
         hoomd.md.integrate.mode_standard(dt=self.dt)
         integrator = hoomd.md.integrate.nvt(group=_all, kT=shrink_kT, tau=self.tau) # shrink temp
-        integrator.randomize_velocities(seed=42)
+        integrator.randomize_velocities(seed=self.seed)
         
         # Set up shrinking box_updater:
         shrink_gsd = hoomd.dump.gsd("traj-shrink.gsd",
@@ -117,7 +119,7 @@ class Simulation():
                           overwrite=True, phase=0)
         # Run the primary simulation
         integrator.set_params(kT=kT)
-        integrator.randomize_velocities(seed=42)
+        integrator.randomize_velocities(seed=self.seed)
         hoomd.run(n_steps+shrink_steps)
 
 
@@ -142,7 +144,7 @@ class Simulation():
         _all = hoomd.group.all()
         hoomd.md.integrate.mode_standard(dt=self.dt)
         integrator = hoomd.md.integrate.nvt(group=_all, kT=shrink_kT, tau=self.tau) # shrink temp
-        integrator.randomize_velocities(seed=42)
+        integrator.randomize_velocities(seed=self.seed)
         
         # Set up shrinking box_updater:
         shrink_gsd = hoomd.dump.gsd("traj-shrink.gsd",
@@ -173,7 +175,7 @@ class Simulation():
             n_steps = schedule[kT]
             print('Running for {} steps'.format(n_steps))
             integrator.set_params(kT=kT)
-            integrator.randomize_velocities(seed=42)
+            integrator.randomize_velocities(seed=self.seed)
             hoomd.run(last_time_step + n_steps)
             last_time_step += n_steps
             print()
@@ -189,7 +191,9 @@ class System():
                  forcefield=None,
                  pdi=None,
                  M_n=None,
-                 remove_hydrogens=False
+                 remove_hydrogens=False,
+                 assert_dihedrals=True,
+                 seed=24
                 ):
         self.molecule = molecule
         self.para_weight = para_weight
@@ -198,6 +202,8 @@ class System():
         self.remove_hydrogens = remove_hydrogens
         self.pdi = pdi
         self.forcefield = forcefield
+        self.assert_dihedral = assert_dihedrals
+        self.seed = seed
         self.system_mass = 0
         self.para = 0 # keep track for now to check things are working, maybe keep?
         self.meta = 0
@@ -229,6 +235,7 @@ class System():
             self.system_pmd = self._type_system() # parmed object after applying FF
 
     def _pack(self, box_expand_factor=5):
+        random.seed(self.seed)
         mb_compounds = []
         for _length, _n in zip(self.polymer_lengths, self.n_compounds):
             for i in range(_n):
@@ -260,7 +267,8 @@ class System():
         elif self.forcefield == 'opls':
             forcefield = foyer.Forcefield(name='oplsaa')
 
-        typed_system = forcefield.apply(self.system_mb)
+        typed_system = forcefield.apply(self.system_mb,
+                                        assert_dihedral_params=self.assert_dihedral)
         if self.remove_hydrogens: # not sure how to do this with Parmed yet
             removed_hydrogen_count = 0 # subtract from self.mass
             pass
@@ -316,6 +324,8 @@ def build_molecule(molecule, length, para_weight):
     for idx, config in enumerate(monomer_sequence):
         if idx == 0: # append template, but not brackets
             monomer_string = mol_dict['{}_template'.format(config)]
+            if molecule == 'PEEK': # Change oxygen type on the terminal end of the polymer; needs its hydrogen.
+                monomer_string = "O"+monomer_string[1:]
             molecule_string = molecule_string.format(monomer_string)
             if len(monomer_sequence) == 1:
                 molecule_string = molecule_string.replace('{}', '')
