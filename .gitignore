@@ -1,3 +1,4 @@
+*.svg
 .ipynb_checkpoints/
 **/__pycache__/
 **/trajectories
