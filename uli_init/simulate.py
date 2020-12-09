@@ -270,8 +270,7 @@ class System():
         typed_system = forcefield.apply(self.system_mb,
                                         assert_dihedral_params=self.assert_dihedral)
         if self.remove_hydrogens: # not sure how to do this with Parmed yet
-            removed_hydrogen_count = 0 # subtract from self.mass
-            pass
+            typed_system.strip([a.atomic_number == 1 for a in typed_system.atoms])
         return typed_system
 
 
