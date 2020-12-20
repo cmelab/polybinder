@@ -2,25 +2,16 @@ name: uli
 channels:
   - conda-forge
   - omnia
-  - mosdef
 dependencies:
   - python=3.7
   - pip
+  - mbuild 
+  - foyer
   - numpy
   - scipy
-  - packmol>=1!18.013
-  - oset
-  - parmed
-  - networkx
   - matplotlib
-  - openbabel
-  - foyer
   - gsd
   - py3dmol
   - deepsmiles
-  - ele
   - signac
   - signac-flow
-  - pip:
-    - "--editable=git+git@github.com:rsdefever/GAFF-foyer.git#egg=GAFF-foyer-master"
-    - "--editable=git+git@github.com:chrisjonesBSU/mbuild.git@bsu-uli#egg=mbuild-bsu-uli"
