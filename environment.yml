@@ -4,7 +4,7 @@ channels:
   - omnia
 dependencies:
   - python=3.7
-  - pip=19.3
+  - pip
   - mbuild 
   - foyer
   - numpy
@@ -15,5 +15,3 @@ dependencies:
   - deepsmiles
   - signac
   - signac-flow
-  - pip:
-    - "--editable=git+git@github.com:rsdefever/GAFF-foyer.git#egg=GAFF-foyer-master"
