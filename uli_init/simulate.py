@@ -12,7 +12,6 @@ from foyer import Forcefield
 import ele
 import operator
 from collections import namedtuple
-import matplotlib.pyplot as plt
 import scipy.optimize
 from scipy.special import gamma
 
@@ -124,7 +123,7 @@ class Simulation():
         # Run the primary simulation
         integrator.set_params(kT=kT)
         integrator.randomize_velocities(seed=self.seed)
-        hoomd.run(n_steps+shrink_steps)
+        hoomd.run(n_steps)
 
 
     def anneal(self,
@@ -271,6 +270,7 @@ class System():
         self.system_mb = self._pack() # mBuild object before applying FF
         if self.forcefield:
             self.system_pmd = self._type_system() # parmed object after applying FF
+            self.system_pmd.save('init.pdb', overwrite=True)
         
     def _weibull_k_expression(self, x):
         return (2. * x * gamma(2./x)) / gamma(1./x)**2 - (self.Mw / self.Mn)
@@ -333,9 +333,8 @@ class System():
         
         typed_system = forcefield.apply(self.system_mb,
                                        assert_dihedral_params=self.assert_dihedrals)
-        if self.remove_hydrogens: # not sure how to do this with Parmed yet
-            removed_hydrogen_count = 0 # subtract from self.mass
-            pass    
+        if self.remove_hydrogens:
+            typed_system.strip([a.atomic_number == 1 for a in typed_system.atoms])
         return typed_system
     
     def _calculate_L(self):
