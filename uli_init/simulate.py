@@ -12,6 +12,9 @@ from foyer import Forcefield
 import ele
 import operator
 from collections import namedtuple
+import scipy.optimize
+from scipy.special import gamma
+
 units = base_units.base_units()
 
 
@@ -120,7 +123,7 @@ class Simulation():
         # Run the primary simulation
         integrator.set_params(kT=kT)
         integrator.randomize_velocities(seed=self.seed)
-        hoomd.run(n_steps+shrink_steps)
+        hoomd.run(n_steps)
 
 
     def anneal(self,
@@ -182,6 +185,7 @@ class Simulation():
 
 
 class System():
+    
     def __init__(self,
                  molecule,
                  para_weight,
@@ -189,8 +193,12 @@ class System():
                  n_compounds=None,
                  polymer_lengths=None,
                  forcefield=None,
+                 epsilon=1e-7,
+                 sample_pdi=False,
                  pdi=None,
-                 M_n=None,
+                 Mn=None,
+                 Mw=None,
+                 mass_dist_type='weibull',
                  remove_hydrogens=False,
                  assert_dihedrals=True,
                  seed=24
@@ -200,21 +208,51 @@ class System():
         self.density = density
         self.target_L = None
         self.remove_hydrogens = remove_hydrogens
-        self.pdi = pdi
+        self.epsilon = epsilon
         self.forcefield = forcefield
-        self.assert_dihedral = assert_dihedrals
+        self.assert_dihedrals = assert_dihedrals
         self.seed = seed
         self.system_mass = 0
         self.para = 0 # keep track for now to check things are working, maybe keep?
         self.meta = 0
-
-        if self.pdi:
-            pass
-            '''
-            Here, call a function that samples from some distribution
-            pass in pdi, n_compounds, M_n?
-            self.polymer_lengths and self.n_compounds defined from that function
-            '''
+        
+        if sample_pdi:
+            if isinstance(n_compounds, int):
+                self.n_compounds = n_compounds
+            elif isinstance(n_compounds, list) and len(n_compounds) == 1:
+                self.n_compounds = n_compounds[0]
+            elif isinstance(n_compounds, list) and len(n_compounds) != 1:
+                raise TypeError('n_compounds should be of length 1 when sample_pdi is True.')
+            pdi_arg_sum = sum([x is not None for x in [pdi, Mn, Mw]])
+            assert pdi_arg_sum >= 2, 'At least two of [pdi, Mn, Mw] must be given.'
+            if pdi_arg_sum == 3:
+                #special case, make sure that pdi = Mw / Mn
+                assert abs(pdi - (Mw/Mn)) < self.epsilon, 'PDI value does not match Mn and Mw values.'
+            else:
+                # need to recover one of Mw or Mn or pdi
+                if Mn is None:
+                    Mn = Mw / pdi
+                if Mw is None:
+                    Mw = pdi * Mn
+                if pdi is None:
+                    pdi = Mw / Mn
+            self.Mn = Mn
+            self.Mw = Mw
+            self.pdi = pdi
+                    
+            # this returns a numpy.random callable set up with recovered parameters
+            mass_distribution_dict = self._recover_mass_dist(mass_dist_type)
+            self.mass_sampler = mass_distribution_dict['sampler']
+            self.mass_distribution = mass_distribution_dict['functional_form']
+            # TODO: make sure we don't sample any negative weights
+            samples = np.round(self.mass_sampler(n_compounds)
+                              ).astype(int)
+            # get all unique lengths in increasing order
+            self.polymer_lengths = sorted(list(set(samples)))
+            # get count of each length
+            self.n_compounds = [list(samples).count(x) for x in self.polymer_lengths]
+            print(f'polymer_lengths: {self.polymer_lengths}, n_compounds: {self.n_compounds}')
+            
         else: # Do some validation, get things in the correct data types
             if not isinstance(n_compounds, list):
                 self.n_compounds = [n_compounds]
@@ -225,15 +263,41 @@ class System():
                 self.polymer_lengths = [polymer_lengths]
             else:
                 self.polymer_lengths = polymer_lengths
-
+        
         if len(self.n_compounds) != len(self.polymer_lengths):
             raise ValueError('n_compounds and polymer_lengths should be equal length')
-
+        
         self.system_mb = self._pack() # mBuild object before applying FF
         self.system_mb.save('init.pdb', overwrite=True)
         if self.forcefield:
             self.system_pmd = self._type_system() # parmed object after applying FF
-
+            self.system_pmd.save('init.pdb', overwrite=True)
+        
+    def _weibull_k_expression(self, x):
+        return (2. * x * gamma(2./x)) / gamma(1./x)**2 - (self.Mw / self.Mn)
+    
+    def _weibull_lambda_expression(self, k):
+        return self.Mn * k / gamma(1./k)
+    
+    def _recover_mass_dist(self, distribution='Gaussian'):
+        '''This function takes in two of the three quantities [Mn, Mw, PDI],
+           and fits either a Gaussian or Weibull distribution of molar masses to them.'''
+        if distribution.lower() != 'gaussian' and distribution.lower() != 'weibull':
+            raise(ValueError('Molar mass distribution must be either "gaussian" or "weibull".'))
+        if distribution.lower() == 'gaussian':
+            mean = self.Mn
+            sigma = self.Mn * (self.Mw - self.Mn)
+            return {'sampler': lambda N: np.random.normal(loc=mean, scale=sigma, size=N),
+                    'functional_form': lambda x: np.exp(-(x-Mn)**2 / (2. * sigma))}
+        elif distribution.lower() == 'weibull':
+            # get the shape parameter
+            a = scipy.optimize.root(self._weibull_k_expression, x0=1.)
+            recovered_k = a['x']
+            # get the scale parameter
+            recovered_lambda = self._weibull_lambda_expression(recovered_k)
+            return {'sampler': lambda N: recovered_lambda * np.random.weibull(recovered_k, size=N),
+                    'functional_form': lambda x: recovered_k / recovered_lambda * (x / recovered_lambda) ** (recovered_k - 1) * np.exp(- (x / recovered_lambda) ** recovered_k)}
+        
     def _pack(self, box_expand_factor=5):
         random.seed(self.seed)
         mb_compounds = []
@@ -246,8 +310,8 @@ class System():
                 self.para += sequence.count('para')
                 self.meta += sequence.count('meta')
             mass = _n * np.sum(ele.element_from_symbol(p.name).mass for p in polymer.particles())
-            self.system_mass += mass
-
+            self.system_mass += mass # amu
+        
         # Figure out correct box dimensions and expand the box to make the PACKMOL step faster
         # Will shrink down to accurate L during simulation
         L = self._calculate_L() * box_expand_factor
@@ -255,25 +319,25 @@ class System():
             compound = mb_compounds,
             n_compounds = [1 for i in mb_compounds],
             box=[L, L, L],
-            edge=1,
+            overlap=0.2,
+            edge=0.9,
             fix_orientation=True)
         system.Box = mb.box.Box([L, L, L])
         return system
-
-
+    
+    
     def _type_system(self):
         if self.forcefield == 'gaff':
             forcefield = foyer.forcefields.load_GAFF()
         elif self.forcefield == 'opls':
             forcefield = foyer.Forcefield(name='oplsaa')
-
+        
         typed_system = forcefield.apply(self.system_mb,
-                                        assert_dihedral_params=self.assert_dihedral)
-        if self.remove_hydrogens: # not sure how to do this with Parmed yet
+                                       assert_dihedral_params=self.assert_dihedrals)
+        if self.remove_hydrogens:
             typed_system.strip([a.atomic_number == 1 for a in typed_system.atoms])
         return typed_system
-
-
+    
     def _calculate_L(self):
         '''
         Calcualte the box length needed for entered density
@@ -283,8 +347,9 @@ class System():
         M = self.system_mass * units["amu_to_g"] # grams
         L = (M / self.density)**(1/3) # centimeters
         L *= units['cm_to_nm'] # convert cm to nm
-        self.target_L = L
+        self.target_L = L # Used during shrink step
         return L
+
 
 
 def build_molecule(molecule, length, para_weight):
