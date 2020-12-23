@@ -4,6 +4,7 @@ import random
 import numpy as np
 from uli_init.utils import smiles_utils, polysmiles, base_units
 from uli_init.compounds import COMPOUND_DIR
+from uli_init.forcefields import FF_DIR
 import hoomd
 import mbuild as mb
 from mbuild.formats.hoomd_simulation import create_hoomd_simulation
@@ -334,7 +335,9 @@ class System():
     
     def _type_system(self):
         if self.forcefield == 'gaff':
-            forcefield = foyer.forcefields.load_GAFF()
+            #forcefield = foyer.forcefields.load_GAFF()
+            ff_path = '{}/gaff.xml'.format(FF_DIR)
+            forcefield = foyer.Forcefield(forcefield_files = ff_path)
         elif self.forcefield == 'opls':
             forcefield = foyer.Forcefield(name='oplsaa')
         
