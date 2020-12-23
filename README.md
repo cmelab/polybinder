@@ -34,14 +34,6 @@ To configure hoomd to run on GPUs, following the installation instructions found
 pip install -e .
 ```
 
-### 5. Install the GAFF-Foyer repository ###
-```
-cd path-to-your-repos
-git clone git@github.com:rsdefever/GAFF-foyer.git
-cd  GAFF-foyer
-pip install -e .
-```
-
 ## Basic Usage
 
 So far, essentially all of the functionality lives in the `simulate.py` file
