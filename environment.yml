@@ -15,3 +15,4 @@ dependencies:
   - deepsmiles
   - signac
   - signac-flow
+  - pytest
