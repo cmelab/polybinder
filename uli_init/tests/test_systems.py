@@ -41,13 +41,21 @@ class TestSystems(BaseTest):
     def test_remove_hydrogens(self):
         simple_system = simulate.System(molecule='PEEK', para_weight=0.60,
                                density=1, n_compounds=[1], polymer_lengths=[2],
-                               forcefield=None, assert_dihedrals=False, remove_hydrogens=True)
+                               forcefield='gaff', assert_dihedrals=False, remove_hydrogens=True)
+        # mbuild Compound object (does not have H removed)
+        pre_remove_h = simple_system.system_mb
+        # parmed AtomList object after removing H
+        post_remove_h = simple_system.system_pmd
+        # make sure the atom count changed
+        assert(pre_remove_h.n_particles > len(post_remove_h.atoms))
+        # make sure there are actually zero H atoms
+        assert(sum([int(item.type == 'H') for item in post_remove_h.atoms]) == 0)
 
     # test our dihedral checking
-    def test_test_dihedrals(self):
+    def test_dihedrals(self):
         simple_system = simulate.System(molecule='PEEK', para_weight=0.60,
                                density=1, n_compounds=[1], polymer_lengths=[2],
-                               forcefield=None, assert_dihedrals=True, remove_hydrogens=False)
+                               forcefield='gaff', assert_dihedrals=True, remove_hydrogens=False)
 
     # make sure we can handle several compounds of several lengths
     def test_multiple_compounds(self):
@@ -94,12 +102,9 @@ class TestSystems(BaseTest):
     def test_gauss_dist(self):
         random.seed(42)
         simple_system = simulate.System(molecule='PEEK', para_weight=0.60,
-                            density=1, n_compounds=3, sample_pdi=True, pdi=1.001, Mn=50.,
+                            density=1, n_compounds=3, sample_pdi=True, pdi=1.001, Mn=30.,
                             forcefield=None, assert_dihedrals=False, remove_hydrogens=False,
                             mass_dist_type='gaussian')
-
-    def test_gaff(self):
-        pass
 
     def test_opls(self):
         pass
