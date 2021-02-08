@@ -169,7 +169,7 @@ class TrajModel(htf.SimModel):
         return mapped_pos, cg_graph, box, box_size
 nneighbor_cutoff = 32
 model = TrajModel(nneighbor_cutoff,
-                 cg_num=M * 12,
+                 cg_num=12,
                  adjacency_matrix=adjacency_matrix,
                  CG_NN=nneighbor_cutoff,
                  cg_mapping=cg_mapping,
