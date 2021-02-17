@@ -14,8 +14,11 @@ import matplotlib.pyplot as plt
 
 # building a HTF model for coarse graining
 # here use the single-molecule file for simplicity
-# TODO: update to get one molecule from a .gsd with multiple
-#       e.g. grab first entry in htf.find_molecules(system) -> do the rest
+# TODO: save out the CG Mapping to file, load it in
+# TODO: break this file up into a few scripts
+# e.g. one for making mapping, one for running from traj...
+# TODO: once saving is set, get pipeline for starting a sim fresh with uli-init
+# TODO: set up CG FF NN with all the molecule bond/angle/dihedral/LJ parameters
 fname = '1-length-4-peek-para-only.gsd'
 gsdfile = gsd.hoomd.open(fname)
 context = hoomd.context.initialize('--mode=cpu')
@@ -110,7 +113,6 @@ univ = mda.Universe(fname)
 beads_per_molecule = 12
 bonds_per_molecule = beads_per_molecule - 1 # linear polymer
 bonds_matrix = np.zeros([bonds_per_molecule * M, 2])
-#print(M)
 bonds_matrix[0][1] = 1
 offset = 0
 
@@ -127,11 +129,6 @@ for pair in bonds_matrix:
     i, j = int(pair[0]), int(pair[1])
     adjacency_matrix[i][j] = adjacency_matrix[j][i] = 1
 
-a = nx.Graph(adjacency_matrix)
-#print('cg_mapping IS THIS --> ', cg_mapping)
-#print('adjmat IS THIS --> ', adjacency_matrix)
-b = dict(nx.all_pairs_shortest_path_length(a))
-# print(b[12]) # this DOES have the key 12
 class TrajModel(htf.SimModel):
     def setup(self, cg_num, adjacency_matrix, CG_NN, cg_mapping, rcut):
         self.cg_num = cg_num
@@ -140,33 +137,65 @@ class TrajModel(htf.SimModel):
         self.cg_mapping = cg_mapping
         self.rcut = rcut
         self.avg_cg_rdf = tf.keras.metrics.MeanTensor() # set up CG RDF tracking
+
+        self.avg_cg_radii = tf.keras.metrics.MeanTensor()
+        self.avg_cg_angles = tf.keras.metrics.MeanTensor()
+        self.avg_cg_dihedrals = tf.keras.metrics.MeanTensor()
+
     def compute(self, nlist, positions, box):
         # calculate the center of mass of a CG bead
         box_size = htf.box_size(box) # [16., 16., 16.]
         mapped_pos = htf.center_of_mass(positions=positions[:,:3],
                                         mapping=self.cg_mapping, 
                                         box_size= box_size)
-        print('made it past to mapped_pos')
-        #print(self.adjacency_matrix)
-        # print(
-        #     dict(
-        #         nx.all_pairs_shortest_path_length(
-        #             nx.Graph(
-        #                 self.adjacency_matrix
-        #             )
-        #         )
-        #     ).keys()
-        # )
-        cg_graph = htf.compute_cg_graph(DSGPM=False,
+        cg_features = htf.compute_cg_graph(DSGPM=False,
                                        infile=None,
                                        adj_mat=self.adjacency_matrix,
                                        cg_beads=self.cg_num)
+
+        radii_tensor = []
+        angles_tensor = []
+        dihedrals_tensor = []
+
+        # because these are tensors, can't use list comprehension
+        for i in range(len(cg_features[0])):
+            cg_radius = htf.mol_bond_distance(CG=True,
+                                              cg_positions=mapped_pos,
+                                              b1=cg_features[0][i][0],
+                                              b2=cg_features[0][i][1]
+                                              )
+            radii_tensor.append(cg_radius)
+
+        for j in range(len(cg_features[1])):
+            cg_angle = htf.mol_angle(CG=True,
+                                     cg_positions=mapped_pos,
+                                     b1=cg_features[1][j][0],
+                                     b2=cg_features[1][j][1],
+                                     b3=cg_features[1][j][2]
+                                     )
+            angles_tensor.append(cg_angle)
+
+        for k in range(len(cg_features[2])):
+            cg_dihedral = htf.mol_dihedral(CG=True,
+                                           cg_positions=mapped_pos,
+                                           b1=cg_features[2][k][0],
+                                           b2=cg_features[2][k][1],
+                                           b3=cg_features[2][k][2],
+                                           b4=cg_features[2][k][3],
+                                           )
+            dihedrals_tensor.append(cg_dihedral)
+
+        self.avg_cg_radii.update_state(radii_tensor)
+        self.avg_cg_angles.update_state(angles_tensor)
+        self.avg_cg_dihedrals.update_state(dihedrals_tensor)
+
         # create mapped neighbor list
         mapped_nlist = htf.compute_nlist(mapped_pos, self.rcut, self.CG_NN, box_size, True)
         # compute RDF for mapped particles
         cg_rdf = htf.compute_rdf(mapped_nlist, [0.1, self.rcut])
         self.avg_cg_rdf.update_state(cg_rdf)
-        return mapped_pos, cg_graph, box, box_size
+        return mapped_pos, cg_features, box, box_size
+
 nneighbor_cutoff = 32
 model = TrajModel(nneighbor_cutoff,
                  cg_num=12,
@@ -176,10 +205,8 @@ model = TrajModel(nneighbor_cutoff,
                  output_forces=False,
                  rcut=set_rcut,
                  check_nlist=False)
-#print(adjacency_matrix)
-
-
     
+# for writing out the CG trajectory
 def make_frame(i, positions):
     s = gsd.hoomd.Snapshot()
     s.configuration.box = [16., 16., 16., 0., 0., 0.]
@@ -188,10 +215,13 @@ def make_frame(i, positions):
     s.particles.position = positions
     s.bonds.N = bonds_per_molecule * M
     s.bonds.group = bonds_matrix
-    #print(s)
     return s
 
 write_CG_traj = False
+
+avg_bond_lengths = []
+avg_bond_angles = []
+avg_dihedral_angles = []
 
 if write_CG_traj:
     print(f'Applying CG mapping to {fname}')
@@ -201,8 +231,10 @@ for inputs, ts in htf.iter_from_trajectory(nneighbor_cutoff, univ, r_cut=set_rcu
     if i % 100 == 0:
         print(f'made it to step {i:04d}', end='\r')
     result = model(inputs)
-    #print('    cg_model is: ', result[1], end='\r')
     particle_positions = np.array(result[0])
+    avg_bond_lengths.append(result[1][0])
+    avg_bond_angles.append(result[1][1])
+    avg_dihedral_angles.append(result[1][2])
     if write_CG_traj:
         f.append(make_frame(i, particle_positions))
     i+=1
@@ -215,3 +247,40 @@ plt.xlabel('r [$\AA$]')
 plt.ylabel('$g(r)$')
 plt.legend()
 plt.savefig('CG_RDF.svg')
+
+# plot average CG bond radii
+# cg_radii = model.avg_cg_radii.result().numpy()
+
+np.save('cg_radii.npy', np.array(avg_bond_lengths))
+
+# plt.figure()
+# plt.hist(np.array(avg_bond_lengths))
+# plt.xlabel('r [$\AA$]')
+# plt.ylabel('Count')
+# plt.title('CG Bond Length Histogram')
+# plt.legend()
+# plt.savefig('CG_Radii.svg')
+
+# plot average CG bond angles
+# cg_radii = model.avg_cg_angles.result().numpy()
+
+np.save('cg_angles.npy', np.array(avg_bond_angles))
+
+# plt.figure()
+# plt.plot(cg_radii[1,:], cg_radii[0,:], label='Mapped (CG)')
+# plt.xlabel('$\theta$ [Degrees(?)]')
+# plt.ylabel('$g(r)$?')
+# plt.legend()
+# plt.savefig('CG_Angles.svg')
+
+# plot average CG dihedral angles
+# cg_radii = model.avg_cg_dihedrals.result().numpy()
+
+np.save('cg_dihedrals.npy', np.array(avg_dihedral_angles))
+
+# plt.figure()
+# plt.plot(cg_radii[1,:], cg_radii[0,:], label='Mapped (CG)')
+# plt.xlabel('$\phi$ [Degrees?]')
+# plt.ylabel('$g(r)$?')
+# plt.legend()
+# plt.savefig('CG_Radii.svg')
