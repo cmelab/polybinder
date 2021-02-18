@@ -11,6 +11,7 @@ import gsd
 import gsd.hoomd
 import pickle
 import matplotlib.pyplot as plt
+import os
 
 # building a HTF model for coarse graining
 # here use the single-molecule file for simplicity
@@ -19,13 +20,24 @@ import matplotlib.pyplot as plt
 # e.g. one for making mapping, one for running from traj...
 # TODO: once saving is set, get pipeline for starting a sim fresh with uli-init
 # TODO: set up CG FF NN with all the molecule bond/angle/dihedral/LJ parameters
-fname = '1-length-4-peek-para-only.gsd'
-gsdfile = gsd.hoomd.open(fname)
-context = hoomd.context.initialize('--mode=cpu')
-system = hoomd.init.read_gsd(filename=fname)
-context.sorter.disable()
 
-molecule_mapping_index = htf.find_molecules(system)
+def get_mol_mapping_idx(filename):
+    '''Takes a filename of a .gsd file WITHOUT the '.gsd', loads that gsd,
+    then loads or creates a molecule mapping index from it.'''
+    # if the mapping doesn't exist, make it
+    gsdfile = gsd.hoomd.open(f'{filename}.gsd')
+    context = hoomd.context.initialize('--mode=cpu')
+    system = hoomd.init.read_gsd(filename=f'{filename}.gsd')
+    context.sorter.disable()
+    if not os.path.exists(f'{filename}-mapping.npy'):
+        molecule_mapping_index = htf.find_molecules(system)
+        np.save(f'{filename}-mapping.npy', np.array(molecule_mapping_index))
+    # if it does, load from it instead    
+    else:
+        molecule_mapping_index = np.load(f'{filename}-mapping.npy')
+    return system, molecule_mapping_index
+
+system, molecule_mapping_index = get_mol_mapping_idx('1-length-4-peek-para-only')
 
 graph = nx.Graph()
 # add all our particles and bonds
@@ -88,13 +100,8 @@ assert(np.sum(mapping_arr) == MN)
 
 bead_number = mapping_arr.shape[0]
 
-fname = '100-length-4-peek-para-only-production.gsd'
-gsdfile = gsd.hoomd.open(fname)
-context = hoomd.context.initialize('--mode=cpu')
-system = hoomd.init.read_gsd(filename=fname)
-context.sorter.disable()
 set_rcut = 11.0
-molecule_mapping_index = htf.find_molecules(system)
+system, molecule_mapping_index = get_mol_mapping_idx('100-length-4-peek-para-only-production')
 
 cg_mapping = htf.sparse_mapping([mapping_arr for _ in molecule_mapping_index],
                                molecule_mapping_index, system=system)
@@ -107,7 +114,7 @@ print('N_atoms:', N,'\nN_molecules:', M,'\nN_atoms_per_molecule:', MN)
 assert cg_mapping.shape == (M * bead_number, N)
 
 import MDAnalysis as mda
-univ = mda.Universe(fname)
+univ = mda.Universe('100-length-4-peek-para-only-production.gsd')
 
 # create an edge list
 beads_per_molecule = 12
@@ -165,6 +172,7 @@ class TrajModel(htf.SimModel):
                                               b2=cg_features[0][i][1]
                                               )
             radii_tensor.append(cg_radius)
+        self.avg_cg_radii.update_state(radii_tensor)
 
         for j in range(len(cg_features[1])):
             cg_angle = htf.mol_angle(CG=True,
@@ -174,6 +182,7 @@ class TrajModel(htf.SimModel):
                                      b3=cg_features[1][j][2]
                                      )
             angles_tensor.append(cg_angle)
+        self.avg_cg_angles.update_state(angles_tensor)
 
         for k in range(len(cg_features[2])):
             cg_dihedral = htf.mol_dihedral(CG=True,
@@ -184,9 +193,6 @@ class TrajModel(htf.SimModel):
                                            b4=cg_features[2][k][3],
                                            )
             dihedrals_tensor.append(cg_dihedral)
-
-        self.avg_cg_radii.update_state(radii_tensor)
-        self.avg_cg_angles.update_state(angles_tensor)
         self.avg_cg_dihedrals.update_state(dihedrals_tensor)
 
         # create mapped neighbor list
@@ -194,11 +200,11 @@ class TrajModel(htf.SimModel):
         # compute RDF for mapped particles
         cg_rdf = htf.compute_rdf(mapped_nlist, [0.1, self.rcut])
         self.avg_cg_rdf.update_state(cg_rdf)
-        return mapped_pos, cg_features, box, box_size
+        return mapped_pos, cg_features, radii_tensor, angles_tensor, dihedrals_tensor, box, box_size
 
 nneighbor_cutoff = 32
 model = TrajModel(nneighbor_cutoff,
-                 cg_num=12,
+                 cg_num=12, # beads per molecule, not total
                  adjacency_matrix=adjacency_matrix,
                  CG_NN=nneighbor_cutoff,
                  cg_mapping=cg_mapping,
@@ -226,15 +232,15 @@ avg_dihedral_angles = []
 if write_CG_traj:
     print(f'Applying CG mapping to {fname}')
     f = gsd.hoomd.open(name=f'CG_traj-{fname}', mode='wb+')
-    i = 0
+i = 0
 for inputs, ts in htf.iter_from_trajectory(nneighbor_cutoff, univ, r_cut=set_rcut):
-    if i % 100 == 0:
-        print(f'made it to step {i:04d}', end='\r')
+    if i == 100:
+        break
     result = model(inputs)
     particle_positions = np.array(result[0])
-    avg_bond_lengths.append(result[1][0])
-    avg_bond_angles.append(result[1][1])
-    avg_dihedral_angles.append(result[1][2])
+    avg_bond_lengths.append(result[2])
+    avg_bond_angles.append(result[3])
+    avg_dihedral_angles.append(result[4])
     if write_CG_traj:
         f.append(make_frame(i, particle_positions))
     i+=1
@@ -249,7 +255,8 @@ plt.legend()
 plt.savefig('CG_RDF.svg')
 
 # plot average CG bond radii
-# cg_radii = model.avg_cg_radii.result().numpy()
+cg_radii = model.avg_cg_radii.result().numpy()
+print(cg_radii.shape)
 
 np.save('cg_radii.npy', np.array(avg_bond_lengths))
 
