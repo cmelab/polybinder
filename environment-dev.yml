@@ -1,0 +1,27 @@
+name: uli-dev
+channels:
+  - conda-forge
+  - omnia
+  - mosdef
+dependencies:
+  - python=3.7
+  - pip
+  - ele
+  - garnett
+  - mdtraj
+  - networkx
+  - openbabel
+  - oset
+  - packmol
+  - parmed
+  - scipy
+  - foyer
+  - numpy
+  - scipy
+  - matplotlib
+  - gsd
+  - py3dmol
+  - deepsmiles
+  - signac
+  - signac-flow
+  - pytest
