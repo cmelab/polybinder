@@ -135,6 +135,8 @@ class Simulation():
                     walls.add_plane((snap.box.Lx/2, 0, 0), normal_vector)
                     walls.add_plane((-snap.box.Lx/2,0, 0), normal_vector2)
                     step += shrink_period 
+                    print('Finished step {} of {}'.format(step, shrink_steps))
+                    print('Shrinking is {}% complete'.format(round(step/shrink_steps, 5)))
             else:
                 hoomd.run_upto(shrink_steps)
 
