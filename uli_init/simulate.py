@@ -17,6 +17,7 @@ import operator
 from collections import namedtuple
 import scipy.optimize
 from scipy.special import gamma
+import time
 
 units = base_units.base_units()
 
@@ -128,15 +129,17 @@ class Simulation():
                 wall_force.force_coeff.set(init_snap.particles.types, sigma=1.0, epsilon=1.0, r_extrap=0)
                 
                 step = 0
+                start = time.time()
                 while step < shrink_steps:
                     hoomd.run_upto(step + shrink_period)
-                    snap = self.hoomd_system.take_snapshot()
+                    current_box = self.hoomd_system.box
                     walls.del_plane([0,1])
-                    walls.add_plane((snap.box.Lx/2, 0, 0), normal_vector)
-                    walls.add_plane((-snap.box.Lx/2,0, 0), normal_vector2)
+                    walls.add_plane((current_box.Lx/2, 0, 0), normal_vector)
+                    walls.add_plane((-current_box.Lx/2, 0, 0), normal_vector2)
                     step += shrink_period 
                     print('Finished step {} of {}'.format(step, shrink_steps))
-                    print('Shrinking is {}% complete'.format(round(step/shrink_steps, 5)))
+                    print('Shrinking is {}% complete'.format(round(step/shrink_steps, 5)*100))
+                    print('time elapsed: {}'.format(time.time() - start))
             else:
                 hoomd.run_upto(shrink_steps)
 
@@ -216,10 +219,10 @@ class Simulation():
                 step = 0
                 while step < shrink_steps:
                     hoomd.run_upto(step + shrink_period)
-                    snap = hoomd_system.take_snapshot()
+                    current_box = self.hoomd_system.box
                     walls.del_plane([0,1])
-                    walls.add_plane((snap.box.Lx/2, 0, 0), normal_vector)
-                    walls.add_plane((-snap.box.Lx/2,0, 0), normal_vector2)
+                    walls.add_plane((current_box.Lx/2, 0, 0), normal_vector)
+                    walls.add_plane((-current_box.Lx/2, 0, 0), normal_vector2)
                     step += shrink_period 
             else:
                 hoomd.run_upto(shrink_steps)
