@@ -1,4 +1,4 @@
-name: uli-dev
+name: uli-dev-test
 channels:
   - conda-forge
   - omnia
@@ -25,3 +25,5 @@ dependencies:
   - signac
   - signac-flow
   - pytest
+  - pip:
+      - git+https://github.com/chrisjonesBSU/mbuild.git@hoomd_sim

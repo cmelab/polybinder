@@ -1,11 +1,20 @@
-name: uli
+name: uli-dev-test
 channels:
   - conda-forge
   - omnia
+  - mosdef
 dependencies:
   - python=3.7
   - pip
-  - mbuild 
+  - ele
+  - garnett
+  - mdtraj
+  - networkx
+  - openbabel
+  - oset
+  - packmol
+  - parmed
+  - scipy
   - foyer
   - numpy
   - scipy
@@ -16,3 +25,5 @@ dependencies:
   - signac
   - signac-flow
   - pytest
+  - pip:
+      - git+https://github.com/chrisjonesBSU/mbuild.git@hoomd_sim
