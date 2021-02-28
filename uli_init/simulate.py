@@ -253,6 +253,52 @@ class Simulation():
                 print()
 
 
+class Interface():
+    def __init__(self,
+                slab_1,
+                slab_2=None,
+                forcefield='gaff'
+                use_signac=True
+                ):
+
+        if use_signac:
+            import signac
+
+
+    def _gsd_to_mbuild(gsd_file, ref_distance, unwrap=False):
+        element_mapping = {'oh': 'O', 'ca': 'C',
+                       'os': 'O', 'o': 'O',
+                       'c': 'C', 'ho': 'H', 'ha': 'H'
+                      }
+        u = mda.Universe(gsd_file)
+        pos_wrap = u.atoms.positions * ref_distance
+        if unwrap:
+            pos_unwrap = u.segments.unwrap() * ref_distance
+        else:
+            pos_unwrap = pos_wrap
+
+        atom_types = [atom.type for atom in u.atoms]
+        elements = [element_mapping[i] for i in atom_types]
+
+        comp = mb.Compound()
+        for pos, u_pos, element, atom_type in zip(pos_wrap, pos_unwrap,
+                                                  elements, atom_types]:
+            position = (pos[0], u_pos[1], u_pos[2])
+            child = mb.Compound(name="_{}".format(atom_type), pos=position, element=element)
+            comp.add(child)
+
+        bonds = [b.indices for b in u.bonds]
+        self._add_bonds(compound = comp, bonds = bonds)
+        return comp
+                                                
+
+
+    def _add_bonds(compound, bonds):
+        pass
+
+
+
+
 class System():
     
     def __init__(self,
