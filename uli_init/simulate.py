@@ -95,7 +95,7 @@ class Simulation():
             objs, refs = create_hoomd_simulation(self.system_pmd, self.ref_distance,
                                     self.ref_mass, self.ref_energy,
                                     self.r_cut, self.auto_scale)
-            self.hoomd_system = objs[1]
+            hoomd_system = objs[1]
             init_snap = objs[0]
             _all = hoomd.group.all()
             hoomd.md.integrate.mode_standard(dt=self.dt)
@@ -132,7 +132,7 @@ class Simulation():
                 start = time.time()
                 while step < shrink_steps:
                     hoomd.run_upto(step + shrink_period)
-                    current_box = self.hoomd_system.box
+                    current_box = hoomd_system.box
                     walls.del_plane([0,1])
                     walls.add_plane((current_box.Lx/2, 0, 0), normal_vector)
                     walls.add_plane((-current_box.Lx/2, 0, 0), normal_vector2)
@@ -219,7 +219,7 @@ class Simulation():
                 step = 0
                 while step < shrink_steps:
                     hoomd.run_upto(step + shrink_period)
-                    current_box = self.hoomd_system.box
+                    current_box = hoomd_system.box
                     walls.del_plane([0,1])
                     walls.add_plane((current_box.Lx/2, 0, 0), normal_vector)
                     walls.add_plane((-current_box.Lx/2, 0, 0), normal_vector2)
