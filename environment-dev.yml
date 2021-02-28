@@ -1,4 +1,4 @@
-name: uli
+name: uli-dev
 channels:
   - conda-forge
   - omnia

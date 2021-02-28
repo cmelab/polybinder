@@ -6,6 +6,8 @@ from uli_init.utils import smiles_utils, polysmiles, base_units
 from uli_init.compounds import COMPOUND_DIR
 from uli_init.forcefields import FF_DIR
 import hoomd
+import hoomd.md
+from hoomd.md import wall
 import mbuild as mb
 from mbuild.formats.hoomd_simulation import create_hoomd_simulation
 import foyer
@@ -15,6 +17,7 @@ import operator
 from collections import namedtuple
 import scipy.optimize
 from scipy.special import gamma
+import time
 
 units = base_units.base_units()
 
@@ -80,39 +83,68 @@ class Simulation():
         "bond_harmonic_energy",
         "angle_harmonic_energy"
         ]
-        
 
-    def quench(self, kT, n_steps, shrink_kT=10, shrink_steps=1e6):
-        '''
-        '''
+
+    def quench(self, kT, n_steps, shrink_kT=10, shrink_steps=1e6, walls=True,
+                shrink_period=10):
+        
         # Get hoomd stuff set:
         hoomd_args = f"--single-mpi --mode={self.mode}"
         sim = hoomd.context.initialize(hoomd_args)
         with sim:
-            create_hoomd_simulation(self.system_pmd, self.ref_distance,
+            objs, refs = create_hoomd_simulation(self.system_pmd, self.ref_distance,
                                     self.ref_mass, self.ref_energy,
                                     self.r_cut, self.auto_scale)
+            hoomd_system = objs[1]
+            init_snap = objs[0]
             _all = hoomd.group.all()
             hoomd.md.integrate.mode_standard(dt=self.dt)
             integrator = hoomd.md.integrate.nvt(group=_all, kT=shrink_kT, tau=self.tau) # shrink temp
             integrator.randomize_velocities(seed=self.seed)
-            
-            # Set up shrinking box_updater:
+            # Shrink Steps:
             shrink_gsd = hoomd.dump.gsd("traj-shrink.gsd",
-                           period=self.gsd_write, group=_all, phase=0, overwrite=True)
-            x_variant = hoomd.variant.linear_interp([(0, self.reduced_init_L),
-                                                     (shrink_steps, self.target_box[0]*10)])
-            y_variant = hoomd.variant.linear_interp([(0, self.reduced_init_L),
-                                                     (shrink_steps, self.target_box[1]*10)])
-            z_variant = hoomd.variant.linear_interp([(0, self.reduced_init_L),
-                                                     (shrink_steps, self.target_box[2]*10)])
-            box_updater = hoomd.update.box_resize(Lx = x_variant, Ly = y_variant, Lz = z_variant)
+                       period=self.gsd_write, group=_all, phase=0, overwrite=True)
 
-            # Run the shrink portion of simulation
-            hoomd.run_upto(shrink_steps)
+            x_variant = hoomd.variant.linear_interp([(0, init_snap.box.Lx),
+                                                     (shrink_steps, self.target_box[0]*10)])
+            y_variant = hoomd.variant.linear_interp([(0, init_snap.box.Ly),
+                                                     (shrink_steps, self.target_box[1]*10)])
+            z_variant = hoomd.variant.linear_interp([(0, init_snap.box.Lz),
+                                                     (shrink_steps, self.target_box[2]*10)])
+            box_updater = hoomd.update.box_resize(Lx = x_variant, Ly = y_variant, Lz = z_variant,
+                                                    period = shrink_period
+                                                    )
+
+            if walls:
+                wall_origin = (init_snap.box.Lx/2, 0, 0)
+                normal_vector = (-1, 0, 0)
+                wall_origin2 = (-init_snap.box.Lx/2, 0, 0)
+                normal_vector2 = (1, 0, 0)
+                walls = wall.group(
+                        wall.plane(origin=wall_origin, normal=normal_vector, inside = True),
+                        wall.plane(origin=wall_origin2, normal=normal_vector2, inside = True)
+                        )
+                
+                wall_force = wall.lj(walls, r_cut=2.5)
+                wall_force.force_coeff.set(init_snap.particles.types, sigma=1.0, epsilon=1.0, r_extrap=0)
+                
+                step = 0
+                start = time.time()
+                while step < shrink_steps:
+                    hoomd.run_upto(step + shrink_period)
+                    current_box = hoomd_system.box
+                    walls.del_plane([0,1])
+                    walls.add_plane((current_box.Lx/2, 0, 0), normal_vector)
+                    walls.add_plane((-current_box.Lx/2, 0, 0), normal_vector2)
+                    step += shrink_period 
+                    print('Finished step {} of {}'.format(step, shrink_steps))
+                    print('Shrinking is {}% complete'.format(round(step/shrink_steps, 5)*100))
+                    print('time elapsed: {}'.format(time.time() - start))
+            else:
+                hoomd.run_upto(shrink_steps)
+
             shrink_gsd.disable()
             box_updater.disable()
-
             # Set up new gsd and log dumps for actual simulation
             hoomd.dump.gsd("sim_traj.gsd",
                            period=self.gsd_write,
@@ -136,7 +168,9 @@ class Simulation():
               step_sequence=None,
               schedule=None,
               shrink_kT=10,
-              shrink_steps=1e6
+              shrink_steps=1e6,
+              shrink_period=10,
+              walls=True
               ):
 
         if not schedule:
@@ -148,9 +182,11 @@ class Simulation():
         hoomd_args = f"--single-mpi --mode={self.mode}"
         sim = hoomd.context.initialize(hoomd_args)
         with sim:
-            create_hoomd_simulation(self.system_pmd, self.ref_distance,
+            objs, refs = create_hoomd_simulation(self.system_pmd, self.ref_distance,
                                     self.ref_mass, self.ref_energy,
                                     self.r_cut, self.auto_scale)
+            hoomd_system = objs[1]
+            init_snap = objs[0]
             _all = hoomd.group.all()
             hoomd.md.integrate.mode_standard(dt=self.dt)
             integrator = hoomd.md.integrate.nvt(group=_all, kT=shrink_kT, tau=self.tau) # shrink temp
@@ -165,8 +201,32 @@ class Simulation():
                                                      (shrink_steps, self.target_box[1]*10)])
             z_variant = hoomd.variant.linear_interp([(0, self.reduced_init_L),
                                                      (shrink_steps, self.target_box[2]*10)])
-            box_updater = hoomd.update.box_resize(Lx = x_variant, Ly = y_variant, Lz = z_variant)
-            hoomd.run_upto(shrink_steps)
+            box_updater = hoomd.update.box_resize(Lx = x_variant, Ly = y_variant, Lz = z_variant,
+                                                    period=shrink_period)
+            if walls:
+                wall_origin = (init_snap.box.Lx/2, 0, 0)
+                normal_vector = (-1, 0, 0)
+                wall_origin2 = (-init_snap.box.Lx/2, 0, 0)
+                normal_vector2 = (1, 0, 0)
+                walls = wall.group(
+                        wall.plane(origin=wall_origin, normal=normal_vector, inside = True),
+                        wall.plane(origin=wall_origin2, normal=normal_vector2, inside = True)
+                        )
+                
+                wall_force = wall.lj(walls, r_cut=2.5)
+                wall_force.force_coeff.set(init_snap.particles.types, sigma=1.0, epsilon=1.0, r_extrap=0)
+                
+                step = 0
+                while step < shrink_steps:
+                    hoomd.run_upto(step + shrink_period)
+                    current_box = hoomd_system.box
+                    walls.del_plane([0,1])
+                    walls.add_plane((current_box.Lx/2, 0, 0), normal_vector)
+                    walls.add_plane((-current_box.Lx/2, 0, 0), normal_vector2)
+                    step += shrink_period 
+            else:
+                hoomd.run_upto(shrink_steps)
+            
             shrink_gsd.disable()
             box_updater.disable()
 
