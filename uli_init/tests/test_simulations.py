@@ -45,3 +45,9 @@ class TestSimulate(BaseTest):
     def test_slabs_quench(self, test_slab):
         simulation = simulate.Simulation(test_slab, dt = 0.0001, mode='cpu')
         simulation.quench(kT=2, n_steps=1e3, walls=True)
+
+    def test_slabs_anneal(self, test_slab):
+        simulation = simulate.Simulation(test_slab, dt = 0.0001, mode='cpu')
+        simulation.anneal(kT_init=4, kT_final=2,
+                          step_sequence = [1e3, 1e3, 1e3],
+                          walls=True)
