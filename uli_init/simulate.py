@@ -257,15 +257,52 @@ class Interface():
     def __init__(self,
                 slab_1,
                 slab_2=None,
+                ref_distance=None,
+                gap=0.05
                 forcefield='gaff'
-                use_signac=True
+                use_signac=True,
+                signac_args=None
                 ):
+
+        self.gap = gap
+        self.forcefield = forcefield
 
         if use_signac:
             import signac
 
+            if isinstance(signac_args, dict):
+                # Find job using state point dict
+                pass
+            if isinstance(signac_args, str):
+                # Find job using str of job id
+                pass
+        else:
+            self.slab_1 = slab_1
+            if not slab_2:
+                self.slab_2 = slab_1
+        
+        interface = mb.Compound()
+        _slab_1 = self._gsd_to_mbuild(self, self.slab_1, self.ref_distance)
+        _slab_2 = self._gsd_to_mbuild(self, self.slab_2, self.ref_distance)
+        interface.add(new_child = _slab_1, label='left')
+        interface.add(new_child = _slab_2, label='right')
+        x_len = interface.boundingbox.lengths[0]
+        interface['left'].translate((-x_len - gap), 0, 0)
 
-    def _gsd_to_mbuild(gsd_file, ref_distance, unwrap=False):
+        interface.box = mb.box.Box(mins = (0,0,0), maxs = interface.boundingbox.lengths)
+        interface.box.maxs[0] += 2 * self.ref_distance * 1.12246 # shift xlen by 2^(1/6) sigma
+        interface.translate_to(     # Center in the adjusted box
+                    [interface.box.maxs[0] / 2,
+                     interface.box.maxs[1] / 2,
+                     interface.box.maxs[2] / 2]
+                    )
+
+
+
+
+
+
+    def _gsd_to_mbuild(self, gsd_file, ref_distance, unwrap=False):
         element_mapping = {'oh': 'O', 'ca': 'C',
                        'os': 'O', 'o': 'O',
                        'c': 'C', 'ho': 'H', 'ha': 'H'
@@ -294,8 +331,14 @@ class Interface():
 
 
     def _add_bonds(compound, bonds):
-        pass
-
+        particle_dict = {}
+        for idx, particle in enumerate(compound.particles()):
+            particle_dict[idx] = particle
+            
+        for bond in bonds:
+            atom1 = particle_dict[int(bond[0])]
+            atom2 = particle_dict[int(bond[1])]
+            compound.add_bond(particle_pair=[atom1, atom2])
 
 
 
