@@ -41,3 +41,7 @@ class TestSimulate(BaseTest):
                         shrink_steps=1e3,
                         shrink_period=20,
                         walls=True)
+
+    def test_slabs_quench(self, test_slab):
+        simulation = simulate.Simulation(test_slab, dt = 0.0001, mode='cpu')
+        simulation.quench(kT=2, n_steps=1e3, walls=True)

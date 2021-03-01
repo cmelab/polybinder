@@ -9,6 +9,7 @@ import hoomd
 import hoomd.md
 from hoomd.md import wall
 import mbuild as mb
+import MDAnalysis as mda
 from mbuild.formats.hoomd_simulation import create_hoomd_simulation
 import foyer
 from foyer import Forcefield
@@ -86,8 +87,8 @@ class Simulation():
         ]
 
 
-    def quench(self, kT, n_steps, shrink_kT, shrink_steps, 
-                shrink_period, walls=True):
+    def quench(self, kT, n_steps, shrink_kT=None, shrink_steps=None, 
+                shrink_period=None, walls=True):
         """
         """
         hoomd_args = f"--single-mpi --mode={self.mode}"
@@ -100,6 +101,8 @@ class Simulation():
             init_snap = objs[0]
             _all = hoomd.group.all()
             hoomd.md.integrate.mode_standard(dt=self.dt)
+            integrator = hoomd.md.integrate.nvt(group=_all, kT=kT, tau=self.tau)
+            integrator.randomize_velocities(seed=self.seed)
 
             if walls: # LJ walls set on each side along x-axis
                 wall_origin = (init_snap.box.Lx/2, 0, 0)
@@ -127,7 +130,7 @@ class Simulation():
                                                         period = shrink_period
                                                         )
 
-                integrator = hoomd.md.integrate.nvt(group=_all, kT=shrink_kT, tau=self.tau) # shrink temp
+                integrator.set_params(kT=shrink_kT) # shrink temp
                 integrator.randomize_velocities(seed=self.seed)
 
                 if walls: # Update wall origins during shrinking
@@ -192,7 +195,9 @@ class Simulation():
             init_snap = objs[0]
             _all = hoomd.group.all()
             hoomd.md.integrate.mode_standard(dt=self.dt)
-
+            integrator = hoomd.md.integrate.nvt(group=_all, kT=kT_init, tau=self.tau)
+            integrator.randomize_velocities(seed=self.seed)
+            
             if walls:
                 wall_origin = (init_snap.box.Lx/2, 0, 0)
                 normal_vector = (-1, 0, 0)
@@ -218,8 +223,8 @@ class Simulation():
                                                          (shrink_steps, self.target_box[2]*10)])
                 box_updater = hoomd.update.box_resize(Lx = x_variant, Ly = y_variant, Lz = z_variant,
                                                         period=shrink_period)
-
-                integrator = hoomd.md.integrate.nvt(group=_all, kT=shrink_kT, tau=self.tau) # shrink temp
+                
+                integrator.set_params(kT=shrink_kT) # shrink temp
                 integrator.randomize_velocities(seed=self.seed)
 
                 if walls:  
@@ -233,10 +238,8 @@ class Simulation():
                         step += shrink_period 
                 else:
                     hoomd.run_upto(shrink_steps)
-            
                 shrink_gsd.disable()
                 box_updater.disable()
-
             # Set up new log and gsd files for simulation:
             hoomd.dump.gsd("sim_traj.gsd",
                            period=self.gsd_write,
@@ -258,15 +261,13 @@ class Simulation():
                 hoomd.run(n_steps)
                 print()
 
-    def weld(self):
-        pass
 
 class Interface():
     def __init__(self,
                 slab_1,
                 slab_2=None,
                 ref_distance=None,
-                gap=0.05,
+                gap=0.1,
                 forcefield='gaff',
                 use_signac=True,
                 signac_args=None
@@ -286,19 +287,24 @@ class Interface():
                 pass
         else:
             self.slab_1 = slab_1
+            self.ref_distance = ref_distance
             if not slab_2:
                 self.slab_2 = slab_1
+            else:
+                self.slab_2 = slab_2
         
         interface = mb.Compound()
-        _slab_1 = self._gsd_to_mbuild(self, self.slab_1, self.ref_distance)
-        _slab_2 = self._gsd_to_mbuild(self, self.slab_2, self.ref_distance)
+        _slab_1 = self._gsd_to_mbuild(self.slab_1, self.ref_distance)
+        _slab_2 = self._gsd_to_mbuild(self.slab_2, self.ref_distance)
         interface.add(new_child = _slab_1, label='left')
         interface.add(new_child = _slab_2, label='right')
         x_len = interface.boundingbox.lengths[0]
-        interface['left'].translate((-x_len - gap), 0, 0)
-
-        interface.box = mb.box.Box(mins = (0,0,0), maxs = interface.boundingbox.lengths)
-        interface.box.maxs[0] += 2 * self.ref_distance * 1.12246 # shift xlen by 2^(1/6) sigma
+        interface['left'].translate((-x_len - gap, 0, 0))
+        
+        system_box = mb.box.Box(mins=(0,0,0),
+                                maxs = interface.boundingbox.lengths)
+        system_box.maxs[0] += 2 * self.ref_distance * 1.12246
+        interface.box = system_box
         interface.translate_to(     # Center in the adjusted box
                     [interface.box.maxs[0] / 2,
                      interface.box.maxs[1] / 2,
@@ -315,6 +321,7 @@ class Interface():
                        'os': 'O', 'o': 'O',
                        'c': 'C', 'ho': 'H', 'ha': 'H'
                       }
+
         u = mda.Universe(gsd_file)
         pos_wrap = u.atoms.positions * ref_distance
         if unwrap:
@@ -336,7 +343,7 @@ class Interface():
         self._add_bonds(compound = comp, bonds = bonds)
         return comp
 
-    def _add_bonds(compound, bonds):
+    def _add_bonds(self, compound, bonds):
         particle_dict = {}
         for idx, particle in enumerate(compound.particles()):
             particle_dict[idx] = particle
