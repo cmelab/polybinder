@@ -269,7 +269,6 @@ class Interface():
                 gap=0.1,
                 forcefield='gaff',
                 ):
-
         self.forcefield = forcefield
         self.type = 'interface'
         self.ref_distance = ref_distance
