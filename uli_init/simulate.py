@@ -264,46 +264,57 @@ class Simulation():
 
 class Interface():
     def __init__(self,
-                slab_1,
-                slab_2=None,
+                slabs,
                 ref_distance=None,
                 gap=0.1,
                 forcefield='gaff',
                 use_signac=True,
-                signac_args=None
+                signac_project=None
                 ):
 
-        self.gap = gap
         self.forcefield = forcefield
         self.type = 'interface'
         if use_signac:
             import signac
 
-            if isinstance(signac_args, dict):
-                # Find job using state point dict
-                pass
-            if isinstance(signac_args, str):
-                # Find job using str of job id
-                pass
-        else:
-            self.slab_1 = slab_1
-            self.ref_distance = ref_distance
-            if not slab_2:
-                self.slab_2 = slab_1
+            slab_1 = slabs[0]
+            if len(slabs) == 2:
+                slab_2 = slabs[1]
             else:
-                self.slab_2 = slab_2
+                slab_2 = slabs[0]
+
+            project = signac.get_project(root=signac_project, search=False)
+            slab_files = [] # List of file paths to gsd files
+            self.ref_distances = []
+            for _slab in [slab_1, slab_2]:
+                if isinstance(_slab, dict): # Find job using state point dict
+                    job = project.open_job(statepoint=_slab)
+                    gsd_file = job.fn('restart.gsd')
+                    ref_distance = job.doc['ref_distance']
+                if isinstance(_slab, str): # Find job using job ID
+                    job = project.open_job(id=_slab)
+                    gsd_file = job.fn('restart.gsd')
+                    ref_distance = job.doc['ref_distance']
+
+                slab_files.append(gsd_file)
+                self.ref_distances.append(ref_distance)
+        else:
+            if len(slabs) == 2:
+                slab_files = slabs
+            else:
+                slab_files = slabs * 2
         
         interface = mb.Compound()
-        _slab_1 = self._gsd_to_mbuild(self.slab_1, self.ref_distance)
-        _slab_2 = self._gsd_to_mbuild(self.slab_2, self.ref_distance)
-        interface.add(new_child = _slab_1, label='left')
-        interface.add(new_child = _slab_2, label='right')
+        slab_1 = self._gsd_to_mbuild(slab_files[0], self.ref_distances[0])
+        slab_2 = self._gsd_to_mbuild(slab_files[1], self.ref_distances[1])
+        interface.add(new_child = slab_1, label='left')
+        interface.add(new_child = slab_2, label='right')
         x_len = interface.boundingbox.lengths[0]
         interface['left'].translate((-x_len - gap, 0, 0))
         
         system_box = mb.box.Box(mins=(0,0,0),
                                 maxs = interface.boundingbox.lengths)
-        system_box.maxs[0] += 2 * self.ref_distance * 1.12246
+        system_box.maxs[0] += 2 * self.ref_distance[0] * 1.1225
         interface.box = system_box
         interface.translate_to(     # Center in the adjusted box
                     [interface.box.maxs[0] / 2,
@@ -311,7 +322,7 @@ class Interface():
                      interface.box.maxs[2] / 2]
                     )
 
-        if self.forcefield == 'gaff':
+        if forcefield == 'gaff':
             ff_path = '{}/gaff-nosmarts.xml'.format(FF_DIR)
             forcefield = foyer.Forcefield(forcefield_files = ff_path)
         self.system_pmd = forcefield.apply(interface)
