@@ -268,41 +268,16 @@ class Interface():
                 ref_distance=None,
                 gap=0.1,
                 forcefield='gaff',
-                use_signac=True,
-                signac_project=None
                 ):
 
         self.forcefield = forcefield
         self.type = 'interface'
-        if use_signac:
-            import signac
-
-            slab_1 = slabs[0]
-            if len(slabs) == 2:
-                slab_2 = slabs[1]
-            else:
-                slab_2 = slabs[0]
-
-            project = signac.get_project(root=signac_project, search=False)
-            slab_files = [] # List of file paths to gsd files
-            self.ref_distances = []
-            for _slab in [slab_1, slab_2]:
-                if isinstance(_slab, dict): # Find job using state point dict
-                    job = project.open_job(statepoint=_slab)
-                    gsd_file = job.fn('restart.gsd')
-                    ref_distance = job.doc['ref_distance']
-                if isinstance(_slab, str): # Find job using job ID
-                    job = project.open_job(id=_slab)
-                    gsd_file = job.fn('restart.gsd')
-                    ref_distance = job.doc['ref_distance']
-
-                slab_files.append(gsd_file)
-                self.ref_distances.append(ref_distance)
+        if not isinstance(slabs, list):
+            slabs = [slabs]
+        if len(slabs) == 2:
+            slab_files = slabs
         else:
-            if len(slabs) == 2:
-                slab_files = slabs
-            else:
-                slab_files = slabs * 2
+            slab_files = slabs * 2
         
         interface = mb.Compound()
         slab_1 = self._gsd_to_mbuild(slab_files[0], self.ref_distances[0])
