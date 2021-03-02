@@ -157,6 +157,12 @@ class Simulation():
                            group=_all,
                            phase=0,
                            overwrite=True)
+            gsd_restart = hoomd.dump.gsd(
+                    "restart.gsd",
+                    period=self.gsd_write,
+                    group=_all,
+                    truncate=True,
+                    phase=0)
             hoomd.analyze.log("sim_traj.log",
                               period=self.log_write,
                               quantities = self.log_quantities,
@@ -165,7 +171,12 @@ class Simulation():
             # Run the primary simulation
             integrator.set_params(kT=kT)
             integrator.randomize_velocities(seed=self.seed)
-            hoomd.run(n_steps)
+            try:
+                hoomd.run(n_steps)
+            except hoomd.WalltimeLimitReached:
+                pass
+            finally:
+                gsd_restart.write_restart()
 
 
     def anneal(self,
@@ -246,6 +257,12 @@ class Simulation():
                            group=_all,
                            phase=0,
                            overwrite=True)
+            gsd_restart = hoomd.dump.gsd(
+                    "restart.gsd",
+                    period=self.gsd_write,
+                    group=_all,
+                    truncate=True,
+                    phase=0)
             hoomd.analyze.log("sim_traj.log",
                               period=self.log_write,
                               quantities = self.log_quantities,
@@ -258,8 +275,12 @@ class Simulation():
                 print('Running for {} steps'.format(n_steps))
                 integrator.set_params(kT=kT)
                 integrator.randomize_velocities(seed=self.seed)
-                hoomd.run(n_steps)
-                print()
+                try:
+                    hoomd.run(n_steps)
+                except hoomd.WalltimeLimitReached:
+                    pass
+                finally:
+                    gsd_restart.write_restart()
 
 
 class Interface():
