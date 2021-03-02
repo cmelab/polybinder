@@ -272,6 +272,7 @@ class Interface():
 
         self.forcefield = forcefield
         self.type = 'interface'
+        self.ref_distance = ref_distance
         if not isinstance(slabs, list):
             slabs = [slabs]
         if len(slabs) == 2:
@@ -280,8 +281,8 @@ class Interface():
             slab_files = slabs * 2
         
         interface = mb.Compound()
-        slab_1 = self._gsd_to_mbuild(slab_files[0], self.ref_distances[0])
-        slab_2 = self._gsd_to_mbuild(slab_files[1], self.ref_distances[1])
+        slab_1 = self._gsd_to_mbuild(slab_files[0], self.ref_distance)
+        slab_2 = self._gsd_to_mbuild(slab_files[1], self.ref_distance)
         interface.add(new_child = slab_1, label='left')
         interface.add(new_child = slab_2, label='right')
         x_len = interface.boundingbox.lengths[0]
@@ -289,7 +290,7 @@ class Interface():
         
         system_box = mb.box.Box(mins=(0,0,0),
                                 maxs = interface.boundingbox.lengths)
-        system_box.maxs[0] += 2 * self.ref_distance[0] * 1.1225
+        system_box.maxs[0] += 2 * self.ref_distance * 1.1225
         interface.box = system_box
         interface.translate_to(     # Center in the adjusted box
                     [interface.box.maxs[0] / 2,
