@@ -32,7 +32,8 @@ class Simulation():
                  mode = "gpu",
                  gsd_write = 1e4,
                  log_write = 1e3,
-                 seed = 42
+                 seed = 42,
+                 tf_model = None
                  ):
 
         self.system = system
@@ -47,6 +48,13 @@ class Simulation():
         self.gsd_write = gsd_write
         self.log_write = log_write
         self.seed = seed
+        self.tf_model = tf_model # pass in a TF model here
+
+        if tf_model is not None:
+            # only import this if we're using TF
+            import hoomd.htf as htf
+            # TODO: check if model is compiled already, error out if not
+            self.tfcompute = htf.tfcompute(tf_model)
 
         if ref_units and not auto_scale:
             self.ref_energy = ref_units['energy']
@@ -92,6 +100,8 @@ class Simulation():
             create_hoomd_simulation(self.system_pmd, self.ref_distance,
                                     self.ref_mass, self.ref_energy,
                                     self.r_cut, self.auto_scale)
+            if self.tf_model is not None:
+                sim.sorter.disable()
             _all = hoomd.group.all()
             hoomd.md.integrate.mode_standard(dt=self.dt)
             integrator = hoomd.md.integrate.nvt(group=_all, kT=shrink_kT, tau=self.tau) # shrink temp
@@ -127,6 +137,9 @@ class Simulation():
             # Run the primary simulation
             integrator.set_params(kT=kT)
             integrator.randomize_velocities(seed=self.seed)
+            if self.tf_model is not None:
+                self.nlist = hoomd.md.nlist.cell(check_period=5)
+                self.tfcompute.attach(self.nlist, train=True, r_cut=self.r_cut, save_output_period=5)
             hoomd.run(n_steps)
 
 
