@@ -1,13 +1,13 @@
 name: uli-dev
 channels:
   - conda-forge
-  - omnia
-  - mosdef
 dependencies:
   - python=3.7
   - pip
   - ele
+  - hoomd=2.9.4
   - garnett
+  - gsd
   - mdtraj
   - networkx
   - openbabel
