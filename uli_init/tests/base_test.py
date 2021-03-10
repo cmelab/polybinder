@@ -12,7 +12,7 @@ class BaseTest:
     @pytest.fixture()
     def test_slab(self):
         slab = simulate.Interface(slabs = os.path.join(COMPOUND_DIR, "test-slab.gsd"),
-                                  ref_distance = 0.339967,
+                                  ref_distance = 0.33996695084235347,
                                   gap = 0.1,
                                   forcefield='gaff'
                                   )
