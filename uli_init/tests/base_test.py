@@ -1,11 +1,22 @@
 import pytest
 from uli_init import simulate
+from uli_init.compounds import COMPOUND_DIR
+import os
 
 class BaseTest:
 
     @pytest.fixture(autouse=True)
     def initdir(self, tmpdir):
         tmpdir.chdir()
+
+    @pytest.fixture()
+    def test_slab(self):
+        slab = simulate.Interface(slabs = os.path.join(COMPOUND_DIR, "test-slab.gsd"),
+                                  ref_distance = 0.33996695084235347,
+                                  gap = 0.1,
+                                  forcefield='gaff'
+                                  )
+        return slab
 
     @pytest.fixture
     def peek_system(self):
