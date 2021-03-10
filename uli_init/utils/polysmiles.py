@@ -4,7 +4,8 @@ convert_smiles = smiles_utils.convert_smiles
 
 
 def poly_smiles(monomer_string, length=2):
-    """"""
+    """
+    """
     brackets = count_brackets(monomer_string)
     monomer_list = list(monomer_string)
     # Check that the polymerization site was specified correctly
