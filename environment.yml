@@ -2,7 +2,7 @@ name: uli-init
 channels:
   - conda-forge
 dependencies:
-  - deepsmiles
+  - deepsmiles=1.0.1
   - ele=0.1.0
   - foyer=0.7.7
   - garnett=0.7.1

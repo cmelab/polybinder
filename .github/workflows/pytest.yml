@@ -5,11 +5,11 @@ on:
     # Action will run when any changes to these paths are pushed or pr'ed to master
     branches: [ master ]
     paths:
-      - 'uli-init/*'
+      - 'uli_init/*'
   pull_request:
     branches: [ master ]
     paths:
-      - 'uli-init/*'
+      - 'uli_init/*'
 
 jobs:
   pytest:
