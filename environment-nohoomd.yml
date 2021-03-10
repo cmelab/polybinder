@@ -5,7 +5,6 @@ dependencies:
   - python=3.7
   - pip
   - ele
-  - hoomd=2.9.4
   - garnett
   - gsd
   - mdtraj
@@ -20,7 +19,6 @@ dependencies:
   - scipy
   - matplotlib
   - gsd
-  - py3dmol
   - deepsmiles
   - signac
   - signac-flow
