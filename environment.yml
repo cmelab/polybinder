@@ -24,6 +24,7 @@ dependencies:
   - signac
   - signac-flow
   - pytest
+  - pytest-cov
   - pip:
       - git+https://github.com/chrisjonesBSU/mbuild.git@hoomd_sim
       - git+https://github.com/cmelab/uli-init.git@0.0.2
