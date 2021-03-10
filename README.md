@@ -16,25 +16,36 @@ cd uli-init
 ```
 
 ### 2. Set up and activate environment: ###  
-
+#### a. Using HOOMD-blue from conda:
 ```
 conda env create -f environment.yml  
-conda activate uli
+conda activate uli-init
 ```  
-### 3. Install the HOOMD-blue molecular dynamics package: ###  
-
+#### b. **OR** If you'd like to compile HOOMD-Blue to work on GPUs:
 ```
-conda install -c conda-forge hoomd
+conda env create -f environment-nohoomd.yml  
+conda activate uli-init
 ```  
-
-***OR*** 
-
-To configure hoomd to run on GPUs, following the installation instructions found in the [hoomd docs](https://hoomd-blue.readthedocs.io/en/stable/installation.html)
+And install HOOMD following the instructions found in the [docs](https://hoomd-blue.readthedocs.io/en/stable/installation.html)
 
 ### 4. Install this repository ###
 
 ```
 pip install -e .
+```
+
+## Containers
+Uli-Init containers with HOOMD compiled to work on cpu and gpu are availiable: `uliinit_cpu` and `uliinit_gpu`. 
+
+To use uli-init in a prebuilt container (using Singularity), run:
+```
+singularity pull docker://cmelab/uliinit_cpu:latest
+singularity exec ulitinit_cpu_latest.sif bash
+```
+Or using Docker, run:
+```
+docker pull cmelab/uliinit_cpu:latest
+docker run -it cmelab/uniinit_cpu:latest
 ```
 
 ## Basic Usage
