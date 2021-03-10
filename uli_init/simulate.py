@@ -9,7 +9,6 @@ import hoomd
 import hoomd.md
 from hoomd.md import wall
 import mbuild as mb
-import MDAnalysis as mda
 from mbuild.formats.hoomd_simulation import create_hoomd_simulation
 import foyer
 from foyer import Forcefield
@@ -323,27 +322,20 @@ class Interface():
             forcefield = foyer.Forcefield(forcefield_files = ff_path)
         self.system_pmd = forcefield.apply(interface)
         
-    def _gsd_to_mbuild(self, gsd_file, ref_distance, unwrap=False):
+    def _gsd_to_mbuild(self, gsd_file, ref_distance):
         element_mapping = {'oh': 'O', 'ca': 'C',
                        'os': 'O', 'o': 'O',
                        'c': 'C', 'ho': 'H', 'ha': 'H'
                       }
-
-        u = mda.Universe(gsd_file)
-        pos_wrap = u.atoms.positions * ref_distance
-        if unwrap:
-            pos_unwrap = u.segments.unwrap() * ref_distance
-        else:
-            pos_unwrap = pos_wrap
-
+        snap = trajectory = gsd.hoomd.open(gsd_file)[-1]
+        pos_wrap = snap.particles.position * ref_distance
         atom_types = [atom.type for atom in u.atoms]
         elements = [element_mapping[i] for i in atom_types]
 
         comp = mb.Compound()
-        for pos, u_pos, element, atom_type in zip(pos_wrap, pos_unwrap,
-                                                  elements, atom_types):
-            position = (pos[0], u_pos[1], u_pos[2])
-            child = mb.Compound(name="_{}".format(atom_type), pos=position, element=element)
+        for pos, element, atom_type in zip(pos_wrap, elements, atom_types):
+            position = (pos[0], pos[1], pos[2])
+            child = mb.Compound(name="_{}".format(atom_type), pos=pos, element=element)
             comp.add(child)
 
         bonds = [b.indices for b in u.bonds]
