@@ -6,12 +6,12 @@ on:
     # Run when container or environment is changed
     paths:
         - 'containers/dockerfile_cpu'
-        - 'environment.yml'
+        - 'environment-dev.yml'
   pull_request:
     branches: [ master ]
     paths:
         - 'containers/dockerfile_cpu'
-        - 'environment.yml'
+        - 'environment-dev.yml'
   # Allows workflow to be manually triggered
   workflow_dispatch:
 
