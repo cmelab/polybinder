@@ -15,21 +15,19 @@ def poly_smiles(monomer_string, length=2):
     ]
     if len(key_indices) != 2:  # Checks for only a single given poly site
         raise ValueError("Select only one polymerization site using *x*")
-    if (
-        key_indices[1] - key_indices[0] != 2
-    ):  # Check that the * are surrounding only a single atom
+    # Check that the * are surrounding only a single atom
+    if (key_indices[1] - key_indices[0] != 2):
         raise ValueError("Select only one polymerization site using *x*")
 
     # Set up the template string with {} and the correct # of brackets
-    monomer_list[key_indices[1]] = "{}" + "{}".format(
-        brackets
-    )  # Create poly site+brackets
+    # Create poly site+brackets
+    monomer_list[key_indices[1]] = "{}" + "{}".format(brackets)
     monomer_list.remove("*")
-    template = "".join(
-        monomer_list
-    )  # Deepsmiles string with {} at bonding site
+    # Deepsmiles string with {} at bonding site
+    template = "".join(monomer_list)
     monomer_list.remove("{}" + "{}".format(brackets))
-    monomer = "".join(monomer_list)  # Deepsmiles monomer string without {} or *
+    # Deepsmiles monomer string without {} or *
+    monomer = "".join(monomer_list)
 
     # Loop & format polymer
     polymer = "{}"
