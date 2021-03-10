@@ -330,16 +330,15 @@ class Interface():
                       }
         snap = trajectory = gsd.hoomd.open(gsd_file)[-1]
         pos_wrap = snap.particles.position * ref_distance
-        atom_types = [atom.type for atom in u.atoms]
+        atom_types = [snap.particles.types[i] for i in snap.particles.typeid]
         elements = [element_mapping[i] for i in atom_types]
 
         comp = mb.Compound()
         for pos, element, atom_type in zip(pos_wrap, elements, atom_types):
-            position = (pos[0], pos[1], pos[2])
             child = mb.Compound(name="_{}".format(atom_type), pos=pos, element=element)
             comp.add(child)
 
-        bonds = [b.indices for b in u.bonds]
+        bonds = [(i,j) for (i,j) in snap.bonds.group]
         self._add_bonds(compound = comp, bonds = bonds)
         return comp
 
@@ -348,9 +347,9 @@ class Interface():
         for idx, particle in enumerate(compound.particles()):
             particle_dict[idx] = particle
 
-        for bond in bonds:
-            atom1 = particle_dict[int(bond[0])]
-            atom2 = particle_dict[int(bond[1])]
+        for (i,j) in bonds:
+            atom1 = particle_dict[i]
+            atom2 = particle_dict[j]
             compound.add_bond(particle_pair=[atom1, atom2])
 
 
