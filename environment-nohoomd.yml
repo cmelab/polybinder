@@ -1,0 +1,27 @@
+name: uli-dev
+channels:
+  - conda-forge
+dependencies:
+  - python=3.7
+  - pip
+  - ele
+  - garnett
+  - gsd
+  - mdtraj
+  - networkx
+  - openbabel
+  - oset
+  - packmol
+  - parmed
+  - scipy
+  - foyer
+  - numpy
+  - scipy
+  - matplotlib
+  - gsd
+  - deepsmiles
+  - signac
+  - signac-flow
+  - pytest
+  - pip:
+      - git+https://github.com/chrisjonesBSU/mbuild.git@hoomd_sim
