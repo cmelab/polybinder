@@ -224,9 +224,9 @@ class TrajModel(htf.SimModel):
                                        adj_mat=self.adjacency_matrix,
                                        cg_beads=self.cg_num)
 
-        radii_tensor = []
-        angles_tensor = []
-        dihedrals_tensor = []
+        radii_list = []
+        angles_list = []
+        dihedrals_list = []
 
         # because these are tensors, can't use list comprehension
         for i in range(len(cg_features[0])):
@@ -235,8 +235,8 @@ class TrajModel(htf.SimModel):
                                               b1=cg_features[0][i][0],
                                               b2=cg_features[0][i][1]
                                               )
-            radii_tensor.append(cg_radius)
-        self.avg_cg_radii.update_state(radii_tensor)
+            radii_list.append(cg_radius)
+        self.avg_cg_radii.update_state(radii_list)
 
         for j in range(len(cg_features[1])):
             cg_angle = htf.mol_angle(CG=True,
@@ -245,19 +245,19 @@ class TrajModel(htf.SimModel):
                                      b2=cg_features[1][j][1],
                                      b3=cg_features[1][j][2]
                                      )
-            angles_tensor.append(cg_angle)
-        self.avg_cg_angles.update_state(angles_tensor)
+            angles_list.append(cg_angle)
+        self.avg_cg_angles.update_state(angles_list)
 
         for k in range(len(cg_features[2])):
             cg_dihedral = htf.mol_dihedral(CG=True,
-                                           cg_positions=cg_features[-1],
+                                           cg_positions=positions[:,:3],
                                            b1=cg_features[2][k][0],
                                            b2=cg_features[2][k][1],
                                            b3=cg_features[2][k][2],
                                            b4=cg_features[2][k][3],
                                            )
-            dihedrals_tensor.append(cg_dihedral)
-        self.avg_cg_dihedrals.update_state(dihedrals_tensor)
+            dihedrals_list.append(cg_dihedral)
+        self.avg_cg_dihedrals.update_state(dihedrals_list)
 
         # create mapped neighbor list
         mapped_nlist = nlist# htf.compute_nlist(mapped_pos, self.rcut, self.CG_NN, box_size, True)
@@ -269,16 +269,16 @@ class TrajModel(htf.SimModel):
         nlist_r = htf.safe_norm(tensor=mapped_nlist[:, :, :3], axis=2)
         lj_energy = self.lj_energy(nlist_r)
         lj_energy_total = tf.reduce_sum(input_tensor=lj_energy, axis=1)
-        # bonds_energy = self.bond_energy(radii_tensor)
-        # angles_energy = self.angle_energy(angles_tensor)
-        # dihedrals_energy = self.dihedral_energy(dihedrals_tensor)
+        # bonds_energy = self.bond_energy(radii_list)
+        # angles_energy = self.angle_energy(angles_list)
+        # dihedrals_energy = self.dihedral_energy(dihedrals_list)
         # subtotal_energy = tf.reduce_sum(bonds_energy) + tf.reduce_sum(angles_energy) + tf.reduce_sum(dihedrals_energy)
         lj_forces = htf.compute_nlist_forces(mapped_nlist, lj_energy_total)
         print(lj_forces.shape)
         # other_forces = htf.compute_positions_forces(positions=mapped_pos, energy=subtotal_energy)
         total_energy = lj_energy # + subtotal_energy
-        # return lj_forces + other_forces, mapped_pos, total_energy, radii_tensor, angles_tensor, dihedrals_tensor
-        return lj_forces, positions, total_energy, radii_tensor, angles_tensor, dihedrals_tensor 
+        # return lj_forces + other_forces, mapped_pos, total_energy, radii_list, angles_list, dihedrals_list
+        return lj_forces, positions, total_energy
 
 nneighbor_cutoff = 32
 model = TrajModel(nneighbor_cutoff=nneighbor_cutoff,
