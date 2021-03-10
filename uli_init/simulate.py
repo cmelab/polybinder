@@ -12,6 +12,7 @@ import mbuild as mb
 from mbuild.formats.hoomd_simulation import create_hoomd_simulation
 import foyer
 from foyer import Forcefield
+import gsd
 import ele
 import operator
 from collections import namedtuple
@@ -86,7 +87,7 @@ class Simulation():
         ]
 
 
-    def quench(self, kT, n_steps, shrink_kT=None, shrink_steps=None, 
+    def quench(self, kT, n_steps, shrink_kT=None, shrink_steps=None,
                 shrink_period=None, walls=True):
         """
         """
@@ -115,7 +116,7 @@ class Simulation():
                 wall_force = wall.lj(walls, r_cut=2.5)
                 wall_force.force_coeff.set(init_snap.particles.types, sigma=1.0, epsilon=1.0, r_extrap=0)
 
-            if shrink_kT and shrink_steps:                
+            if shrink_kT and shrink_steps:
                 shrink_gsd = hoomd.dump.gsd("traj-shrink.gsd",
                            period=self.gsd_write, group=_all, phase=0, overwrite=True)
 
@@ -141,7 +142,7 @@ class Simulation():
                         walls.del_plane([0,1])
                         walls.add_plane((current_box.Lx/2, 0, 0), normal_vector)
                         walls.add_plane((-current_box.Lx/2, 0, 0), normal_vector2)
-                        step += shrink_period 
+                        step += shrink_period
                         print('Finished step {} of {}'.format(step, shrink_steps))
                         print('Shrinking is {}% complete'.format(round(step/shrink_steps, 5)*100))
                         print('time elapsed: {}'.format(time.time() - start))
@@ -207,7 +208,7 @@ class Simulation():
             hoomd.md.integrate.mode_standard(dt=self.dt)
             integrator = hoomd.md.integrate.nvt(group=_all, kT=kT_init, tau=self.tau)
             integrator.randomize_velocities(seed=self.seed)
-            
+
             if walls:
                 wall_origin = (init_snap.box.Lx/2, 0, 0)
                 normal_vector = (-1, 0, 0)
@@ -217,10 +218,10 @@ class Simulation():
                         wall.plane(origin=wall_origin, normal=normal_vector, inside = True),
                         wall.plane(origin=wall_origin2, normal=normal_vector2, inside = True)
                         )
-                
+
                 wall_force = wall.lj(walls, r_cut=2.5)
                 wall_force.force_coeff.set(init_snap.particles.types, sigma=1.0, epsilon=1.0, r_extrap=0)
-            
+
             if shrink_kT and shrink_steps:
                 shrink_gsd = hoomd.dump.gsd("traj-shrink.gsd",
                            period=self.gsd_write, group=_all, phase=0, overwrite=True)
@@ -233,11 +234,11 @@ class Simulation():
                                                          (shrink_steps, self.target_box[2]*10)])
                 box_updater = hoomd.update.box_resize(Lx = x_variant, Ly = y_variant, Lz = z_variant,
                                                         period=shrink_period)
-                
+
                 integrator.set_params(kT=shrink_kT) # shrink temp
                 integrator.randomize_velocities(seed=self.seed)
 
-                if walls:  
+                if walls:
                     step = 0
                     while step < shrink_steps:
                         hoomd.run_upto(step + shrink_period)
@@ -245,7 +246,7 @@ class Simulation():
                         walls.del_plane([0,1])
                         walls.add_plane((current_box.Lx/2, 0, 0), normal_vector)
                         walls.add_plane((-current_box.Lx/2, 0, 0), normal_vector2)
-                        step += shrink_period 
+                        step += shrink_period
                 else:
                     hoomd.run_upto(shrink_steps)
                 shrink_gsd.disable()
@@ -298,7 +299,7 @@ class Interface():
             slab_files = slabs
         else:
             slab_files = slabs * 2
-        
+
         interface = mb.Compound()
         slab_1 = self._gsd_to_mbuild(slab_files[0], self.ref_distance)
         slab_2 = self._gsd_to_mbuild(slab_files[1], self.ref_distance)
@@ -306,7 +307,7 @@ class Interface():
         interface.add(new_child = slab_2, label='right')
         x_len = interface.boundingbox.lengths[0]
         interface['left'].translate((-x_len - gap, 0, 0))
-        
+
         system_box = mb.box.Box(mins=(0,0,0),
                                 maxs = interface.boundingbox.lengths)
         system_box.maxs[0] += 2 * self.ref_distance * 1.1225
@@ -321,7 +322,7 @@ class Interface():
             ff_path = '{}/gaff-nosmarts.xml'.format(FF_DIR)
             forcefield = foyer.Forcefield(forcefield_files = ff_path)
         self.system_pmd = forcefield.apply(interface)
-        
+
     def _gsd_to_mbuild(self, gsd_file, ref_distance):
         element_mapping = {'oh': 'O', 'ca': 'C',
                        'os': 'O', 'o': 'O',
@@ -346,7 +347,7 @@ class Interface():
         particle_dict = {}
         for idx, particle in enumerate(compound.particles()):
             particle_dict[idx] = particle
-            
+
         for bond in bonds:
             atom1 = particle_dict[int(bond[0])]
             atom2 = particle_dict[int(bond[1])]
@@ -354,7 +355,7 @@ class Interface():
 
 
 class System():
-    
+
     def __init__(self,
                  molecule,
                  para_weight,
@@ -385,7 +386,7 @@ class System():
         self.para = 0 # keep track for now to check things are working, maybe keep?
         self.meta = 0
         self.type = 'melt'
-        
+
         if sample_pdi:
             if isinstance(n_compounds, int):
                 self.n_compounds = n_compounds
@@ -409,7 +410,7 @@ class System():
             self.Mn = Mn
             self.Mw = Mw
             self.pdi = pdi
-                    
+
             # this returns a numpy.random callable set up with recovered parameters
             mass_distribution_dict = self._recover_mass_dist(mass_dist_type)
             self.mass_sampler = mass_distribution_dict['sampler']
@@ -422,7 +423,7 @@ class System():
             # get count of each length
             self.n_compounds = [list(samples).count(x) for x in self.polymer_lengths]
             print(f'polymer_lengths: {self.polymer_lengths}, n_compounds: {self.n_compounds}')
-            
+
         else: # Do some validation, get things in the correct data types
             if not isinstance(n_compounds, list):
                 self.n_compounds = [n_compounds]
@@ -433,20 +434,20 @@ class System():
                 self.polymer_lengths = [polymer_lengths]
             else:
                 self.polymer_lengths = polymer_lengths
-        
+
         if len(self.n_compounds) != len(self.polymer_lengths):
             raise ValueError('n_compounds and polymer_lengths should be equal length')
-        
+
         self.system_mb = self._pack() # mBuild object before applying FF
         if self.forcefield:
             self.system_pmd = self._type_system() # parmed object after applying FF
-        
+
     def _weibull_k_expression(self, x):
         return (2. * x * gamma(2./x)) / gamma(1./x)**2 - (self.Mw / self.Mn)
-    
+
     def _weibull_lambda_expression(self, k):
         return self.Mn * k / gamma(1./k)
-    
+
     def _recover_mass_dist(self, distribution='Gaussian'):
         '''This function takes in two of the three quantities [Mn, Mw, PDI],
            and fits either a Gaussian or Weibull distribution of molar masses to them.'''
@@ -465,7 +466,7 @@ class System():
             recovered_lambda = self._weibull_lambda_expression(recovered_k)
             return {'sampler': lambda N: recovered_lambda * np.random.weibull(recovered_k, size=N),
                     'functional_form': lambda x: recovered_k / recovered_lambda * (x / recovered_lambda) ** (recovered_k - 1) * np.exp(- (x / recovered_lambda) ** recovered_k)}
-        
+
     def _pack(self, box_expand_factor=5):
         random.seed(self.seed)
         mb_compounds = []
@@ -479,7 +480,7 @@ class System():
                 self.meta += sequence.count('meta')
             mass = _n * np.sum(ele.element_from_symbol(p.name).mass for p in polymer.particles())
             self.system_mass += mass # amu
-        
+
         # Figure out correct box dimensions and expand the box to make the PACKMOL step faster
         # Will shrink down to accurate L during simulation
         L = self._calculate_L() * box_expand_factor
@@ -492,8 +493,8 @@ class System():
             fix_orientation=True)
         system.Box = mb.box.Box([L, L, L])
         return system
-    
-    
+
+
     def _type_system(self):
         if self.forcefield == 'gaff':
             #forcefield = foyer.forcefields.load_GAFF()
@@ -501,13 +502,13 @@ class System():
             forcefield = foyer.Forcefield(forcefield_files = ff_path)
         elif self.forcefield == 'opls':
             forcefield = foyer.Forcefield(name='oplsaa')
-        
+
         typed_system = forcefield.apply(self.system_mb,
                                        assert_dihedral_params=self.assert_dihedrals)
         if self.remove_hydrogens:
             typed_system.strip([a.atomic_number == 1 for a in typed_system.atoms])
         return typed_system
-    
+
     def _calculate_L(self):
         '''
         Calcualte the box length needed for entered density
