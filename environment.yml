@@ -1,13 +1,13 @@
-name: uli
+name: uli-init
 channels:
   - conda-forge
-  - omnia
-  - mosdef
 dependencies:
   - python=3.7
   - pip
   - ele
+  - hoomd=2.9.4
   - garnett
+  - gsd
   - mdtraj
   - networkx
   - openbabel
@@ -20,10 +20,10 @@ dependencies:
   - scipy
   - matplotlib
   - gsd
-  - py3dmol
   - deepsmiles
   - signac
   - signac-flow
   - pytest
   - pip:
       - git+https://github.com/chrisjonesBSU/mbuild.git@hoomd_sim
+      - git+https://github.com/cmelab/uli-init.git@0.0.2

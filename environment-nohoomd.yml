@@ -1,4 +1,4 @@
-name: uli-dev
+name: uli-init
 channels:
   - conda-forge
 dependencies:
@@ -25,3 +25,4 @@ dependencies:
   - pytest
   - pip:
       - git+https://github.com/chrisjonesBSU/mbuild.git@hoomd_sim
+      - git+https://github.com/cmelab/uli-init.git@0.0.2
