@@ -267,18 +267,20 @@ class TrajModel(htf.SimModel):
 
         # now calculate our total energy and train
         nlist_r = htf.safe_norm(tensor=mapped_nlist[:, :, :3], axis=2)
-        lj_energy = self.lj_energy(nlist_r)
+        lj_energy = self.lj_energy(nlist_r) # TODO: something is going on with these  indices.
         lj_energy_total = tf.reduce_sum(input_tensor=lj_energy, axis=1)
-        # bonds_energy = self.bond_energy(radii_list)
-        # angles_energy = self.angle_energy(angles_list)
-        # dihedrals_energy = self.dihedral_energy(dihedrals_list)
-        # subtotal_energy = tf.reduce_sum(bonds_energy) + tf.reduce_sum(angles_energy) + tf.reduce_sum(dihedrals_energy)
+        bonds_energy = self.bond_energy(radii_list)
+        angles_energy = self.angle_energy(angles_list)
+        dihedrals_energy = self.dihedral_energy(dihedrals_list)
+        subtotal_energy = tf.reduce_sum(bonds_energy) + tf.reduce_sum(angles_energy) + tf.reduce_sum(dihedrals_energy)
         lj_forces = htf.compute_nlist_forces(mapped_nlist, lj_energy_total)
-        print(lj_forces.shape)
-        # other_forces = htf.compute_positions_forces(positions=mapped_pos, energy=subtotal_energy)
-        total_energy = lj_energy # + subtotal_energy
+        other_forces = htf.compute_positions_forces(positions=positions, energy=subtotal_energy)
+        total_energy = lj_energy + subtotal_energy
         # return lj_forces + other_forces, mapped_pos, total_energy, radii_list, angles_list, dihedrals_list
-        return lj_forces, positions, total_energy
+        # TODO: put back in the bonds angles dihedrals
+        # TODO: see if we can plot loss over time, get final loss
+        # TODO: update these outputs to spit out our trained parameters.
+        return lj_forces + other_forces, positions, total_energy, self.lj_energy.w, self.bond_energy.w, self.angle_energy.w, self.dihedral_energy.w # lj_energy, bonds_energy, angles_energy, dihedrals_energy
 
 nneighbor_cutoff = 32
 model = TrajModel(nneighbor_cutoff=nneighbor_cutoff,
@@ -301,4 +303,4 @@ system = simulate.System(molecule='PEEK', para_weight=1.0,
 
 sim = simulate.Simulation(system, gsd_write=100, mode='cpu', dt=0.0001, r_cut=set_rcut, tf_model=model)
 
-sim.quench(kT=1., n_steps=1e6, shrink_steps=2e3)
+sim.quench(kT=1., n_steps=1e2, shrink_steps=2e2)
