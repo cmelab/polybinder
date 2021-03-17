@@ -191,7 +191,7 @@ class TestSystems(BaseTest):
         simple_system = simulate.System(
             molecule="PEEK",
             para_weight=0.60,
-            density=1,
+            density=0.5,
             n_compounds=3,
             sample_pdi=True,
             pdi=1.001,
