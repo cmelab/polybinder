@@ -6,10 +6,12 @@ on:
     branches: [ master ]
     paths:
       - 'uli_init/*'
+      - 'uli_init/tests/*'
   pull_request:
     branches: [ master ]
     paths:
       - 'uli_init/*'
+      - 'uli_init/tests/*'
 
 jobs:
   pytest:
