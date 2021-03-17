@@ -1,42 +1,49 @@
 import json
+import operator
 import os
 import random
+import time
+from collections import namedtuple
+
+import ele
+import foyer
+import gsd
+import hoomd
+import hoomd.md
+import mbuild as mb
 import numpy as np
-from uli_init.utils import smiles_utils, polysmiles, base_units
+import scipy.optimize
+from foyer import Forcefield
+from hoomd.md import wall
+from mbuild.formats.hoomd_simulation import create_hoomd_simulation
+from scipy.special import gamma
+
 from uli_init.compounds import COMPOUND_DIR
 from uli_init.forcefields import FF_DIR
-import hoomd
-import mbuild as mb
-from mbuild.formats.hoomd_simulation import create_hoomd_simulation
-import foyer
-from foyer import Forcefield
-import ele
-import operator
-from collections import namedtuple
-import scipy.optimize
-from scipy.special import gamma
+from uli_init.utils import base_units, polysmiles, smiles_utils
 
 units = base_units.base_units()
 
 
-class Simulation():
-    def __init__(self,
-                 system,
-                 target_box=None,
-                 r_cut = 1.2,
-                 e_factor = 0.5,
-                 tau = 0.1,
-                 dt = 0.0001,
-                 auto_scale = True,
-                 ref_units = None,
-                 mode = "gpu",
-                 gsd_write = 1e4,
-                 log_write = 1e3,
-                 seed = 42
-                 ):
+class Simulation:
+    def __init__(
+        self,
+        system,
+        target_box=None,
+        r_cut=1.2,
+        e_factor=0.5,
+        tau=0.1,
+        dt=0.0001,
+        auto_scale=True,
+        ref_units=None,
+        mode="gpu",
+        gsd_write=1e4,
+        log_write=1e3,
+        seed=42,
+    ):
 
         self.system = system
-        self.system_pmd = system.system_pmd # Parmed structure
+        self.system_pmd = system.system_pmd  # Parmed structure
         self.r_cut = r_cut
         self.e_factor = e_factor
         self.tau = tau
@@ -49,95 +56,197 @@ class Simulation():
         self.seed = seed
 
         if ref_units and not auto_scale:
-            self.ref_energy = ref_units['energy']
-            self.ref_distance = ref_units['distance']
-            self.ref_mass = ref_units['mass']
+            self.ref_energy = ref_units["energy"]
+            self.ref_distance = ref_units["distance"]
+            self.ref_mass = ref_units["mass"]
 
-        elif auto_scale and not ref_units: # Pulled from mBuild hoomd_simulation.py
+        # Pulled from mBuild hoomd_simulation.py
+        elif auto_scale and not ref_units:
             self.ref_mass = max([atom.mass for atom in self.system_pmd.atoms])
-            pair_coeffs = list(set((atom.type,
-                                    atom.epsilon,
-                                    atom.sigma) for atom in self.system_pmd.atoms))
+            pair_coeffs = list(
+                set(
+                    (atom.type, atom.epsilon, atom.sigma)
+                    for atom in self.system_pmd.atoms
+                )
+            )
             self.ref_energy = max(pair_coeffs, key=operator.itemgetter(1))[1]
             self.ref_distance = max(pair_coeffs, key=operator.itemgetter(2))[2]
 
-        self.reduced_target_L = self.system.target_L / self.ref_distance # nm
-        self.reduced_init_L = self.system_pmd.box[0] / self.ref_distance # angstroms
+        if system.type == "melt":
+            # nm
+            self.reduced_target_L = self.system.target_L / self.ref_distance
+            # angstroms
+            self.reduced_init_L = (self.system_pmd.box[0] / self.ref_distance)
 
-        #TODO: Use target_box to generate non-cubic simulation volumes
-        if target_box:
-            self.target_box = target_box
-        else:
-            self.target_box = [self.reduced_target_L]*3
+            # TODO: Use target_box to generate non-cubic simulation volumes
+            if target_box:
+                self.target_box = target_box
+            else:
+                self.target_box = [self.reduced_target_L] * 3
 
         self.log_quantities = [
-        "temperature",
-        "pressure",
-        "volume",
-        "potential_energy",
-        "kinetic_energy",
-        "pair_lj_energy",
-        "bond_harmonic_energy",
-        "angle_harmonic_energy"
+            "temperature",
+            "pressure",
+            "volume",
+            "potential_energy",
+            "kinetic_energy",
+            "pair_lj_energy",
+            "bond_harmonic_energy",
+            "angle_harmonic_energy",
         ]
-        
 
-    def quench(self, kT, n_steps, shrink_kT=10, shrink_steps=1e6):
-        '''
-        '''
-        # Get hoomd stuff set:
+    def quench(
+        self,
+        kT,
+        n_steps,
+        shrink_kT=None,
+        shrink_steps=None,
+        shrink_period=None,
+        walls=True,
+    ):
+        """"""
         hoomd_args = f"--single-mpi --mode={self.mode}"
         sim = hoomd.context.initialize(hoomd_args)
         with sim:
-            create_hoomd_simulation(self.system_pmd, self.ref_distance,
-                                    self.ref_mass, self.ref_energy,
-                                    self.r_cut, self.auto_scale)
+            objs, refs = create_hoomd_simulation(
+                self.system_pmd,
+                self.ref_distance,
+                self.ref_mass,
+                self.ref_energy,
+                self.r_cut,
+                self.auto_scale,
+            )
+            hoomd_system = objs[1]
+            init_snap = objs[0]
             _all = hoomd.group.all()
             hoomd.md.integrate.mode_standard(dt=self.dt)
-            integrator = hoomd.md.integrate.nvt(group=_all, kT=shrink_kT, tau=self.tau) # shrink temp
+            integrator = hoomd.md.integrate.nvt(group=_all, kT=kT, tau=self.tau)
             integrator.randomize_velocities(seed=self.seed)
-            
-            # Set up shrinking box_updater:
-            shrink_gsd = hoomd.dump.gsd("traj-shrink.gsd",
-                           period=self.gsd_write, group=_all, phase=0, overwrite=True)
-            x_variant = hoomd.variant.linear_interp([(0, self.reduced_init_L),
-                                                     (shrink_steps, self.target_box[0]*10)])
-            y_variant = hoomd.variant.linear_interp([(0, self.reduced_init_L),
-                                                     (shrink_steps, self.target_box[1]*10)])
-            z_variant = hoomd.variant.linear_interp([(0, self.reduced_init_L),
-                                                     (shrink_steps, self.target_box[2]*10)])
-            box_updater = hoomd.update.box_resize(Lx = x_variant, Ly = y_variant, Lz = z_variant)
 
-            # Run the shrink portion of simulation
-            hoomd.run_upto(shrink_steps)
-            shrink_gsd.disable()
-            box_updater.disable()
+            # LJ walls set on each side along x-axis
+            if walls:
+                wall_origin = (init_snap.box.Lx / 2, 0, 0)
+                normal_vector = (-1, 0, 0)
+                wall_origin2 = (-init_snap.box.Lx / 2, 0, 0)
+                normal_vector2 = (1, 0, 0)
+                walls = wall.group(
+                    wall.plane(
+                        origin=wall_origin, normal=normal_vector, inside=True
+                        ),
+                    wall.plane(
+                        origin=wall_origin2, normal=normal_vector2, inside=True
+                        ),
+                )
+                wall_force = wall.lj(walls, r_cut=2.5)
+                wall_force.force_coeff.set(
+                    init_snap.particles.types,
+                    sigma=1.0,
+                    epsilon=1.0,
+                    r_extrap=0
+                )
 
+            if shrink_kT and shrink_steps:
+                shrink_gsd = hoomd.dump.gsd(
+                    "traj-shrink.gsd",
+                    period=self.gsd_write,
+                    group=_all,
+                    phase=0,
+                    overwrite=True,
+                )
+
+                x_variant = hoomd.variant.linear_interp([
+                    (0, init_snap.box.Lx),
+                    (shrink_steps, self.target_box[0] * 10)
+                ])
+                y_variant = hoomd.variant.linear_interp([
+                    (0, init_snap.box.Ly),
+                    (shrink_steps, self.target_box[1] * 10)
+                ])
+                z_variant = hoomd.variant.linear_interp([
+                    (0, init_snap.box.Lz),
+                    (shrink_steps, self.target_box[2] * 10)
+                ])
+                box_updater = hoomd.update.box_resize(
+                    Lx=x_variant,
+                    Ly=y_variant,
+                    Lz=z_variant,
+                    period=shrink_period
+                )
+
+                integrator.set_params(kT=shrink_kT)  # shrink temp
+                integrator.randomize_velocities(seed=self.seed)
+
+                # Update wall origins during shrinking
+                if walls:
+                    step = 0
+                    start = time.time()
+                    while step < shrink_steps:
+                        hoomd.run_upto(step + shrink_period)
+                        current_box = hoomd_system.box
+                        walls.del_plane([0, 1])
+                        walls.add_plane(
+                                (current_box.Lx / 2, 0, 0), normal_vector
+                                )
+                        walls.add_plane(
+                                (-current_box.Lx / 2, 0, 0),
+                                normal_vector2
+                                )
+                        step += shrink_period
+                        print(f"Finished step {step} of {shrink_steps}")
+                        print("Shrinking is {}% complete".format(
+                                round(step / shrink_steps, 5) * 100
+                            )
+                        )
+                        print("time elapsed: {time.time() - start)}")
+                else:
+                    hoomd.run_upto(shrink_steps)
+
+                shrink_gsd.disable()
+                box_updater.disable()
             # Set up new gsd and log dumps for actual simulation
-            hoomd.dump.gsd("sim_traj.gsd",
-                           period=self.gsd_write,
-                           group=_all,
-                           phase=0,
-                           overwrite=True)
-            hoomd.analyze.log("sim_traj.log",
-                              period=self.log_write,
-                              quantities = self.log_quantities,
-                              header_prefix="#",
-                              overwrite=True, phase=0)
+            hoomd.dump.gsd(
+                "sim_traj.gsd",
+                period=self.gsd_write,
+                group=_all,
+                phase=0,
+                overwrite=True,
+            )
+            gsd_restart = hoomd.dump.gsd(
+                "restart.gsd",
+                period=self.gsd_write,
+                group=_all,
+                truncate=True,
+                phase=0
+            )
+            hoomd.analyze.log(
+                "sim_traj.log",
+                period=self.log_write,
+                quantities=self.log_quantities,
+                header_prefix="#",
+                overwrite=True,
+                phase=0,
+            )
             # Run the primary simulation
             integrator.set_params(kT=kT)
             integrator.randomize_velocities(seed=self.seed)
-            hoomd.run(n_steps)
+            try:
+                hoomd.run(n_steps)
+            except hoomd.WalltimeLimitReached:
+                pass
+            finally:
+                gsd_restart.write_restart()
 
-
-    def anneal(self,
-              kT_init=None,
-              kT_final=None,
-              step_sequence=None,
-              schedule=None,
-              shrink_kT=10,
-              shrink_steps=1e6
-              ):
+    def anneal(
+        self,
+        kT_init=None,
+        kT_final=None,
+        step_sequence=None,
+        schedule=None,
+        walls=True,
+        shrink_kT=None,
+        shrink_steps=None,
+        shrink_period=None,
+    ):
 
         if not schedule:
             temps = np.linspace(kT_init, kT_final, len(step_sequence))
@@ -148,70 +257,231 @@ class Simulation():
         hoomd_args = f"--single-mpi --mode={self.mode}"
         sim = hoomd.context.initialize(hoomd_args)
         with sim:
-            create_hoomd_simulation(self.system_pmd, self.ref_distance,
-                                    self.ref_mass, self.ref_energy,
-                                    self.r_cut, self.auto_scale)
+            objs, refs = create_hoomd_simulation(
+                self.system_pmd,
+                self.ref_distance,
+                self.ref_mass,
+                self.ref_energy,
+                self.r_cut,
+                self.auto_scale,
+            )
+            hoomd_system = objs[1]
+            init_snap = objs[0]
             _all = hoomd.group.all()
             hoomd.md.integrate.mode_standard(dt=self.dt)
-            integrator = hoomd.md.integrate.nvt(group=_all, kT=shrink_kT, tau=self.tau) # shrink temp
+            integrator = hoomd.md.integrate.nvt(
+                    group=_all,
+                    kT=kT_init,
+                    tau=self.tau
+                    )
             integrator.randomize_velocities(seed=self.seed)
-            
-            # Set up shrinking box_updater:
-            shrink_gsd = hoomd.dump.gsd("traj-shrink.gsd",
-                           period=self.gsd_write, group=_all, phase=0, overwrite=True)
-            x_variant = hoomd.variant.linear_interp([(0, self.reduced_init_L),
-                                                     (shrink_steps, self.target_box[0]*10)])
-            y_variant = hoomd.variant.linear_interp([(0, self.reduced_init_L),
-                                                     (shrink_steps, self.target_box[1]*10)])
-            z_variant = hoomd.variant.linear_interp([(0, self.reduced_init_L),
-                                                     (shrink_steps, self.target_box[2]*10)])
-            box_updater = hoomd.update.box_resize(Lx = x_variant, Ly = y_variant, Lz = z_variant)
-            hoomd.run_upto(shrink_steps)
-            shrink_gsd.disable()
-            box_updater.disable()
 
+            if walls:
+                wall_origin = (init_snap.box.Lx / 2, 0, 0)
+                normal_vector = (-1, 0, 0)
+                wall_origin2 = (-init_snap.box.Lx / 2, 0, 0)
+                normal_vector2 = (1, 0, 0)
+                walls = wall.group(
+                    wall.plane(
+                        origin=wall_origin, normal=normal_vector, inside=True
+                        ),
+                    wall.plane(
+                        origin=wall_origin2, normal=normal_vector2, inside=True
+                        ),
+                )
+
+                wall_force = wall.lj(walls, r_cut=2.5)
+                wall_force.force_coeff.set(
+                    init_snap.particles.types,
+                    sigma=1.0,
+                    epsilon=1.0,
+                    r_extrap=0
+                )
+
+            if shrink_kT and shrink_steps:
+                shrink_gsd = hoomd.dump.gsd(
+                    "traj-shrink.gsd",
+                    period=self.gsd_write,
+                    group=_all,
+                    phase=0,
+                    overwrite=True,
+                )
+
+                x_variant = hoomd.variant.linear_interp([
+                    (0, self.reduced_init_L),
+                    (shrink_steps, self.target_box[0] * 10)
+                ])
+                y_variant = hoomd.variant.linear_interp([
+                    (0, self.reduced_init_L),
+                    (shrink_steps, self.target_box[1] * 10)
+                ])
+                z_variant = hoomd.variant.linear_interp([
+                    (0, self.reduced_init_L),
+                    (shrink_steps, self.target_box[2] * 10)
+                ])
+                box_updater = hoomd.update.box_resize(
+                    Lx=x_variant,
+                    Ly=y_variant,
+                    Lz=z_variant,
+                    period=shrink_period
+                )
+
+                integrator.set_params(kT=shrink_kT)  # shrink temp
+                integrator.randomize_velocities(seed=self.seed)
+
+                if walls:
+                    step = 0
+                    while step < shrink_steps:
+                        hoomd.run_upto(step + shrink_period)
+                        current_box = hoomd_system.box
+                        walls.del_plane([0, 1])
+                        walls.add_plane(
+                                (current_box.Lx / 2, 0, 0), normal_vector
+                                )
+                        walls.add_plane(
+                                (-current_box.Lx / 2, 0, 0), normal_vector2
+                                )
+                        step += shrink_period
+                else:
+                    hoomd.run_upto(shrink_steps)
+                shrink_gsd.disable()
+                box_updater.disable()
             # Set up new log and gsd files for simulation:
-            hoomd.dump.gsd("sim_traj.gsd",
-                           period=self.gsd_write,
-                           group=_all,
-                           phase=0,
-                           overwrite=True)
-            hoomd.analyze.log("sim_traj.log",
-                              period=self.log_write,
-                              quantities = self.log_quantities,
-                              header_prefix="#",
-                              overwrite=True, phase=0)
-            # Start annealing steps:
-            last_time_step = shrink_steps
-            for kT in schedule:
-                print('Running @ Temp = {} kT'.format(kT))
+            hoomd.dump.gsd(
+                "sim_traj.gsd",
+                period=self.gsd_write,
+                group=_all,
+                phase=0,
+                overwrite=True,
+            )
+            gsd_restart = hoomd.dump.gsd(
+                "restart.gsd",
+                period=self.gsd_write,
+                group=_all,
+                truncate=True,
+                phase=0
+            )
+            hoomd.analyze.log(
+                "sim_traj.log",
+                period=self.log_write,
+                quantities=self.log_quantities,
+                header_prefix="#",
+                overwrite=True,
+                phase=0,
+            )
+
+            for kT in schedule:  # Start iterating through annealing steps
+                print("Running @ Temp = {} kT".format(kT))
                 n_steps = schedule[kT]
-                print('Running for {} steps'.format(n_steps))
+                print("Running for {} steps".format(n_steps))
                 integrator.set_params(kT=kT)
                 integrator.randomize_velocities(seed=self.seed)
-                hoomd.run(n_steps)
-                print()
+                try:
+                    hoomd.run(n_steps)
+                except hoomd.WalltimeLimitReached:
+                    pass
+                finally:
+                    gsd_restart.write_restart()
 
 
-class System():
-    
-    def __init__(self,
-                 molecule,
-                 para_weight,
-                 density,
-                 n_compounds=None,
-                 polymer_lengths=None,
-                 forcefield=None,
-                 epsilon=1e-7,
-                 sample_pdi=False,
-                 pdi=None,
-                 Mn=None,
-                 Mw=None,
-                 mass_dist_type='weibull',
-                 remove_hydrogens=False,
-                 assert_dihedrals=True,
-                 seed=24
-                ):
+class Interface:
+    def __init__(
+        self,
+        slabs,
+        ref_distance=None,
+        gap=0.1,
+        forcefield="gaff",
+    ):
+        self.forcefield = forcefield
+        self.type = "interface"
+        self.ref_distance = ref_distance
+        if not isinstance(slabs, list):
+            slabs = [slabs]
+        if len(slabs) == 2:
+            slab_files = slabs
+        else:
+            slab_files = slabs * 2
+
+        interface = mb.Compound()
+        slab_1 = self._gsd_to_mbuild(slab_files[0], self.ref_distance)
+        slab_2 = self._gsd_to_mbuild(slab_files[1], self.ref_distance)
+        interface.add(new_child=slab_1, label="left")
+        interface.add(new_child=slab_2, label="right")
+        x_len = interface.boundingbox.lengths[0]
+        interface["left"].translate((-x_len - gap, 0, 0))
+
+        system_box = mb.box.Box(
+                mins=(0, 0, 0),
+                maxs=interface.boundingbox.lengths
+                )
+        system_box.maxs[0] += 2 * self.ref_distance * 1.1225
+        interface.box = system_box
+        # Center in the adjusted box
+        interface.translate_to([
+            interface.box.maxs[0] / 2,
+            interface.box.maxs[1] / 2,
+            interface.box.maxs[2] / 2,
+        ])
+
+        if forcefield == "gaff":
+            ff_path = "{}/gaff-nosmarts.xml".format(FF_DIR)
+            forcefield = foyer.Forcefield(forcefield_files=ff_path)
+        self.system_pmd = forcefield.apply(interface)
+
+    def _gsd_to_mbuild(self, gsd_file, ref_distance):
+        element_mapping = {
+            "oh": "O",
+            "ca": "C",
+            "os": "O",
+            "o": "O",
+            "c": "C",
+            "ho": "H",
+            "ha": "H",
+        }
+        snap = trajectory = gsd.hoomd.open(gsd_file)[-1]
+        pos_wrap = snap.particles.position * ref_distance
+        atom_types = [snap.particles.types[i] for i in snap.particles.typeid]
+        elements = [element_mapping[i] for i in atom_types]
+
+        comp = mb.Compound()
+        for pos, element, atom_type in zip(pos_wrap, elements, atom_types):
+            child = mb.Compound(name=f"_{atom_type}", pos=pos, element=element)
+            comp.add(child)
+
+        bonds = [(i, j) for (i, j) in snap.bonds.group]
+        self._add_bonds(compound=comp, bonds=bonds)
+        return comp
+
+    def _add_bonds(self, compound, bonds):
+        particle_dict = {}
+        for idx, particle in enumerate(compound.particles()):
+            particle_dict[idx] = particle
+
+        for (i, j) in bonds:
+            atom1 = particle_dict[i]
+            atom2 = particle_dict[j]
+            compound.add_bond(particle_pair=[atom1, atom2])
+
+
+class System:
+    def __init__(
+        self,
+        molecule,
+        para_weight,
+        density,
+        n_compounds=None,
+        polymer_lengths=None,
+        forcefield=None,
+        epsilon=1e-7,
+        sample_pdi=False,
+        pdi=None,
+        Mn=None,
+        Mw=None,
+        mass_dist_type="weibull",
+        remove_hydrogens=False,
+        assert_dihedrals=True,
+        seed=24,
+    ):
         self.molecule = molecule
         self.para_weight = para_weight
         self.density = density
@@ -222,21 +492,29 @@ class System():
         self.assert_dihedrals = assert_dihedrals
         self.seed = seed
         self.system_mass = 0
-        self.para = 0 # keep track for now to check things are working, maybe keep?
+        # keep track for now to check things are working, maybe keep?
+        self.para = 0
         self.meta = 0
-        
+        self.type = "melt"
+
         if sample_pdi:
             if isinstance(n_compounds, int):
                 self.n_compounds = n_compounds
             elif isinstance(n_compounds, list) and len(n_compounds) == 1:
                 self.n_compounds = n_compounds[0]
             elif isinstance(n_compounds, list) and len(n_compounds) != 1:
-                raise TypeError('n_compounds should be of length 1 when sample_pdi is True.')
+                raise TypeError(
+                    "n_compounds should be of length 1 when sample_pdi is True."
+                )
             pdi_arg_sum = sum([x is not None for x in [pdi, Mn, Mw]])
-            assert pdi_arg_sum >= 2, 'At least two of [pdi, Mn, Mw] must be given.'
+            assert (
+                pdi_arg_sum >= 2
+            ), "At least two of [pdi, Mn, Mw] must be given."
             if pdi_arg_sum == 3:
-                #special case, make sure that pdi = Mw / Mn
-                assert abs(pdi - (Mw/Mn)) < self.epsilon, 'PDI value does not match Mn and Mw values.'
+                # special case, make sure that pdi = Mw / Mn
+                assert (
+                    abs(pdi - (Mw / Mn)) < self.epsilon
+                ), "PDI value does not match Mn and Mw values."
             else:
                 # need to recover one of Mw or Mn or pdi
                 if Mn is None:
@@ -248,21 +526,26 @@ class System():
             self.Mn = Mn
             self.Mw = Mw
             self.pdi = pdi
-                    
-            # this returns a numpy.random callable set up with recovered parameters
+
+            # this returns a numpy.random callable set up with
+            # recovered parameters
             mass_distribution_dict = self._recover_mass_dist(mass_dist_type)
-            self.mass_sampler = mass_distribution_dict['sampler']
-            self.mass_distribution = mass_distribution_dict['functional_form']
+            self.mass_sampler = mass_distribution_dict["sampler"]
+            self.mass_distribution = mass_distribution_dict["functional_form"]
             # TODO: make sure we don't sample any negative weights
-            samples = np.round(self.mass_sampler(n_compounds)
-                              ).astype(int)
+            samples = np.round(self.mass_sampler(n_compounds)).astype(int)
             # get all unique lengths in increasing order
             self.polymer_lengths = sorted(list(set(samples)))
             # get count of each length
-            self.n_compounds = [list(samples).count(x) for x in self.polymer_lengths]
-            print(f'polymer_lengths: {self.polymer_lengths}, n_compounds: {self.n_compounds}')
-            
-        else: # Do some validation, get things in the correct data types
+            self.n_compounds = [
+                    list(samples).count(x) for x in self.polymer_lengths
+                    ]
+            print(
+                f"polymer_lengths: {self.polymer_lengths},",
+                " n_compounds: {self.n_compounds}"
+            )
+
+        else:  # Do some validation, get things in the correct data types
             if not isinstance(n_compounds, list):
                 self.n_compounds = [n_compounds]
             else:
@@ -272,98 +555,128 @@ class System():
                 self.polymer_lengths = [polymer_lengths]
             else:
                 self.polymer_lengths = polymer_lengths
-        
+
         if len(self.n_compounds) != len(self.polymer_lengths):
-            raise ValueError('n_compounds and polymer_lengths should be equal length')
-        
-        self.system_mb = self._pack() # mBuild object before applying FF
+            raise ValueError(
+                    "n_compounds and polymer_lengths should be equal length"
+                    )
+
+        # mBuild object before applying FF
+        self.system_mb = self._pack()
         if self.forcefield:
-            self.system_pmd = self._type_system() # parmed object after applying FF
-            self.system_pmd.save('init.pdb', overwrite=True)
-        
+            # parmed object after applying FF
+            self.system_pmd = self._type_system()
+
     def _weibull_k_expression(self, x):
-        return (2. * x * gamma(2./x)) / gamma(1./x)**2 - (self.Mw / self.Mn)
-    
+        return (
+                (2.0 * x * gamma(2.0 / x)) /
+                gamma(1.0 / x) ** 2 - (self.Mw / self.Mn)
+                )
+
     def _weibull_lambda_expression(self, k):
-        return self.Mn * k / gamma(1./k)
-    
-    def _recover_mass_dist(self, distribution='Gaussian'):
-        '''This function takes in two of the three quantities [Mn, Mw, PDI],
-           and fits either a Gaussian or Weibull distribution of molar masses to them.'''
-        if distribution.lower() != 'gaussian' and distribution.lower() != 'weibull':
-            raise(ValueError('Molar mass distribution must be either "gaussian" or "weibull".'))
-        if distribution.lower() == 'gaussian':
+        return self.Mn * k / gamma(1.0 / k)
+
+    def _recover_mass_dist(self, distribution="Gaussian"):
+        """This function takes in two of the three quantities [Mn, Mw, PDI],
+        and fits either a Gaussian or Weibull distribution of molar masses to
+        them.
+        """
+        distribution = distribution.lower()
+
+        if distribution != "gaussian" and distribution != "weibull":
+            raise ValueError(
+                'Molar mass distribution must be "gaussian" or "weibull".'
+            )
+        if distribution == "gaussian":
             mean = self.Mn
             sigma = self.Mn * (self.Mw - self.Mn)
-            return {'sampler': lambda N: np.random.normal(loc=mean, scale=sigma, size=N),
-                    'functional_form': lambda x: np.exp(-(x-Mn)**2 / (2. * sigma))}
-        elif distribution.lower() == 'weibull':
-            # get the shape parameter
-            a = scipy.optimize.root(self._weibull_k_expression, x0=1.)
-            recovered_k = a['x']
-            # get the scale parameter
-            recovered_lambda = self._weibull_lambda_expression(recovered_k)
-            return {'sampler': lambda N: recovered_lambda * np.random.weibull(recovered_k, size=N),
-                    'functional_form': lambda x: recovered_k / recovered_lambda * (x / recovered_lambda) ** (recovered_k - 1) * np.exp(- (x / recovered_lambda) ** recovered_k)}
-        
+            return {
+                "sampler": lambda N: np.random.normal(
+                    loc=mean, scale=sigma, size=N
+                    ),
+                "functional_form": lambda x: np.exp(
+                    -((x - Mn) ** 2) / (2.0 * sigma)
+                    ),
+            }
+        # Weibull
+        # get the shape parameter
+        a = scipy.optimize.root(self._weibull_k_expression, x0=1.0)
+        recovered_k = a["x"]
+        # get the scale parameter
+        recovered_lambda = self._weibull_lambda_expression(recovered_k)
+        return {
+            "sampler": lambda N: recovered_lambda
+            * np.random.weibull(recovered_k, size=N),
+            "functional_form": lambda x: recovered_k
+            / recovered_lambda
+            * (x / recovered_lambda) ** (recovered_k - 1)
+            * np.exp(-((x / recovered_lambda) ** recovered_k)),
+        }
+
     def _pack(self, box_expand_factor=5):
         random.seed(self.seed)
         mb_compounds = []
         for _length, _n in zip(self.polymer_lengths, self.n_compounds):
             for i in range(_n):
-                polymer, sequence = build_molecule(self.molecule, _length,
-                                        self.para_weight)
+                polymer, sequence = build_molecule(
+                    self.molecule, _length, self.para_weight
+                )
 
                 mb_compounds.append(polymer)
-                self.para += sequence.count('para')
-                self.meta += sequence.count('meta')
-            mass = _n * np.sum(ele.element_from_symbol(p.name).mass for p in polymer.particles())
-            self.system_mass += mass # amu
-        
-        # Figure out correct box dimensions and expand the box to make the PACKMOL step faster
-        # Will shrink down to accurate L during simulation
+                self.para += sequence.count("para")
+                self.meta += sequence.count("meta")
+            mass = _n * np.sum(
+                ele.element_from_symbol(p.name).mass
+                for p in polymer.particles()
+            )
+            self.system_mass += mass  # amu
+
+        # Figure out correct box dimensions and expand the box to make the
+        # PACKMOL step faster. Will shrink down to accurate L during simulation
         L = self._calculate_L() * box_expand_factor
         system = mb.packing.fill_box(
-            compound = mb_compounds,
-            n_compounds = [1 for i in mb_compounds],
+            compound=mb_compounds,
+            n_compounds=[1 for i in mb_compounds],
             box=[L, L, L],
             overlap=0.2,
             edge=0.9,
-            fix_orientation=True)
+            fix_orientation=True,
+        )
         system.Box = mb.box.Box([L, L, L])
         return system
-    
-    
+
     def _type_system(self):
-        if self.forcefield == 'gaff':
-            #forcefield = foyer.forcefields.load_GAFF()
-            ff_path = '{}/gaff.xml'.format(FF_DIR)
-            forcefield = foyer.Forcefield(forcefield_files = ff_path)
-        elif self.forcefield == 'opls':
-            forcefield = foyer.Forcefield(name='oplsaa')
-        
-        typed_system = forcefield.apply(self.system_mb,
-                                       assert_dihedral_params=self.assert_dihedrals)
+        if self.forcefield == "gaff":
+            # forcefield = foyer.forcefields.load_GAFF()
+            ff_path = "{}/gaff.xml".format(FF_DIR)
+            forcefield = foyer.Forcefield(forcefield_files=ff_path)
+        elif self.forcefield == "opls":
+            forcefield = foyer.Forcefield(name="oplsaa")
+
+        typed_system = forcefield.apply(
+            self.system_mb, assert_dihedral_params=self.assert_dihedrals
+        )
         if self.remove_hydrogens:
-            typed_system.strip([a.atomic_number == 1 for a in typed_system.atoms])
+            typed_system.strip(
+                    [a.atomic_number == 1 for a in typed_system.atoms]
+                    )
         return typed_system
-    
+
     def _calculate_L(self):
-        '''
+        """
         Calcualte the box length needed for entered density
         Right now, assuming cubic box
         Return L in nm (mBuild units)
-        '''
-        M = self.system_mass * units["amu_to_g"] # grams
-        L = (M / self.density)**(1/3) # centimeters
-        L *= units['cm_to_nm'] # convert cm to nm
-        self.target_L = L # Used during shrink step
+        """
+        M = self.system_mass * units["amu_to_g"]  # grams
+        L = (M / self.density) ** (1 / 3)  # centimeters
+        L *= units["cm_to_nm"]  # convert cm to nm
+        self.target_L = L  # Used during shrink step
         return L
 
 
-
 def build_molecule(molecule, length, para_weight):
-    '''
+    """
     `build_molecule` uses SMILES strings to build up a polymer from monomers.
     The configuration of each monomer is determined by para_weight and the
     random_sequence() function.
@@ -373,13 +686,15 @@ def build_molecule(molecule, length, para_weight):
     ----------
     molecule : str
         The monomer molecule to be used to build up the polymer.
-        Available options are limited  to the .json files in the compounds directory
+        Available options are limited  to the .json files in the compounds
+        directory
         Use the molecule name as seen in the .json file without including .json
     length : int
         The number of monomer units in the final polymer molecule
     para_weight : float, limited to values between 0 and 1
         The relative amount of para configurations compared to meta.
-        Passed into random_sequence() to determine the monomer sequence of the polymer.
+        Passed into random_sequence() to determine the monomer sequence of the
+        polymer.
         A 70/30 para to meta system would require a para_weight = 0.70
 
     Returns
@@ -388,42 +703,50 @@ def build_molecule(molecule, length, para_weight):
         An instance of the single polymer created
     sequence : list
         List of the configuration sequence of the finished compound
-    '''
-    f = open('{}/{}.json'.format(COMPOUND_DIR, molecule))
+    """
+    f = open("{}/{}.json".format(COMPOUND_DIR, molecule))
     mol_dict = json.load(f)
     f.close()
     monomer_sequence = random_sequence(para_weight, length)
-    molecule_string = '{}'
+    molecule_string = "{}"
 
     for idx, config in enumerate(monomer_sequence):
-        if idx == 0: # append template, but not brackets
-            monomer_string = mol_dict['{}_template'.format(config)]
-            if molecule == 'PEEK': # Change oxygen type on the terminal end of the polymer; needs its hydrogen.
-                monomer_string = "O"+monomer_string[1:]
+        if idx == 0:  # append template, but not brackets
+            monomer_string = mol_dict["{}_template".format(config)]
+            if (molecule == "PEEK"):
+                # Change oxygen type on the terminal end of the polymer;
+                # needs its hydrogen.
+                monomer_string = "O" + monomer_string[1:]
             molecule_string = molecule_string.format(monomer_string)
             if len(monomer_sequence) == 1:
-                molecule_string = molecule_string.replace('{}', '')
+                molecule_string = molecule_string.replace("{}", "")
                 continue
 
-        elif idx == length - 1: # Don't use template for last iteration
-            brackets = polysmiles.count_brackets(mol_dict['{}_deep_smiles'.format(config)])
-            monomer_string = mol_dict['{}_deep_smiles'.format(config)]
+        elif idx == length - 1:  # Don't use template for last iteration
+            brackets = polysmiles.count_brackets(
+                mol_dict["{}_deep_smiles".format(config)]
+            )
+            monomer_string = mol_dict["{}_deep_smiles".format(config)]
             molecule_string = molecule_string.format(monomer_string, brackets)
 
-        else: # Continue using template plus brackets
-            brackets = polysmiles.count_brackets(mol_dict['{}_deep_smiles'.format(config)])
-            monomer_string = mol_dict['{}_template'.format(config)]
+        else:  # Continue using template plus brackets
+            brackets = polysmiles.count_brackets(
+                mol_dict["{}_deep_smiles".format(config)]
+            )
+            monomer_string = mol_dict["{}_template".format(config)]
             molecule_string = molecule_string.format(monomer_string, brackets)
 
-    molecule_string_smiles = smiles_utils.convert_smiles(deep = molecule_string)
+    molecule_string_smiles = smiles_utils.convert_smiles(deep=molecule_string)
     compound = mb.load(molecule_string_smiles, smiles=True)
     return compound, monomer_sequence
 
 
 def random_sequence(para_weight, length):
-    '''
-    random_sequence returns a list containing a random sequence of strings 'para' and 'meta'.
-    This is used by build_molecule() to create a complete SMILES string of a molecule.
+    """
+    random_sequence returns a list containing a random sequence of strings
+    'para' and 'meta'.
+    This is used by build_molecule() to create a complete SMILES string of a
+    molecule.
 
     Parameters:
     -----------
@@ -433,9 +756,9 @@ def random_sequence(para_weight, length):
     length : int
         The number of elements in the random sequence.
         Defined in build_molecule()
-    '''
+    """
     meta_weight = 1 - para_weight
-    options = ['para', 'meta']
+    options = ["para", "meta"]
     probability = [para_weight, meta_weight]
     sequence = random.choices(options, weights=probability, k=length)
     return sequence
