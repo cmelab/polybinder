@@ -25,4 +25,4 @@ dependencies:
   - signac-flow=0.12.0
   - pip:
       - git+https://github.com/chrisjonesBSU/mbuild.git@hoomd_sim
-      - git+https://github.com/cmelab/uli-init.git@0.0.5
+      - git+https://github.com/cmelab/uli-init.git@0.0.6
