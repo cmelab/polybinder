@@ -1,10 +1,9 @@
 from uli_init.utils import base_units
 
-
 def reduce_from_kelvin(T_SI, ref_energy, precision=2):
     units = base_units.base_units()
     T = (units["avogadro"] * units["boltzmann"] * T_SI) / (
-        units["kj_to_j"] * ref_energy
+        units["kcal_to_j"] * ref_energy
     )
     T = round(T, precision)
     return T
