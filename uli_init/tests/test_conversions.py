@@ -1,5 +1,4 @@
 from uli_init.utils import base_units, unit_conversions
-import numpy as np
 
 def test_kelvin_from_reduced():
     kT = 4
