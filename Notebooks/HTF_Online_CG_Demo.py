@@ -8,7 +8,6 @@ import hoomd.md
 import hoomd.htf as htf
 import numpy as np
 import gsd
-import matplotlib.pyplot as plt
 import os
 from uli_init.utils.smiles_utils import viz
 import uli_init.simulate as simulate
