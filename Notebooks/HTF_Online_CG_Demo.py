@@ -8,7 +8,6 @@ import hoomd.md
 import hoomd.htf as htf
 import numpy as np
 import gsd
-import matplotlib.pyplot as plt
 import os
 from uli_init.utils.smiles_utils import viz
 import uli_init.simulate as simulate
@@ -294,7 +293,7 @@ model = TrajModel(nneighbor_cutoff=nneighbor_cutoff,
                  check_nlist=False)
 
 # all the 'None' here is so we only train on the energy
-model.compile('Adam', ['MeanSquaredError', None, None, None, None, None])
+model.compile('Adam', ['MeanAbsoluteError', None, None, None, None, None])
 
 system = simulate.System(molecule='PEEK', para_weight=1.0,
                          density=1.2, n_compounds=[100],
