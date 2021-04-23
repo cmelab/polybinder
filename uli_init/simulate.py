@@ -16,11 +16,12 @@ import scipy.optimize
 from foyer import Forcefield
 from hoomd.md import wall
 from mbuild.formats.hoomd_simulation import create_hoomd_simulation
+from mbuild.lib.recipes import Polymer
 from scipy.special import gamma
 
 from uli_init.compounds import COMPOUND_DIR
 from uli_init.forcefields import FF_DIR
-from uli_init.utils import base_units, polysmiles, smiles_utils
+from uli_init.utils import base_units
 
 units = base_units.base_units()
 
@@ -193,14 +194,10 @@ class Simulation:
                                 )
                         step += shrink_period
                         print(f"Finished step {step} of {shrink_steps}")
-                        print("Shrinking is {}% complete".format(
-                                round(step / shrink_steps, 5) * 100
-                            )
-                        )
-                        print("time elapsed: {time.time() - start)}")
+                        print(f"Shrinking is {round(step / shrink_steps, 5) * 100}% complete")
+                        print(f"time elapsed: {time.time() - start}")
                 else:
                     hoomd.run_upto(shrink_steps)
-
                 shrink_gsd.disable()
                 box_updater.disable()
             # Set up new gsd and log dumps for actual simulation
@@ -371,9 +368,9 @@ class Simulation:
             )
 
             for kT in schedule:  # Start iterating through annealing steps
-                print("Running @ Temp = {} kT".format(kT))
+                print(f"Running @ Temp = {kT} kT")
                 n_steps = schedule[kT]
-                print("Running for {} steps".format(n_steps))
+                print(f"Running for {n_steps} steps")
                 integrator.set_params(kT=kT)
                 integrator.randomize_velocities(seed=self.seed)
                 try:
@@ -424,7 +421,7 @@ class Interface:
         ])
 
         if forcefield == "gaff":
-            ff_path = "{}/gaff-nosmarts.xml".format(FF_DIR)
+            ff_path = f"{FF_DIR}/gaff-nosmarts.xml"
             forcefield = foyer.Forcefield(forcefield_files=ff_path)
         self.system_pmd = forcefield.apply(interface)
 
@@ -481,6 +478,7 @@ class System:
         remove_hydrogens=False,
         assert_dihedrals=True,
         seed=24,
+        expand_factor=5
     ):
         self.molecule = molecule
         self.para_weight = para_weight
@@ -492,10 +490,10 @@ class System:
         self.assert_dihedrals = assert_dihedrals
         self.seed = seed
         self.system_mass = 0
-        # keep track for now to check things are working, maybe keep?
         self.para = 0
         self.meta = 0
         self.type = "melt"
+        self.expand_factor = expand_factor
 
         if sample_pdi:
             if isinstance(n_compounds, int):
@@ -613,7 +611,7 @@ class System:
             * np.exp(-((x / recovered_lambda) ** recovered_k)),
         }
 
-    def _pack(self, box_expand_factor=5):
+    def _pack(self):
         random.seed(self.seed)
         mb_compounds = []
         for _length, _n in zip(self.polymer_lengths, self.n_compounds):
@@ -633,7 +631,7 @@ class System:
 
         # Figure out correct box dimensions and expand the box to make the
         # PACKMOL step faster. Will shrink down to accurate L during simulation
-        L = self._calculate_L() * box_expand_factor
+        L = self._calculate_L() * self.expand_factor 
         system = mb.packing.fill_box(
             compound=mb_compounds,
             n_compounds=[1 for i in mb_compounds],
@@ -647,8 +645,7 @@ class System:
 
     def _type_system(self):
         if self.forcefield == "gaff":
-            # forcefield = foyer.forcefields.load_GAFF()
-            ff_path = "{}/gaff.xml".format(FF_DIR)
+            ff_path = f"{FF_DIR}/gaff.xml"
             forcefield = foyer.Forcefield(forcefield_files=ff_path)
         elif self.forcefield == "opls":
             forcefield = foyer.Forcefield(name="oplsaa")
@@ -680,8 +677,7 @@ def build_molecule(molecule, length, para_weight):
     `build_molecule` uses SMILES strings to build up a polymer from monomers.
     The configuration of each monomer is determined by para_weight and the
     random_sequence() function.
-    Uses DeepSMILES behind the scenes to build up SMILES string for a polymer.
-
+    
     Parameters
     ----------
     molecule : str
@@ -704,49 +700,49 @@ def build_molecule(molecule, length, para_weight):
     sequence : list
         List of the configuration sequence of the finished compound
     """
-    f = open("{}/{}.json".format(COMPOUND_DIR, molecule))
+    f = open(f"{COMPOUND_DIR}/{molecule}.json")
     mol_dict = json.load(f)
     f.close()
+
     monomer_sequence = random_sequence(para_weight, length)
-    molecule_string = "{}"
+    compound = Polymer()
+    para = mb.load(mol_dict["para_smiles"], smiles=True, backend="rdkit")
+    meta = mb.load(mol_dict["meta_smiles"], smiles=True, backend="rdkit")
 
-    for idx, config in enumerate(monomer_sequence):
-        if idx == 0:  # append template, but not brackets
-            monomer_string = mol_dict["{}_template".format(config)]
-            if (molecule == "PEEK"):
-                # Change oxygen type on the terminal end of the polymer;
-                # needs its hydrogen.
-                monomer_string = "O" + monomer_string[1:]
-            molecule_string = molecule_string.format(monomer_string)
-            if len(monomer_sequence) == 1:
-                molecule_string = molecule_string.replace("{}", "")
-                continue
-
-        elif idx == length - 1:  # Don't use template for last iteration
-            brackets = polysmiles.count_brackets(
-                mol_dict["{}_deep_smiles".format(config)]
+    if len(set(monomer_sequence)) == 2: # Copolymer
+        compound.add_monomer(meta, 
+                mol_dict["meta_bond_indices"],
+                mol_dict["bond_distance"],
+                replace=True
             )
-            monomer_string = mol_dict["{}_deep_smiles".format(config)]
-            molecule_string = molecule_string.format(monomer_string, brackets)
-
-        else:  # Continue using template plus brackets
-            brackets = polysmiles.count_brackets(
-                mol_dict["{}_deep_smiles".format(config)]
+        compound.add_monomer(para,
+                mol_dict["para_bond_indices"],
+                mol_dict["bond_distance"],
+                replace=True
             )
-            monomer_string = mol_dict["{}_template".format(config)]
-            molecule_string = molecule_string.format(monomer_string, brackets)
+    else:
+        if monomer_sequence[0] == "P": # Only para
+            compound.add_monomer(para,
+                    mol_dict["para_bond_indices"],
+                    mol_dict["bond_distance"],
+                    replace=True
+                )
+        elif monomer_sequence[0] == "M": # Only meta
+            compound.add_monomer(meta,
+                    mol_dict["meta_bond_indices"],
+                    mol_dict["bond_distance"],
+                    replace=True
+                )
 
-    molecule_string_smiles = smiles_utils.convert_smiles(deep=molecule_string)
-    compound = mb.load(molecule_string_smiles, smiles=True)
+    compound.build(n=1, sequence=monomer_sequence, add_hydrogens=True)
     return compound, monomer_sequence
 
 
 def random_sequence(para_weight, length):
     """
     random_sequence returns a list containing a random sequence of strings
-    'para' and 'meta'.
-    This is used by build_molecule() to create a complete SMILES string of a
-    molecule.
+    'P' and 'M'.
+    This is used by build_molecule() to create a polymers chains.
 
     Parameters:
     -----------
@@ -758,7 +754,7 @@ def random_sequence(para_weight, length):
         Defined in build_molecule()
     """
     meta_weight = 1 - para_weight
-    options = ["para", "meta"]
+    options = ["P", "M"]
     probability = [para_weight, meta_weight]
     sequence = random.choices(options, weights=probability, k=length)
     return sequence
