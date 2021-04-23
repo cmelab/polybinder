@@ -16,11 +16,12 @@ import scipy.optimize
 from foyer import Forcefield
 from hoomd.md import wall
 from mbuild.formats.hoomd_simulation import create_hoomd_simulation
+from mbuild.lib.recipes import Polymer
 from scipy.special import gamma
 
 from uli_init.compounds import COMPOUND_DIR
 from uli_init.forcefields import FF_DIR
-from uli_init.utils import base_units, polysmiles, smiles_utils
+from uli_init.utils import base_units
 
 units = base_units.base_units()
 
@@ -707,37 +708,38 @@ def build_molecule(molecule, length, para_weight):
     f = open("{}/{}.json".format(COMPOUND_DIR, molecule))
     mol_dict = json.load(f)
     f.close()
+
     monomer_sequence = random_sequence(para_weight, length)
-    molecule_string = "{}"
+    compound = Polymer()
+    para = mb.load(mol_dict["para_smiles"], smiles=True, backend="rdkit")
+    meta = mb.load(mol_dict["meta_smiles"], smiles=True, backend="rdkit")
 
-    for idx, config in enumerate(monomer_sequence):
-        if idx == 0:  # append template, but not brackets
-            monomer_string = mol_dict["{}_template".format(config)]
-            if (molecule == "PEEK"):
-                # Change oxygen type on the terminal end of the polymer;
-                # needs its hydrogen.
-                monomer_string = "O" + monomer_string[1:]
-            molecule_string = molecule_string.format(monomer_string)
-            if len(monomer_sequence) == 1:
-                molecule_string = molecule_string.replace("{}", "")
-                continue
-
-        elif idx == length - 1:  # Don't use template for last iteration
-            brackets = polysmiles.count_brackets(
-                mol_dict["{}_deep_smiles".format(config)]
+    if len(set(monomer_sequence)) == 2: # Copolymer
+        compound.add_monomer(meta, 
+                mol_dict["meta_bond_indices"],
+                mol_dict["bond_distance"],
+                replace=True
             )
-            monomer_string = mol_dict["{}_deep_smiles".format(config)]
-            molecule_string = molecule_string.format(monomer_string, brackets)
-
-        else:  # Continue using template plus brackets
-            brackets = polysmiles.count_brackets(
-                mol_dict["{}_deep_smiles".format(config)]
+        compound.add_monomer(para,
+                mol_dict["para_bond_indices"],
+                mol_dict["bond_distance"],
+                replace=True
             )
-            monomer_string = mol_dict["{}_template".format(config)]
-            molecule_string = molecule_string.format(monomer_string, brackets)
+    else:
+        if monomer_sequence[0] == "P": # Only para
+            compound.add_monomer(para,
+                    mol_dict["para_bond_indices"],
+                    mol_dict["bond_distance"],
+                    replace=True
+                )
+        elif monomer_sequence[0] == "M": # Only meta
+            compound.add_monomer(meta,
+                    mol_dict["meta_bond_indices"],
+                    mol_dict["bond_distance"],
+                    replace=True
+                )
 
-    molecule_string_smiles = smiles_utils.convert_smiles(deep=molecule_string)
-    compound = mb.load(molecule_string_smiles, smiles=True)
+    compound.build(n=1, sequence=monomer_sequence, add_hydrogens=True)
     return compound, monomer_sequence
 
 
@@ -758,7 +760,7 @@ def random_sequence(para_weight, length):
         Defined in build_molecule()
     """
     meta_weight = 1 - para_weight
-    options = ["para", "meta"]
+    options = ["P", "M"]
     probability = [para_weight, meta_weight]
     sequence = random.choices(options, weights=probability, k=length)
     return sequence
