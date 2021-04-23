@@ -2,7 +2,6 @@ name: uli-init
 channels:
   - conda-forge
 dependencies:
-  - deepsmiles=1.0.1
   - ele=0.1.0
   - foyer=0.7.7
   - garnett=0.7.1
@@ -20,9 +19,10 @@ dependencies:
   - pytest
   - pytest-cov
   - python=3.7
+  - rdkit=2021.03.1
   - scipy=1.6.0
   - signac=1.6.0
   - signac-flow=0.12.0
   - pip:
-      - git+https://github.com/chrisjonesBSU/mbuild.git@hoomd_sim
+      - git+https://github.com/chrisjonesBSU/mbuild.git@feat/polymer
       - git+https://github.com/cmelab/uli-init.git@0.0.6
