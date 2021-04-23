@@ -478,6 +478,7 @@ class System:
         remove_hydrogens=False,
         assert_dihedrals=True,
         seed=24,
+        expand_factor=5
     ):
         self.molecule = molecule
         self.para_weight = para_weight
@@ -489,10 +490,10 @@ class System:
         self.assert_dihedrals = assert_dihedrals
         self.seed = seed
         self.system_mass = 0
-        # keep track for now to check things are working, maybe keep?
         self.para = 0
         self.meta = 0
         self.type = "melt"
+        self.expand_factor = expand_factor
 
         if sample_pdi:
             if isinstance(n_compounds, int):
@@ -610,7 +611,7 @@ class System:
             * np.exp(-((x / recovered_lambda) ** recovered_k)),
         }
 
-    def _pack(self, box_expand_factor=5):
+    def _pack(self):
         random.seed(self.seed)
         mb_compounds = []
         for _length, _n in zip(self.polymer_lengths, self.n_compounds):
@@ -630,7 +631,7 @@ class System:
 
         # Figure out correct box dimensions and expand the box to make the
         # PACKMOL step faster. Will shrink down to accurate L during simulation
-        L = self._calculate_L() * box_expand_factor
+        L = self._calculate_L() * self.expand_factor 
         system = mb.packing.fill_box(
             compound=mb_compounds,
             n_compounds=[1 for i in mb_compounds],
@@ -676,8 +677,7 @@ def build_molecule(molecule, length, para_weight):
     `build_molecule` uses SMILES strings to build up a polymer from monomers.
     The configuration of each monomer is determined by para_weight and the
     random_sequence() function.
-    Uses DeepSMILES behind the scenes to build up SMILES string for a polymer.
-
+    
     Parameters
     ----------
     molecule : str
@@ -741,9 +741,8 @@ def build_molecule(molecule, length, para_weight):
 def random_sequence(para_weight, length):
     """
     random_sequence returns a list containing a random sequence of strings
-    'para' and 'meta'.
-    This is used by build_molecule() to create a complete SMILES string of a
-    molecule.
+    'P' and 'M'.
+    This is used by build_molecule() to create a polymers chains.
 
     Parameters:
     -----------
