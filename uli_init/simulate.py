@@ -194,14 +194,10 @@ class Simulation:
                                 )
                         step += shrink_period
                         print(f"Finished step {step} of {shrink_steps}")
-                        print("Shrinking is {}% complete".format(
-                                round(step / shrink_steps, 5) * 100
-                            )
-                        )
-                        print("time elapsed: {time.time() - start)}")
+                        print(f"Shrinking is {round(step / shrink_steps, 5) * 100}% complete")
+                        print(f"time elapsed: {time.time() - start}")
                 else:
                     hoomd.run_upto(shrink_steps)
-
                 shrink_gsd.disable()
                 box_updater.disable()
             # Set up new gsd and log dumps for actual simulation
@@ -372,9 +368,9 @@ class Simulation:
             )
 
             for kT in schedule:  # Start iterating through annealing steps
-                print("Running @ Temp = {} kT".format(kT))
+                print(f"Running @ Temp = {kT} kT")
                 n_steps = schedule[kT]
-                print("Running for {} steps".format(n_steps))
+                print(f"Running for {n_steps} steps")
                 integrator.set_params(kT=kT)
                 integrator.randomize_velocities(seed=self.seed)
                 try:
@@ -425,7 +421,7 @@ class Interface:
         ])
 
         if forcefield == "gaff":
-            ff_path = "{}/gaff-nosmarts.xml".format(FF_DIR)
+            ff_path = f"{FF_DIR}/gaff-nosmarts.xml"
             forcefield = foyer.Forcefield(forcefield_files=ff_path)
         self.system_pmd = forcefield.apply(interface)
 
@@ -648,8 +644,7 @@ class System:
 
     def _type_system(self):
         if self.forcefield == "gaff":
-            # forcefield = foyer.forcefields.load_GAFF()
-            ff_path = "{}/gaff.xml".format(FF_DIR)
+            ff_path = f"{FF_DIR}/gaff.xml"
             forcefield = foyer.Forcefield(forcefield_files=ff_path)
         elif self.forcefield == "opls":
             forcefield = foyer.Forcefield(name="oplsaa")
@@ -705,7 +700,7 @@ def build_molecule(molecule, length, para_weight):
     sequence : list
         List of the configuration sequence of the finished compound
     """
-    f = open("{}/{}.json".format(COMPOUND_DIR, molecule))
+    f = open(f"{COMPOUND_DIR}/{molecule}.json")
     mol_dict = json.load(f)
     f.close()
 
