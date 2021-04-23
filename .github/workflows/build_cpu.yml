@@ -7,16 +7,13 @@ on:
     paths:
         - 'containers/dockerfile_cpu'
         - 'environment.yml'
-  pull_request:
-    branches: [ master ]
-    paths:
-        - 'containers/dockerfile_cpu'
-        - 'environment.yml'
   # Allows workflow to be manually triggered
   workflow_dispatch:
 
 jobs:
   build_cpu:
+    # prevent build from running on forks
+    if: github.repository_owner == 'cmelab'
     runs-on: ubuntu-latest
 
     steps:
