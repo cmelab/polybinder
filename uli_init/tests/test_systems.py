@@ -6,8 +6,6 @@ from uli_init.tests.base_test import BaseTest
 
 
 class TestSystems(BaseTest):
-    def test_pdi(self):
-        pass
 
     def test_build_peek(self):
         for i in range(5):
@@ -28,12 +26,6 @@ class TestSystems(BaseTest):
         random.seed()
         mix_sequence = simulate.random_sequence(para_weight=0.70, length=100)
         assert 100 - mix_sequence.count("P") == mix_sequence.count("M")
-
-    def test_gaff(self):
-        pass
-
-    def test_opls(self):
-        pass
 
     # check that we can load forcefield files
     def test_load_forcefiled(self):
@@ -93,6 +85,7 @@ class TestSystems(BaseTest):
             forcefield=None,
             assert_dihedrals=False,
             remove_hydrogens=False,
+            expand_factor = 7
         )
 
     # test PDI sampling with four combinations of argument values
@@ -108,6 +101,7 @@ class TestSystems(BaseTest):
             forcefield=None,
             assert_dihedrals=False,
             remove_hydrogens=False,
+            expand_factor = 7
         )
 
     def test_pdi_mn(self):
@@ -122,6 +116,7 @@ class TestSystems(BaseTest):
             forcefield=None,
             assert_dihedrals=False,
             remove_hydrogens=False,
+            expand_factor = 7
         )
 
     def test_mw_mn(self):
@@ -136,6 +131,7 @@ class TestSystems(BaseTest):
             forcefield=None,
             assert_dihedrals=False,
             remove_hydrogens=False,
+            expand_factor = 7
         )
 
     def test_pdi_mn_mw(self):
@@ -151,6 +147,7 @@ class TestSystems(BaseTest):
             forcefield=None,
             assert_dihedrals=False,
             remove_hydrogens=False,
+            expand_factor = 7
         )
 
     # make sure we correctly throw error when not enough PDI args
