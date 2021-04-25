@@ -7,6 +7,17 @@ from uli_init.tests.base_test import BaseTest
 
 class TestSystems(BaseTest):
 
+    def test_single_chain(self):
+        chain = simulate.System(
+                molecule="PEEK",
+                para_weight=1.0,
+                density=0.10,
+                n_compounds=1,
+                polymer_lengths=10,
+                forcefield="gaff",
+                remove_hydrogens=True
+                )
+
     def test_build_peek(self):
         for i in range(5):
             compound = simulate.build_molecule("PEEK", i + 1, para_weight=0.50)
