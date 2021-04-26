@@ -37,6 +37,7 @@ class Simulation:
         dt=0.0001,
         auto_scale=True,
         ref_units=None,
+        nlist="cell",
         mode="gpu",
         gsd_write=1e4,
         log_write=1e3,
@@ -51,6 +52,7 @@ class Simulation:
         self.dt = dt
         self.auto_scale = auto_scale
         self.ref_units = ref_units
+        self.nlist = nlist
         self.mode = mode
         self.gsd_write = gsd_write
         self.log_write = log_write
@@ -110,12 +112,13 @@ class Simulation:
         sim = hoomd.context.initialize(hoomd_args)
         with sim:
             objs, refs = create_hoomd_simulation(
-                self.system_pmd,
-                self.ref_distance,
-                self.ref_mass,
-                self.ref_energy,
-                self.r_cut,
-                self.auto_scale,
+                structure=self.system_pmd,
+                ref_distance=self.ref_distance,
+                ref_mass=self.ref_mass,
+                ref_energy=self.ref_energy,
+                r_cut=self.r_cut,
+                n_list=self.nlist,
+                auto_scale=self.auto_scale,
             )
             hoomd_system = objs[1]
             init_snap = objs[0]
@@ -255,12 +258,13 @@ class Simulation:
         sim = hoomd.context.initialize(hoomd_args)
         with sim:
             objs, refs = create_hoomd_simulation(
-                self.system_pmd,
-                self.ref_distance,
-                self.ref_mass,
-                self.ref_energy,
-                self.r_cut,
-                self.auto_scale,
+                structure=self.system_pmd,
+                ref_distance=self.ref_distance,
+                ref_mass=self.ref_mass,
+                ref_energy=self.ref_energy,
+                r_cut=self.r_cut,
+                n_list=self.nlist,
+                auto_scale=self.auto_scale,
             )
             hoomd_system = objs[1]
             init_snap = objs[0]
