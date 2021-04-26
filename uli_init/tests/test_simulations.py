@@ -81,3 +81,12 @@ class TestSimulate(BaseTest):
         simulation.anneal(
             kT_init=4, kT_final=2, step_sequence=[1e3, 1e3, 1e3], walls=True
         )
+
+    def test_single_chainis(self):
+        peek_chain = simulate.System("PEEK", 1.0, 0.10, 1, 20, "gaff")
+        pekk_chain = simulate.System("PEKK", 1.0, 0.10, 1, 20, "gaff")
+        peek_sim = simulate.Simulation(peek_chain, nlist="tree")
+        pekk_sim = simulate.Simulation(pekk_chain, nlist="tree")
+        peek_sim.quench(kT=1.0, n_steps=1e3, walls=False)
+        pekk_sim.quench(kT=1.0, n_steps=1e3, walls=False)
+        

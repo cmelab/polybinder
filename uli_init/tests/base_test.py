@@ -75,3 +75,15 @@ class BaseTest:
             expand_factor=5
         )
         return pekk_sys
+
+    @pytest.fixture
+    def single_peek_chain(self):
+        chain = simulate.build_molecule("PEEK", 20, 1.0)
+        return chain
+
+    @pytest.fixture
+    def single_pekk_chain(self):
+        chain = simulate.build_molecule("PEKK", 20, 1.0)
+        return chain
+                            
+
