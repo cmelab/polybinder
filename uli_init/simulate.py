@@ -638,11 +638,8 @@ class System:
         if len(mb_compounds) == 1:
             L = self._calculate_L()
             system = mb_compounds[0]
-            system.Box = mb.box.Box(mins=system.boundingbox.mins,
-                    maxs=system.boundingbox.maxs)
-            expand_factor = np.array([L,L,L]) / system.boundingbox.lengths
-            system.Box.mins *= expand_factor
-            system.Box.maxs *= expand_factor
+            system.Box = mb.box.Box(mins=[-L, -L, -L], maxs=[L, L, L])
+            system.translate_to([0,0,0])
         else:
             L = self._calculate_L() * self.expand_factor
             system = mb.packing.fill_box(
