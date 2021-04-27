@@ -636,10 +636,10 @@ class System:
         # Figure out correct box dimensions and expand the box to make the
         # PACKMOL step faster. Will shrink down to accurate L during simulation
         if len(mb_compounds) == 1:
-            L = self._calculate_L()
+            L = self._calculate_L() * self.expand_factor
             system = mb_compounds[0]
-            system.Box = mb.box.Box(mins=[-L, -L, -L], maxs=[L, L, L])
-            system.translate_to([0,0,0])
+            system.Box = mb.box.Box(mins=[0, 0, 0], maxs=[L, L, L])
+            system.translate_to([L/2, L/2, L/2])
         else:
             L = self._calculate_L() * self.expand_factor
             system = mb.packing.fill_box(
