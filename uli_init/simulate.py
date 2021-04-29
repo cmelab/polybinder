@@ -77,8 +77,9 @@ class Simulation:
 
         if system.type == "melt":
             # nm
-            self.reduced_target_L = self.system.target_L / self.ref_distance
+            self.reduced_target_L = (self.system.target_L*10) / self.ref_distance
             # angstroms
+#            self.reduced_init_L = (self.system_mb.Box[0]*10 / self.ref_distance)
             self.reduced_init_L = (self.system_pmd.box[0] / self.ref_distance)
 
             # TODO: Use target_box to generate non-cubic simulation volumes
@@ -636,9 +637,10 @@ class System:
         # Figure out correct box dimensions and expand the box to make the
         # PACKMOL step faster. Will shrink down to accurate L during simulation
         if len(mb_compounds) == 1:
+            self.density = 0.0001 / (self.polymer_lengths[0]**2)
             L = self._calculate_L() * self.expand_factor
             system = mb_compounds[0]
-            system.Box = mb.box.Box(mins=[0, 0, 0], maxs=[L, L, L])
+            system.box = mb.box.Box(mins=[0, 0, 0], maxs=[L, L, L])
             system.translate_to([L/2, L/2, L/2])
         else:
             L = self._calculate_L() * self.expand_factor
@@ -650,7 +652,7 @@ class System:
                 edge=0.9,
                 fix_orientation=True,
             )
-            system.Box = mb.box.Box([L, L, L])
+            system.box = mb.box.Box([L, L, L])
         return system
 
     def _type_system(self):
