@@ -637,7 +637,7 @@ class System:
         # Figure out correct box dimensions and expand the box to make the
         # PACKMOL step faster. Will shrink down to accurate L during simulation
         if len(mb_compounds) == 1:
-            self.density = 0.0001 / (self.polymer_lengths[0]**2)
+            self.density = 0.1 / (self.polymer_lengths[0]**2)
             L = self._calculate_L() * self.expand_factor
             system = mb_compounds[0]
             system.box = mb.box.Box(mins=[0, 0, 0], maxs=[L, L, L])
