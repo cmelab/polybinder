@@ -1,0 +1,103 @@
+<ForceField>
+  <AtomTypes>
+    <Type name="c" class="c" element="_c" mass="12.01" def="_c" overrides="" desc="Sp2 C carbonyl group" doi="10.1002/jcc/20035"/>
+    <Type name="ca" class="ca" element="_ca" mass="12.01" def="_ca" overrides="" desc="Sp2 C in pure aromatic systems" doi="10.1002/jcc/20035"/>
+    <Type name="ha" class="ha" element="_ha" mass="1.008" def="_ha" desc="H bonded to aromatic carbon" doi="10.1002/jcc/20035"/>
+    <Type name="ho" class="ho" element="_ho" mass="1.008" def="_ho" desc="Hydroxyl group" doi="10.1002/jcc/20035"/>
+    <Type name="o" class="o" element="_o" mass="16.00" def="_o" desc="Oxygen with one connected atom" doi="10.1002/jcc/20035"/>
+    <Type name="oh" class="oh" element="_oh" mass="16.00" def="_oh" desc="Oxygen in hydroxyl group" doi="10.1002/jcc/20035"/>
+    <Type name="os" class="os" element="_os" mass="16.00" def="_os" desc="Ether and ester oxygen" doi="10.1002/jcc/20035"/>
+  </AtomTypes>
+  <NonbondedForce coulomb14scale="0.833333333" lj14scale="0.5">
+    <Atom type="c" charge="0.0" sigma="0.33996695084235345" epsilon="0.359824"/>
+    <Atom type="ca" charge="0.0" sigma="0.33996695084235345" epsilon="0.359824"/>
+    <Atom type="ha" charge="0.0" sigma="0.259964245953351" epsilon="0.06276"/>
+    <Atom type="ho" charge="0.0" sigma="0.0" epsilon="0.00001"/>
+    <Atom type="o" charge="0.0" sigma="0.2959921901149464" epsilon="0.87864"/>
+    <Atom type="oh" charge="0.0" sigma="0.3066473387839048" epsilon="0.8803136"/>
+    <Atom type="os" charge="0.0" sigma="0.3000012343465779" epsilon="0.7112800000000001"/>
+  </NonbondedForce>
+  <HarmonicBondForce>
+    <Bond class1="ca" class2="ca" length="0.13984000000000002" k="385848.4799999999"/>
+    <Bond class1="ca" class2="ha" length="0.10860000000000002" k="289365.44"/>
+    <Bond class1="ca" class2="o" length="0.12358000000000001" k="500490.07999999996"/>
+    <Bond class1="ca" class2="oh" length="0.13637" k="321331.19999999995"/>
+    <Bond class1="ca" class2="os" length="0.13696" k="315138.87999999995"/>
+    <Bond class1="c" class2="c" length="0.15482" k="244094.55999999994"/>
+    <Bond class1="c" class2="ca" length="0.14906" k="289449.11999999994"/>
+    <Bond class1="c" class2="ha" length="0.1101" k="272043.68"/>
+    <Bond class1="c" class2="o" length="0.12183" k="533627.36"/>
+    <Bond class1="c" class2="oh" length="0.13513" k="334803.68"/>
+    <Bond class1="c" class2="os" length="0.13584000000000002" k="327021.43999999994"/>
+    <Bond class1="ho" class2="o" length="0.0981" k="299490.72"/>
+    <Bond class1="ho" class2="oh" length="0.0973" k="310787.51999999996"/>
+    <Bond class1="oh" class2="oh" length="0.1469" k="284930.39999999997"/>
+    <Bond class1="oh" class2="os" length="0.14555" k="296980.31999999995"/>
+    <Bond class1="o" class2="o" length="0.143" k="321582.23999999993"/>
+    <Bond class1="o" class2="oh" length="0.1517" k="246521.27999999997"/>
+    <Bond class1="o" class2="os" length="0.1504" k="256311.83999999997"/>
+    <Bond class1="os" class2="os" length="0.14653000000000002" k="288193.9199999999"/>
+  </HarmonicBondForce>
+  <HarmonicAngleForce>
+    <Angle class1="ca" class2="ca" class3="ca" angle="2.094744168243594" k="557.3088"/>
+    <Angle class1="ca" class2="ca" class3="ha" angle="2.092300707290802" k="403.33760000000007"/>
+    <Angle class1="ca" class2="ca" class3="o" angle="2.1512928360082104" k="597.4752000000001"/>
+    <Angle class1="ca" class2="ca" class3="oh" angle="2.0926497731412015" k="581.576"/>
+    <Angle class1="ca" class2="ca" class3="os" angle="2.080432468377241" k="582.4128"/>
+    <Angle class1="c" class2="ca" class3="c" angle="2.0943951023931953" k="523.0"/>
+    <Angle class1="c" class2="ca" class3="ca" angle="2.1001546889247766" k="538.0624"/>
+    <Angle class1="c" class2="ca" class3="ha" angle="2.022836603061428" k="388.2752"/>
+    <Angle class1="oh" class2="ca" class3="oh" angle="2.0943951023931953" k="606.6800000000001"/>
+    <Angle class1="o" class2="ca" class3="o" angle="2.2134265573792082" k="651.8672"/>
+    <Angle class1="os" class2="ca" class3="os" angle="1.9849629582931512" k="620.9056"/>
+    <Angle class1="ca" class2="c" class3="ca" angle="2.0614083795305027" k="527.184"/>
+    <Angle class1="ca" class2="c" class3="ha" angle="1.9917697423759289" k="390.78560000000004"/>
+    <Angle class1="ca" class2="c" class3="o" angle="2.139773662945048" k="574.8816"/>
+    <Angle class1="ca" class2="c" class3="oh" angle="1.9800760363875667" k="579.0656"/>
+    <Angle class1="ca" class2="c" class3="os" angle="1.9624482109424242" k="579.9024"/>
+    <Angle class1="c" class2="c" class3="c" angle="1.9491837086272672" k="522.1632"/>
+    <Angle class1="c" class2="c" class3="ca" angle="2.069960492865275" k="515.4688"/>
+    <Angle class1="c" class2="c" class3="ha" angle="2.0146335555770545" k="375.7232"/>
+    <Angle class1="c" class2="c" class3="o" angle="2.109230401035147" k="562.3296"/>
+    <Angle class1="c" class2="c" class3="oh" angle="1.9559904927100449" k="568.1872000000001"/>
+    <Angle class1="c" class2="c" class3="os" angle="1.9444713196468826" k="569.024"/>
+    <Angle class1="ha" class2="c" class3="ha" angle="2.0177751482306445" k="317.1472"/>
+    <Angle class1="ha" class2="c" class3="o" angle="2.1282544898818854" k="452.70880000000005"/>
+    <Angle class1="ha" class2="c" class3="oh" angle="1.9516271695800593" k="440.15680000000003"/>
+    <Angle class1="ha" class2="c" class3="os" angle="1.925796296650543" k="441.8304"/>
+    <Angle class1="oh" class2="c" class3="oh" angle="1.9296360210049306" k="638.4784"/>
+    <Angle class1="o" class2="c" class3="o" angle="2.273291350722614" k="651.8672"/>
+    <Angle class1="o" class2="c" class3="oh" angle="2.131047016685076" k="635.1312"/>
+    <Angle class1="o" class2="c" class3="os" angle="2.1511183030830114" k="630.1104"/>
+    <Angle class1="os" class2="c" class3="os" angle="1.9423769245444895" k="632.6208"/>
+    <Angle class1="ca" class2="oh" class3="ho" angle="1.895078501815443" k="410.03200000000004"/>
+    <Angle class1="c" class2="oh" class3="ho" angle="1.8596483179999581" k="417.5632"/>
+    <Angle class1="ho" class2="oh" class3="ho" angle="1.8586011204487614" k="348.10880000000003"/>
+    <Angle class1="ho" class2="oh" class3="o" angle="1.7605136164866801" k="395.8064"/>
+    <Angle class1="ho" class2="oh" class3="oh" angle="1.722989037568802" k="412.5424"/>
+    <Angle class1="ho" class2="oh" class3="os" angle="1.7397441983879478" k="414.216"/>
+    <Angle class1="ca" class2="os" class3="ca" angle="2.0924752402160016" k="531.368"/>
+    <Angle class1="c" class2="os" class3="c" angle="2.105565209605959" k="533.8783999999999"/>
+    <Angle class1="c" class2="os" class3="ca" angle="2.11446638879113" k="530.5312"/>
+    <Angle class1="c" class2="os" class3="oh" angle="1.9285888234537343" k="553.9616000000001"/>
+    <Angle class1="c" class2="os" class3="os" angle="1.9233528356977512" k="552.288"/>
+    <Angle class1="o" class2="os" class3="o" angle="2.0015435861870974" k="525.5104"/>
+  </HarmonicAngleForce>
+  <PeriodicTorsionForce>
+    <Proper class1="" class2="c" class3="c" class4="" periodicity1="2" k1="1.2552" phase1="3.141592653589793"/>
+    <Proper class1="" class2="c" class3="ca" class4="" periodicity1="2" k1="4.184" phase1="3.141592653589793"/>
+    <Proper class1="" class2="c" class3="oh" class4="" periodicity1="2" k1="9.623199999999999" phase1="3.141592653589793"/>
+    <Proper class1="" class2="c" class3="os" class4="" periodicity1="2" k1="11.296800000000001" phase1="3.141592653589793"/>
+    <Proper class1="" class2="ca" class3="ca" class4="" periodicity1="2" k1="15.167" phase1="3.141592653589793"/>
+    <Proper class1="" class2="ca" class3="oh" class4="" periodicity1="2" k1="3.7656" phase1="3.141592653589793"/>
+    <Proper class1="" class2="ca" class3="os" class4="" periodicity1="2" k1="3.7656" phase1="3.141592653589793"/>
+    <Proper class1="" class2="oh" class3="oh" class4="" periodicity1="2" k1="6.694400000000001" phase1="0.0"/>
+    <Proper class1="" class2="oh" class3="os" class4="" periodicity1="2" k1="6.694400000000001" phase1="0.0"/>
+    <Proper class1="" class2="os" class3="os" class4="" periodicity1="1" k1="4.184" phase1="0.0"/>
+    <Proper class1="ho" class2="oh" class3="c" class4="o" periodicity1="2" k1="9.623199999999999" phase1="3.141592653589793" periodicity2="1" k2="7.9496" phase2="0.0"/>
+    <Improper class1="c" class2="" class3="o" class4="o" periodicity1="2" k1="4.6024" phase1="3.141592653589793"/>
+    <Improper class1="c" class2="" class3="" class4="o" periodicity1="2" k1="43.932" phase1="3.141592653589793"/>
+    <Improper class1="ca" class2="" class3="" class4="ha" periodicity1="2" k1="4.6024" phase1="3.141592653589793"/>
+    <Improper class1="c" class2="ca" class3="ca" class4="oh" periodicity1="2" k1="4.6024" phase1="3.141592653589793"/>
+  </PeriodicTorsionForce>
+</ForceField>
