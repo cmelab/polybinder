@@ -230,19 +230,21 @@ class TrajModel(htf.SimModel):
         # because these are tensors, can't use list comprehension
         for i in range(len(cg_features[0])):
             cg_radius = htf.mol_bond_distance(CG=True,
-                                              cg_positions=positions,
+                                              cg_positions=positions[:,:3],
                                               b1=cg_features[0][i][0],
-                                              b2=cg_features[0][i][1]
+                                              b2=cg_features[0][i][1],
+                                              box=box
                                               )
             radii_list.append(cg_radius)
         self.avg_cg_radii.update_state(radii_list)
 
         for j in range(len(cg_features[1])):
             cg_angle = htf.mol_angle(CG=True,
-                                     cg_positions=positions,
+                                     cg_positions=positions[:,:3],
                                      b1=cg_features[1][j][0],
                                      b2=cg_features[1][j][1],
-                                     b3=cg_features[1][j][2]
+                                     b3=cg_features[1][j][2],
+                                     box=box
                                      )
             angles_list.append(cg_angle)
         self.avg_cg_angles.update_state(angles_list)
@@ -254,6 +256,7 @@ class TrajModel(htf.SimModel):
                                            b2=cg_features[2][k][1],
                                            b3=cg_features[2][k][2],
                                            b4=cg_features[2][k][3],
+                                           box=box
                                            )
             dihedrals_list.append(cg_dihedral)
         self.avg_cg_dihedrals.update_state(dihedrals_list)
