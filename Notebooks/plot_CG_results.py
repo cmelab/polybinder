@@ -1,15 +1,15 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import hoomd
-import gsd
+import gsd.hoomd
 import glob
 
-param_fnames = sorted(glob.glob("*params.txt"))
+param_fnames = sorted(glob.glob("*params.npy"))
 print(param_fnames)
 
 # plot our parameters over time
 for fname in param_fnames:
-    params = np.genfromtxt(fname)
+    params = np.load(fname)
     short_name = fname.split('.')[0] # discard file extension
     # first dimension is timesteps
     plt.figure()
@@ -46,10 +46,10 @@ def make_frame(i, positions, bonds_matrix):
     s.bonds.group = bonds_matrix
     return s
 
-angle_params = np.genfromtxt(param_fnames[0])
-bond_params = np.genfromtxt(param_fnames[1])
-dihedral_params = np.genfromtxt(param_fnames[2])
-lj_params = np.genfromtxt(param_fnames[3])
+angle_params = np.load(param_fnames[0])
+bond_params = np.load(param_fnames[1])
+dihedral_params = np.load(param_fnames[2])
+lj_params = np.load(param_fnames[3])
 
 positions = np.load('cg_positions.npy')
 positions = positions[:,:,:3] # remove types
