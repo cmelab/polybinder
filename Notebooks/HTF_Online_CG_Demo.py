@@ -308,18 +308,16 @@ sim = simulate.Simulation(system, gsd_write=100, mode='cpu', dt=0.0001, r_cut=se
 sim.quench(kT=1., n_steps=1e2, shrink_steps=2e2)
 
 outputs = sim.tfcompute.outputs
-cg_forces = outputs[0]
-np.save('cg_forces.npy', cg_forces)
-cg_positions = outputs[1]
+cg_positions = outputs[0]
 np.save('cg_positions.npy', cg_positions)
-cg_energy = outputs[2]
+cg_energy = outputs[1]
 np.save('cg_energy.npy', cg_energy)
-lj_energy_params = outputs[3]
+lj_energy_params = outputs[2]
 np.save('cg_lj_params.npy', lj_energy_params)
-bond_energy_params = outputs[4]
+bond_energy_params = outputs[3]
 np.save('cg_bond_params.npy', bond_energy_params)
-angle_energy_params = outputs[5]
+angle_energy_params = outputs[4]
 np.save('cg_angle_params.npy', angle_energy_params)
-dihedral_energy_params = outputs[6]
+dihedral_energy_params = outputs[5]
 np.save('cg_dihedral_params.npy', dihedral_energy_params)
 
