@@ -497,7 +497,7 @@ class System:
         self.expand_factor = expand_factor
         self.type = "melt"
         
-        if self.sequence and self.para_weight:
+        if self.monomer_sequence and self.para_weight:
             raise ValueError(
                     "The para weight parameter can only be used when "
                     "generating random copolymer sequences. "

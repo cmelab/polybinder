@@ -9,11 +9,52 @@ class TestSystems(BaseTest):
 
     def test_build_peek(self):
         for i in range(5):
-            compound = simulate.build_molecule("PEEK", i + 1, para_weight=0.50)
+            compound = simulate.build_molecule(
+                    "PEEK", i + 1,
+                    sequence = "random",
+                    para_weight=0.50
+                    )
 
     def test_build_pekk(self):
         for i in range(5):
-            compound = simulate.build_molecule("PEKK", i + 1, para_weight=0.50)
+            compound = simulate.build_molecule(
+                    "PEKK", 
+                    i + 1,
+                    sequence="random",
+                    para_weight=0.50
+                    )
+
+    def test_monomer_sequence(self):
+        system_even = simulate.System(
+                molecule="PEEK",
+                monomer_sequence="PM",
+                n_compounds = [1],
+                polymer_lengths=[4],
+                density=.1,
+                remove_hydrogens=True
+                )
+        assert system_even.para == system_even.meta  == 2
+
+        system_odd = simulate.System(
+                molecule="PEEK",
+                monomer_sequence="PM",
+                n_compounds = [1],
+                polymer_lengths=[5],
+                density=.1,
+                remove_hydrogens=True
+                )
+        assert system_odd.para == 3
+        assert system_odd.meta == 2
+
+        system_large_seq = simulate.System(
+                molecule="PEEK",
+                monomer_sequence="PMPMPMPMPM",
+                n_compounds = [1],
+                polymer_lengths=[4],
+                density=.1,
+                remove_hydrogens=True
+                )
+        assert system_large_seq.para == system_large_seq.meta == 2
 
     def test_para_weight(self):
         all_para = simulate.random_sequence(para_weight=1, length=10)
@@ -45,7 +86,7 @@ class TestSystems(BaseTest):
         simple_system = simulate.System(
             molecule="PEEK",
             para_weight=0.60,
-            density=1,
+            density=.1,
             n_compounds=[1],
             polymer_lengths=[2],
             forcefield="gaff",
@@ -66,7 +107,7 @@ class TestSystems(BaseTest):
         simple_system = simulate.System(
             molecule="PEEK",
             para_weight=0.60,
-            density=1,
+            density=.1,
             n_compounds=[1],
             polymer_lengths=[2],
             forcefield="gaff",
@@ -79,7 +120,7 @@ class TestSystems(BaseTest):
         simple_system = simulate.System(
             molecule="PEEK",
             para_weight=0.60,
-            density=1,
+            density=.1,
             n_compounds=[5, 4, 3, 2, 1],
             polymer_lengths=[2, 4, 5, 11, 22],
             forcefield=None,
@@ -93,7 +134,7 @@ class TestSystems(BaseTest):
         simple_system = simulate.System(
             molecule="PEEK",
             para_weight=0.60,
-            density=0.7,
+            density=0.1,
             n_compounds=3,
             sample_pdi=True,
             pdi=1.2,
@@ -108,7 +149,7 @@ class TestSystems(BaseTest):
         simple_system = simulate.System(
             molecule="PEEK",
             para_weight=0.60,
-            density=0.7,
+            density=0.1,
             n_compounds=3,
             sample_pdi=True,
             pdi=1.2,
@@ -123,7 +164,7 @@ class TestSystems(BaseTest):
         simple_system = simulate.System(
             molecule="PEEK",
             para_weight=0.60,
-            density=0.7,
+            density=0.1,
             n_compounds=3,
             sample_pdi=True,
             Mn=5.0,
@@ -138,7 +179,7 @@ class TestSystems(BaseTest):
         simple_system = simulate.System(
             molecule="PEEK",
             para_weight=0.60,
-            density=0.7,
+            density=0.1,
             n_compounds=3,
             sample_pdi=True,
             pdi=1.2,
@@ -156,7 +197,7 @@ class TestSystems(BaseTest):
             simple_system = simulate.System(
                 molecule="PEEK",
                 para_weight=0.60,
-                density=0.7,
+                density=0.1,
                 n_compounds=3,
                 sample_pdi=True,
                 pdi=1.2,
@@ -171,7 +212,7 @@ class TestSystems(BaseTest):
             simple_system = simulate.System(
                 molecule="PEEK",
                 para_weight=0.60,
-                density=0.7,
+                density=0.1,
                 n_compounds=3,
                 sample_pdi=True,
                 pdi=1.2,
@@ -188,7 +229,7 @@ class TestSystems(BaseTest):
         simple_system = simulate.System(
             molecule="PEEK",
             para_weight=0.60,
-            density=0.7,
+            density=0.1,
             n_compounds=3,
             sample_pdi=True,
             pdi=1.001,
