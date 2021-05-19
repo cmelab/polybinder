@@ -711,19 +711,17 @@ def build_molecule(molecule, length, sequence, para_weight):
         polymer.
         A 70/30 para to meta system would require a para_weight = 0.70
 
-    Notes:
-    ------
+    Notes
+    -----
     Any values entered for length and sequence should be compatible.
     This is designed to follow the sequence until it has reached it's
-    terminal length.
-
-        For example:
+    terminal length. For example::
 
         A `length=5` and `sequence="PM"` would result in
         `monomer_sequence = "PMPMP".
 
         The same is true if `length` is shorter than the sequence length
-        A `lenght=3` and `sequence="PPMMM" would result in
+        A `lenght=3` and `sequence="PPMMM"` would result in
         `monomer_sequence = "PPM"`
 
     Returns
