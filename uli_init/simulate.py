@@ -704,11 +704,27 @@ def build_molecule(molecule, length, sequence, para_weight):
         The monomer sequence to be used when building a polymer.
         Example) "AB" or "AAB"
         If you want a sequence to be generated randomly, use sequence="random"
+
     para_weight : float, limited to values between 0 and 1
         The relative amount of para configurations compared to meta.
         Passed into random_sequence() to determine the monomer sequence of the
         polymer.
         A 70/30 para to meta system would require a para_weight = 0.70
+
+    Notes:
+    ------
+    Any values entered for length and sequence should be compatible.
+    This is designed to follow the sequence until it has reached it's
+    terminal length.
+
+        For example:
+
+        A `length=5` and `sequence="PM"` would result in
+        `monomer_sequence = "PMPMP".
+
+        The same is true if `length` is shorter than the sequence length
+        A `lenght=3` and `sequence="PPMMM" would result in
+        `monomer_sequence = "PPM"`
 
     Returns
     -------

@@ -25,6 +25,18 @@ class TestSystems(BaseTest):
                     )
 
     def test_monomer_sequence(self):
+
+        with pytest.raises(ValueError):
+            system_even = simulate.System(
+                    molecule="PEEK",
+                    monomer_sequence="PM",
+                    para_weight=0.5,
+                    n_compounds = [1],
+                    polymer_lengths=[4],
+                    density=.1,
+                    remove_hydrogens=True
+                    )
+
         system_even = simulate.System(
                 molecule="PEEK",
                 monomer_sequence="PM",
