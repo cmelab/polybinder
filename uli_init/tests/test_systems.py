@@ -6,16 +6,67 @@ from uli_init.tests.base_test import BaseTest
 
 
 class TestSystems(BaseTest):
-    def test_pdi(self):
-        pass
 
     def test_build_peek(self):
         for i in range(5):
-            compound = simulate.build_molecule("PEEK", i + 1, para_weight=0.50)
+            compound = simulate.build_molecule(
+                    "PEEK", i + 1,
+                    sequence = "random",
+                    para_weight=0.50
+                    )
 
     def test_build_pekk(self):
         for i in range(5):
-            compound = simulate.build_molecule("PEKK", i + 1, para_weight=0.50)
+            compound = simulate.build_molecule(
+                    "PEKK", 
+                    i + 1,
+                    sequence="random",
+                    para_weight=0.50
+                    )
+
+    def test_monomer_sequence(self):
+
+        with pytest.raises(ValueError):
+            system_even = simulate.System(
+                    molecule="PEEK",
+                    monomer_sequence="PM",
+                    para_weight=0.5,
+                    n_compounds = [1],
+                    polymer_lengths=[4],
+                    density=.1,
+                    remove_hydrogens=True
+                    )
+
+        system_even = simulate.System(
+                molecule="PEEK",
+                monomer_sequence="PM",
+                n_compounds = [1],
+                polymer_lengths=[4],
+                density=.1,
+                remove_hydrogens=True
+                )
+        assert system_even.para == system_even.meta  == 2
+
+        system_odd = simulate.System(
+                molecule="PEEK",
+                monomer_sequence="PM",
+                n_compounds = [1],
+                polymer_lengths=[5],
+                density=.1,
+                remove_hydrogens=True
+                )
+        assert system_odd.para == 3
+        assert system_odd.meta == 2
+
+        system_large_seq = simulate.System(
+                molecule="PEEK",
+                monomer_sequence="PMPMPMPMPM",
+                n_compounds = [1],
+                polymer_lengths=[4],
+                density=.1,
+                remove_hydrogens=True
+                )
+        assert system_large_seq.para == system_large_seq.meta == 2
 
     def test_para_weight(self):
         all_para = simulate.random_sequence(para_weight=1, length=10)
@@ -28,12 +79,6 @@ class TestSystems(BaseTest):
         random.seed()
         mix_sequence = simulate.random_sequence(para_weight=0.70, length=100)
         assert 100 - mix_sequence.count("P") == mix_sequence.count("M")
-
-    def test_gaff(self):
-        pass
-
-    def test_opls(self):
-        pass
 
     # check that we can load forcefield files
     def test_load_forcefiled(self):
@@ -53,7 +98,7 @@ class TestSystems(BaseTest):
         simple_system = simulate.System(
             molecule="PEEK",
             para_weight=0.60,
-            density=1,
+            density=.1,
             n_compounds=[1],
             polymer_lengths=[2],
             forcefield="gaff",
@@ -74,7 +119,7 @@ class TestSystems(BaseTest):
         simple_system = simulate.System(
             molecule="PEEK",
             para_weight=0.60,
-            density=1,
+            density=.1,
             n_compounds=[1],
             polymer_lengths=[2],
             forcefield="gaff",
@@ -87,12 +132,13 @@ class TestSystems(BaseTest):
         simple_system = simulate.System(
             molecule="PEEK",
             para_weight=0.60,
-            density=1,
+            density=.1,
             n_compounds=[5, 4, 3, 2, 1],
             polymer_lengths=[2, 4, 5, 11, 22],
             forcefield=None,
             assert_dihedrals=False,
             remove_hydrogens=False,
+            expand_factor = 7
         )
 
     # test PDI sampling with four combinations of argument values
@@ -100,7 +146,7 @@ class TestSystems(BaseTest):
         simple_system = simulate.System(
             molecule="PEEK",
             para_weight=0.60,
-            density=0.7,
+            density=0.1,
             n_compounds=3,
             sample_pdi=True,
             pdi=1.2,
@@ -108,13 +154,14 @@ class TestSystems(BaseTest):
             forcefield=None,
             assert_dihedrals=False,
             remove_hydrogens=False,
+            expand_factor = 7
         )
 
     def test_pdi_mn(self):
         simple_system = simulate.System(
             molecule="PEEK",
             para_weight=0.60,
-            density=0.7,
+            density=0.1,
             n_compounds=3,
             sample_pdi=True,
             pdi=1.2,
@@ -122,13 +169,14 @@ class TestSystems(BaseTest):
             forcefield=None,
             assert_dihedrals=False,
             remove_hydrogens=False,
+            expand_factor = 7
         )
 
     def test_mw_mn(self):
         simple_system = simulate.System(
             molecule="PEEK",
             para_weight=0.60,
-            density=0.7,
+            density=0.1,
             n_compounds=3,
             sample_pdi=True,
             Mn=5.0,
@@ -136,13 +184,14 @@ class TestSystems(BaseTest):
             forcefield=None,
             assert_dihedrals=False,
             remove_hydrogens=False,
+            expand_factor = 7
         )
 
     def test_pdi_mn_mw(self):
         simple_system = simulate.System(
             molecule="PEEK",
             para_weight=0.60,
-            density=0.7,
+            density=0.1,
             n_compounds=3,
             sample_pdi=True,
             pdi=1.2,
@@ -151,6 +200,7 @@ class TestSystems(BaseTest):
             forcefield=None,
             assert_dihedrals=False,
             remove_hydrogens=False,
+            expand_factor = 7
         )
 
     # make sure we correctly throw error when not enough PDI args
@@ -159,7 +209,7 @@ class TestSystems(BaseTest):
             simple_system = simulate.System(
                 molecule="PEEK",
                 para_weight=0.60,
-                density=0.7,
+                density=0.1,
                 n_compounds=3,
                 sample_pdi=True,
                 pdi=1.2,
@@ -174,7 +224,7 @@ class TestSystems(BaseTest):
             simple_system = simulate.System(
                 molecule="PEEK",
                 para_weight=0.60,
-                density=0.7,
+                density=0.1,
                 n_compounds=3,
                 sample_pdi=True,
                 pdi=1.2,
@@ -191,7 +241,7 @@ class TestSystems(BaseTest):
         simple_system = simulate.System(
             molecule="PEEK",
             para_weight=0.60,
-            density=0.7,
+            density=0.1,
             n_compounds=3,
             sample_pdi=True,
             pdi=1.001,

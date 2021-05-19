@@ -464,10 +464,11 @@ class System:
     def __init__(
         self,
         molecule,
-        para_weight,
         density,
         n_compounds=None,
         polymer_lengths=None,
+        para_weight=None,
+        monomer_sequence=None,
         forcefield=None,
         epsilon=1e-7,
         sample_pdi=False,
@@ -481,20 +482,28 @@ class System:
         expand_factor=5
     ):
         self.molecule = molecule
-        self.para_weight = para_weight
         self.density = density
-        self.target_L = None
-        self.remove_hydrogens = remove_hydrogens
-        self.epsilon = epsilon
+        self.para_weight = para_weight
+        self.monomer_sequence = monomer_sequence
         self.forcefield = forcefield
+        self.target_L = None
+        self.epsilon = epsilon
+        self.remove_hydrogens = remove_hydrogens
         self.assert_dihedrals = assert_dihedrals
         self.seed = seed
         self.system_mass = 0
         self.para = 0
         self.meta = 0
-        self.type = "melt"
         self.expand_factor = expand_factor
-
+        self.type = "melt"
+        
+        if self.monomer_sequence and self.para_weight:
+            raise ValueError(
+                    "The para weight parameter can only be used when "
+                    "generating random copolymer sequences. "
+                    "If you are defining the monomer sequence, then set "
+                    "para_weight = None."
+                    )
         if sample_pdi:
             if isinstance(n_compounds, int):
                 self.n_compounds = n_compounds
@@ -612,17 +621,21 @@ class System:
         }
 
     def _pack(self):
+        if self.monomer_sequence:
+            sequence = self.monomer_sequence
+        else:
+            sequence = "random"
         random.seed(self.seed)
         mb_compounds = []
         for _length, _n in zip(self.polymer_lengths, self.n_compounds):
             for i in range(_n):
                 polymer, sequence = build_molecule(
-                    self.molecule, _length, self.para_weight
+                    self.molecule, _length, sequence, self.para_weight
                 )
 
                 mb_compounds.append(polymer)
-                self.para += sequence.count("para")
-                self.meta += sequence.count("meta")
+                self.para += sequence.count("P")
+                self.meta += sequence.count("M")
             mass = _n * np.sum(
                 ele.element_from_symbol(p.name).mass
                 for p in polymer.particles()
@@ -672,7 +685,7 @@ class System:
         return L
 
 
-def build_molecule(molecule, length, para_weight):
+def build_molecule(molecule, length, sequence, para_weight):
     """
     `build_molecule` uses SMILES strings to build up a polymer from monomers.
     The configuration of each monomer is determined by para_weight and the
@@ -687,11 +700,29 @@ def build_molecule(molecule, length, para_weight):
         Use the molecule name as seen in the .json file without including .json
     length : int
         The number of monomer units in the final polymer molecule
+    sequence : str, required
+        The monomer sequence to be used when building a polymer.
+        Example) "AB" or "AAB"
+        If you want a sequence to be generated randomly, use sequence="random"
+
     para_weight : float, limited to values between 0 and 1
         The relative amount of para configurations compared to meta.
         Passed into random_sequence() to determine the monomer sequence of the
         polymer.
         A 70/30 para to meta system would require a para_weight = 0.70
+
+    Notes
+    -----
+    Any values entered for length and sequence should be compatible.
+    This is designed to follow the sequence until it has reached it's
+    terminal length. For example::
+
+        A `length=5` and `sequence="PM"` would result in
+        `monomer_sequence = "PMPMP".
+
+        The same is true if `length` is shorter than the sequence length
+        A `lenght=3` and `sequence="PPMMM"` would result in
+        `monomer_sequence = "PPM"`
 
     Returns
     -------
@@ -704,7 +735,13 @@ def build_molecule(molecule, length, para_weight):
     mol_dict = json.load(f)
     f.close()
 
-    monomer_sequence = random_sequence(para_weight, length)
+    if sequence == "random":
+        monomer_sequence = random_sequence(para_weight, length)
+    else:
+        n = length // len(sequence)
+        monomer_sequence = sequence * n
+        monomer_sequence += sequence[:(length - len(monomer_sequence))]
+
     compound = Polymer()
     para = mb.load(mol_dict["para_smiles"], smiles=True, backend="rdkit")
     meta = mb.load(mol_dict["meta_smiles"], smiles=True, backend="rdkit")

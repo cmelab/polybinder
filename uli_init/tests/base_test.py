@@ -30,6 +30,7 @@ class BaseTest:
             polymer_lengths=[3],
             forcefield="gaff",
             remove_hydrogens=False,
+            expand_factor=5
         )
         return peek_sys
 
@@ -43,6 +44,7 @@ class BaseTest:
             polymer_lengths=[3],
             forcefield="gaff",
             remove_hydrogens=False,
+            expand_factor=5
         )
         return pekk_sys
 
@@ -56,6 +58,7 @@ class BaseTest:
             polymer_lengths=[3],
             forcefield="gaff",
             remove_hydrogens=True,
+            expand_factor=5
         )
         return peek_sys
 
@@ -69,5 +72,6 @@ class BaseTest:
             polymer_lengths=[3],
             forcefield="gaff",
             remove_hydrogens=True,
+            expand_factor=5
         )
         return pekk_sys
