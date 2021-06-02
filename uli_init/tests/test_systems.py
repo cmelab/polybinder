@@ -2,7 +2,7 @@ import pytest
 import random
 
 from uli_init import simulate
-from uli_init.tests.base_test import BaseTest
+from base_test import BaseTest
 
 
 class TestSystems(BaseTest):

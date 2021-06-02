@@ -146,15 +146,24 @@ class Simulation:
                     r_extrap=0
                 )
 
-            if shrink_kT and shrink_steps:
-                shrink_gsd = hoomd.dump.gsd(
-                    "traj-shrink.gsd",
-                    period=self.gsd_write,
-                    group=_all,
-                    phase=0,
-                    overwrite=True,
-                )
+            hoomd.dump.gsd(
+                "sim_traj.gsd",
+                period=self.gsd_write,
+                group=_all,
+                phase=0,
+                dynamic=["momentum"],
+                overwrite=False,
+            )
+            hoomd.analyze.log(
+                "sim_traj.log",
+                period=self.log_write,
+                quantities=self.log_quantities,
+                header_prefix="#",
+                overwrite=True,
+                phase=0,
+            )
 
+            if shrink_kT and shrink_steps:
                 x_variant = hoomd.variant.linear_interp([
                     (0, init_snap.box.Lx),
                     (shrink_steps, self.target_box[0] * 10)
@@ -198,30 +207,15 @@ class Simulation:
                         print(f"time elapsed: {time.time() - start}")
                 else:
                     hoomd.run_upto(shrink_steps)
-                shrink_gsd.disable()
                 box_updater.disable()
-            # Set up new gsd and log dumps for actual simulation
-            hoomd.dump.gsd(
-                "sim_traj.gsd",
-                period=self.gsd_write,
-                group=_all,
-                phase=0,
-                overwrite=True,
-            )
+
             gsd_restart = hoomd.dump.gsd(
                 "restart.gsd",
                 period=self.gsd_write,
                 group=_all,
                 truncate=True,
-                phase=0
-            )
-            hoomd.analyze.log(
-                "sim_traj.log",
-                period=self.log_write,
-                quantities=self.log_quantities,
-                header_prefix="#",
-                overwrite=True,
                 phase=0,
+                dynamic=["momentum"]
             )
             # Run the primary simulation
             integrator.set_params(kT=kT)
@@ -295,15 +289,24 @@ class Simulation:
                     r_extrap=0
                 )
 
-            if shrink_kT and shrink_steps:
-                shrink_gsd = hoomd.dump.gsd(
-                    "traj-shrink.gsd",
-                    period=self.gsd_write,
-                    group=_all,
-                    phase=0,
-                    overwrite=True,
-                )
+            hoomd.dump.gsd(
+                "sim_traj.gsd",
+                period=self.gsd_write,
+                group=_all,
+                phase=0,
+                dynamic=["momentum"],
+                overwrite=False,
+            )
+            hoomd.analyze.log(
+                "sim_traj.log",
+                period=self.log_write,
+                quantities=self.log_quantities,
+                header_prefix="#",
+                overwrite=True,
+                phase=0,
+            )
 
+            if shrink_kT and shrink_steps:
                 x_variant = hoomd.variant.linear_interp([
                     (0, self.reduced_init_L),
                     (shrink_steps, self.target_box[0] * 10)
@@ -341,30 +344,14 @@ class Simulation:
                         step += shrink_period
                 else:
                     hoomd.run_upto(shrink_steps)
-                shrink_gsd.disable()
                 box_updater.disable()
-            # Set up new log and gsd files for simulation:
-            hoomd.dump.gsd(
-                "sim_traj.gsd",
-                period=self.gsd_write,
-                group=_all,
-                phase=0,
-                overwrite=True,
-            )
             gsd_restart = hoomd.dump.gsd(
                 "restart.gsd",
                 period=self.gsd_write,
                 group=_all,
                 truncate=True,
-                phase=0
-            )
-            hoomd.analyze.log(
-                "sim_traj.log",
-                period=self.log_write,
-                quantities=self.log_quantities,
-                header_prefix="#",
-                overwrite=True,
                 phase=0,
+                dynamic=["momentum"]
             )
 
             for kT in schedule:  # Start iterating through annealing steps
