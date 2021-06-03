@@ -124,28 +124,6 @@ class Simulation:
             integrator = hoomd.md.integrate.nvt(group=_all, kT=kT, tau=self.tau)
             integrator.randomize_velocities(seed=self.seed)
 
-            # LJ walls set on each side along x-axis
-            if walls:
-                wall_origin = (init_snap.box.Lx / 2, 0, 0)
-                normal_vector = (-1, 0, 0)
-                wall_origin2 = (-init_snap.box.Lx / 2, 0, 0)
-                normal_vector2 = (1, 0, 0)
-                walls = wall.group(
-                    wall.plane(
-                        origin=wall_origin, normal=normal_vector, inside=True
-                        ),
-                    wall.plane(
-                        origin=wall_origin2, normal=normal_vector2, inside=True
-                        ),
-                )
-                wall_force = wall.lj(walls, r_cut=2.5)
-                wall_force.force_coeff.set(
-                    init_snap.particles.types,
-                    sigma=1.0,
-                    epsilon=1.0,
-                    r_extrap=0
-                )
-
             hoomd.dump.gsd(
                 "sim_traj.gsd",
                 period=self.gsd_write,
@@ -188,6 +166,25 @@ class Simulation:
 
                 # Update wall origins during shrinking
                 if walls:
+                    wall_origin = (init_snap.box.Lx / 2, 0, 0)
+                    normal_vector = (-1, 0, 0)
+                    wall_origin2 = (-init_snap.box.Lx / 2, 0, 0)
+                    normal_vector2 = (1, 0, 0)
+                    walls = wall.group(
+                        wall.plane(
+                            origin=wall_origin, normal=normal_vector, inside=True
+                            ),
+                        wall.plane(
+                            origin=wall_origin2, normal=normal_vector2, inside=True
+                            ),
+                    )
+                    wall_force = wall.lj(walls, r_cut=2.5)
+                    wall_force.force_coeff.set(
+                        init_snap.particles.types,
+                        sigma=1.0,
+                        epsilon=1.0,
+                        r_extrap=0
+                    )
                     step = 0
                     start = time.time()
                     while step < shrink_steps:
@@ -391,20 +388,21 @@ class Interface:
         slab_2 = self._gsd_to_mbuild(slab_files[1], self.ref_distance)
         interface.add(new_child=slab_1, label="left")
         interface.add(new_child=slab_2, label="right")
-        x_len = interface.boundingbox.lengths[0]
+        x_len = interface.get_boundingbox().Lx
         interface["left"].translate((-x_len - gap, 0, 0))
-
-        system_box = mb.box.Box(
+        
+        system_box = mb.box.Box.from_mins_maxs_angles(
                 mins=(0, 0, 0),
-                maxs=interface.boundingbox.lengths
-                )
-        system_box.maxs[0] += 2 * self.ref_distance * 1.1225
+                maxs = interface.get_boundingbox().lengths,
+                angles = (90, 90, 90)
+            )
+        system_box._Lx += 2 * self.ref_distance * 1.1225
         interface.box = system_box
         # Center in the adjusted box
         interface.translate_to([
-            interface.box.maxs[0] / 2,
-            interface.box.maxs[1] / 2,
-            interface.box.maxs[2] / 2,
+            interface.box.Lx / 2,
+            interface.box.Ly / 2,
+            interface.box.Lz / 2,
         ])
 
         if forcefield == "gaff":
