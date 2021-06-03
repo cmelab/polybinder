@@ -264,28 +264,6 @@ class Simulation:
                     )
             integrator.randomize_velocities(seed=self.seed)
 
-            if walls:
-                wall_origin = (init_snap.box.Lx / 2, 0, 0)
-                normal_vector = (-1, 0, 0)
-                wall_origin2 = (-init_snap.box.Lx / 2, 0, 0)
-                normal_vector2 = (1, 0, 0)
-                walls = wall.group(
-                    wall.plane(
-                        origin=wall_origin, normal=normal_vector, inside=True
-                        ),
-                    wall.plane(
-                        origin=wall_origin2, normal=normal_vector2, inside=True
-                        ),
-                )
-
-                wall_force = wall.lj(walls, r_cut=2.5)
-                wall_force.force_coeff.set(
-                    init_snap.particles.types,
-                    sigma=1.0,
-                    epsilon=1.0,
-                    r_extrap=0
-                )
-
             hoomd.dump.gsd(
                 "sim_traj.gsd",
                 period=self.gsd_write,
@@ -327,6 +305,26 @@ class Simulation:
                 integrator.randomize_velocities(seed=self.seed)
 
                 if walls:
+                    wall_origin = (init_snap.box.Lx / 2, 0, 0)
+                    normal_vector = (-1, 0, 0)
+                    wall_origin2 = (-init_snap.box.Lx / 2, 0, 0)
+                    normal_vector2 = (1, 0, 0)
+                    walls = wall.group(
+                        wall.plane(
+                            origin=wall_origin, normal=normal_vector, inside=True
+                            ),
+                        wall.plane(
+                            origin=wall_origin2, normal=normal_vector2, inside=True
+                            ),
+                    )
+
+                    wall_force = wall.lj(walls, r_cut=2.5)
+                    wall_force.force_coeff.set(
+                        init_snap.particles.types,
+                        sigma=1.0,
+                        epsilon=1.0,
+                        r_extrap=0
+                    )
                     step = 0
                     while step < shrink_steps:
                         hoomd.run_upto(step + shrink_period)
