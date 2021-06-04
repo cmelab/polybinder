@@ -124,37 +124,24 @@ class Simulation:
             integrator = hoomd.md.integrate.nvt(group=_all, kT=kT, tau=self.tau)
             integrator.randomize_velocities(seed=self.seed)
 
-            # LJ walls set on each side along x-axis
-            if walls:
-                wall_origin = (init_snap.box.Lx / 2, 0, 0)
-                normal_vector = (-1, 0, 0)
-                wall_origin2 = (-init_snap.box.Lx / 2, 0, 0)
-                normal_vector2 = (1, 0, 0)
-                walls = wall.group(
-                    wall.plane(
-                        origin=wall_origin, normal=normal_vector, inside=True
-                        ),
-                    wall.plane(
-                        origin=wall_origin2, normal=normal_vector2, inside=True
-                        ),
-                )
-                wall_force = wall.lj(walls, r_cut=2.5)
-                wall_force.force_coeff.set(
-                    init_snap.particles.types,
-                    sigma=1.0,
-                    epsilon=1.0,
-                    r_extrap=0
-                )
+            hoomd.dump.gsd(
+                "sim_traj.gsd",
+                period=self.gsd_write,
+                group=_all,
+                phase=0,
+                dynamic=["momentum"],
+                overwrite=False,
+            )
+            hoomd.analyze.log(
+                "sim_traj.log",
+                period=self.log_write,
+                quantities=self.log_quantities,
+                header_prefix="#",
+                overwrite=True,
+                phase=0,
+            )
 
             if shrink_kT and shrink_steps:
-                shrink_gsd = hoomd.dump.gsd(
-                    "traj-shrink.gsd",
-                    period=self.gsd_write,
-                    group=_all,
-                    phase=0,
-                    overwrite=True,
-                )
-
                 x_variant = hoomd.variant.linear_interp([
                     (0, init_snap.box.Lx),
                     (shrink_steps, self.target_box[0] * 10)
@@ -179,6 +166,25 @@ class Simulation:
 
                 # Update wall origins during shrinking
                 if walls:
+                    wall_origin = (init_snap.box.Lx / 2, 0, 0)
+                    normal_vector = (-1, 0, 0)
+                    wall_origin2 = (-init_snap.box.Lx / 2, 0, 0)
+                    normal_vector2 = (1, 0, 0)
+                    walls = wall.group(
+                        wall.plane(
+                            origin=wall_origin, normal=normal_vector, inside=True
+                            ),
+                        wall.plane(
+                            origin=wall_origin2, normal=normal_vector2, inside=True
+                            ),
+                    )
+                    wall_force = wall.lj(walls, r_cut=2.5)
+                    wall_force.force_coeff.set(
+                        init_snap.particles.types,
+                        sigma=1.0,
+                        epsilon=1.0,
+                        r_extrap=0
+                    )
                     step = 0
                     start = time.time()
                     while step < shrink_steps:
@@ -198,30 +204,15 @@ class Simulation:
                         print(f"time elapsed: {time.time() - start}")
                 else:
                     hoomd.run_upto(shrink_steps)
-                shrink_gsd.disable()
                 box_updater.disable()
-            # Set up new gsd and log dumps for actual simulation
-            hoomd.dump.gsd(
-                "sim_traj.gsd",
-                period=self.gsd_write,
-                group=_all,
-                phase=0,
-                overwrite=True,
-            )
+
             gsd_restart = hoomd.dump.gsd(
                 "restart.gsd",
                 period=self.gsd_write,
                 group=_all,
                 truncate=True,
-                phase=0
-            )
-            hoomd.analyze.log(
-                "sim_traj.log",
-                period=self.log_write,
-                quantities=self.log_quantities,
-                header_prefix="#",
-                overwrite=True,
                 phase=0,
+                dynamic=["momentum"]
             )
             # Run the primary simulation
             integrator.set_params(kT=kT)
@@ -273,37 +264,24 @@ class Simulation:
                     )
             integrator.randomize_velocities(seed=self.seed)
 
-            if walls:
-                wall_origin = (init_snap.box.Lx / 2, 0, 0)
-                normal_vector = (-1, 0, 0)
-                wall_origin2 = (-init_snap.box.Lx / 2, 0, 0)
-                normal_vector2 = (1, 0, 0)
-                walls = wall.group(
-                    wall.plane(
-                        origin=wall_origin, normal=normal_vector, inside=True
-                        ),
-                    wall.plane(
-                        origin=wall_origin2, normal=normal_vector2, inside=True
-                        ),
-                )
-
-                wall_force = wall.lj(walls, r_cut=2.5)
-                wall_force.force_coeff.set(
-                    init_snap.particles.types,
-                    sigma=1.0,
-                    epsilon=1.0,
-                    r_extrap=0
-                )
+            hoomd.dump.gsd(
+                "sim_traj.gsd",
+                period=self.gsd_write,
+                group=_all,
+                phase=0,
+                dynamic=["momentum"],
+                overwrite=False,
+            )
+            hoomd.analyze.log(
+                "sim_traj.log",
+                period=self.log_write,
+                quantities=self.log_quantities,
+                header_prefix="#",
+                overwrite=True,
+                phase=0,
+            )
 
             if shrink_kT and shrink_steps:
-                shrink_gsd = hoomd.dump.gsd(
-                    "traj-shrink.gsd",
-                    period=self.gsd_write,
-                    group=_all,
-                    phase=0,
-                    overwrite=True,
-                )
-
                 x_variant = hoomd.variant.linear_interp([
                     (0, self.reduced_init_L),
                     (shrink_steps, self.target_box[0] * 10)
@@ -327,6 +305,26 @@ class Simulation:
                 integrator.randomize_velocities(seed=self.seed)
 
                 if walls:
+                    wall_origin = (init_snap.box.Lx / 2, 0, 0)
+                    normal_vector = (-1, 0, 0)
+                    wall_origin2 = (-init_snap.box.Lx / 2, 0, 0)
+                    normal_vector2 = (1, 0, 0)
+                    walls = wall.group(
+                        wall.plane(
+                            origin=wall_origin, normal=normal_vector, inside=True
+                            ),
+                        wall.plane(
+                            origin=wall_origin2, normal=normal_vector2, inside=True
+                            ),
+                    )
+
+                    wall_force = wall.lj(walls, r_cut=2.5)
+                    wall_force.force_coeff.set(
+                        init_snap.particles.types,
+                        sigma=1.0,
+                        epsilon=1.0,
+                        r_extrap=0
+                    )
                     step = 0
                     while step < shrink_steps:
                         hoomd.run_upto(step + shrink_period)
@@ -341,30 +339,14 @@ class Simulation:
                         step += shrink_period
                 else:
                     hoomd.run_upto(shrink_steps)
-                shrink_gsd.disable()
                 box_updater.disable()
-            # Set up new log and gsd files for simulation:
-            hoomd.dump.gsd(
-                "sim_traj.gsd",
-                period=self.gsd_write,
-                group=_all,
-                phase=0,
-                overwrite=True,
-            )
             gsd_restart = hoomd.dump.gsd(
                 "restart.gsd",
                 period=self.gsd_write,
                 group=_all,
                 truncate=True,
-                phase=0
-            )
-            hoomd.analyze.log(
-                "sim_traj.log",
-                period=self.log_write,
-                quantities=self.log_quantities,
-                header_prefix="#",
-                overwrite=True,
                 phase=0,
+                dynamic=["momentum"]
             )
 
             for kT in schedule:  # Start iterating through annealing steps
@@ -404,20 +386,21 @@ class Interface:
         slab_2 = self._gsd_to_mbuild(slab_files[1], self.ref_distance)
         interface.add(new_child=slab_1, label="left")
         interface.add(new_child=slab_2, label="right")
-        x_len = interface.boundingbox.lengths[0]
+        x_len = interface.get_boundingbox().Lx
         interface["left"].translate((-x_len - gap, 0, 0))
-
-        system_box = mb.box.Box(
+        
+        system_box = mb.box.Box.from_mins_maxs_angles(
                 mins=(0, 0, 0),
-                maxs=interface.boundingbox.lengths
-                )
-        system_box.maxs[0] += 2 * self.ref_distance * 1.1225
+                maxs = interface.get_boundingbox().lengths,
+                angles = (90, 90, 90)
+            )
+        system_box._Lx += 2 * self.ref_distance * 1.1225
         interface.box = system_box
         # Center in the adjusted box
         interface.translate_to([
-            interface.box.maxs[0] / 2,
-            interface.box.maxs[1] / 2,
-            interface.box.maxs[2] / 2,
+            interface.box.Lx / 2,
+            interface.box.Ly / 2,
+            interface.box.Lz / 2,
         ])
 
         if forcefield == "gaff":
