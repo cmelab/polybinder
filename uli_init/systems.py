@@ -26,15 +26,166 @@ from uli_init.utils import base_units
 units = base_units.base_units()
 
 
+class System:
+    def __init__(
+        self,
+        molecule,
+        density,
+        system_type,
+        n_compounds=None,
+        polymer_lengths=None,
+        para_weight=None,
+        monomer_sequence=None,
+        forcefield=None,
+        epsilon=1e-7,
+        sample_pdi=False,
+        pdi=None,
+        Mn=None,
+        Mw=None,
+        mass_dist_type="weibull",
+        remove_hydrogens=False,
+        assert_dihedrals=True,
+        seed=24,
+        expand_factor=5
+    ):
+        self.molecule = molecule
+        self.density = density
+        self.para_weight = para_weight
+        self.monomer_sequence = monomer_sequence
+        self.forcefield = forcefield
+        self.target_L = None
+        self.remove_hydrogens = remove_hydrogens
+        self.assert_dihedrals = assert_dihedrals
+        self.seed = seed
+        self.system_mass = 0
+        self.para = 0
+        self.meta = 0
+        self.expand_factor = expand_factor
+        self.type = system_type 
+        
+        if self.monomer_sequence and self.para_weight:
+            raise ValueError(
+                    "The para weight parameter can only be used when "
+                    "generating random copolymer sequences. "
+                    "If you are defining the monomer sequence, then set "
+                    "para_weight = None."
+                    )
+        if sample_pdi:
+            self.sample_from_pdi(n_compounds, pdi, Mn, Mw, epsilon)
+        else: 
+            if not isinstance(n_compounds, list):
+                self.n_compounds = [n_compounds]
+            else:
+                self.n_compounds = n_compounds
+
+            if not isinstance(polymer_lengths, list):
+                self.polymer_lengths = [polymer_lengths]
+            else:
+                self.polymer_lengths = polymer_lengths
+
+        if len(self.n_compounds) != len(self.polymer_lengths):
+            raise ValueError(
+                    "n_compounds and polymer_lengths should be equal length"
+                    )
+
+        init = Initialize(self)
+        self.system = init.system_init
+
+    def sample_from_pdi(self, n_compounds, pdi, Mn, Mw, epsilon):
+        if isinstance(n_compounds, int):
+            self.n_compounds = n_compounds
+        elif isinstance(n_compounds, list) and len(n_compounds) == 1:
+            self.n_compounds = n_compounds[0]
+        elif isinstance(n_compounds, list) and len(n_compounds) != 1:
+            raise TypeError(
+                "n_compounds should be of length 1 when sample_pdi is True."
+            )
+        pdi_arg_sum = sum([x is not None for x in [pdi, Mn, Mw]])
+        assert (
+            pdi_arg_sum >= 2
+        ), "At least two of [pdi, Mn, Mw] must be given."
+        if pdi_arg_sum == 3:
+            # special case, make sure that pdi = Mw / Mn
+            assert (
+                abs(pdi - (Mw / Mn)) < epsilon
+            ), "PDI value does not match Mn and Mw values."
+        else:
+            if Mn is None:
+                Mn = Mw / pdi
+            if Mw is None:
+                Mw = pdi * Mn
+            if pdi is None:
+                pdi = Mw / Mn
+        self.Mn = Mn
+        self.Mw = Mw
+        self.pdi = pdi
+        # this returns a numpy.random callable set up with
+        # recovered parameters
+        mass_distribution_dict = self._recover_mass_dist(mass_dist_type)
+        self.mass_sampler = mass_distribution_dict["sampler"]
+        self.mass_distribution = mass_distribution_dict["functional_form"]
+        samples = np.round(self.mass_sampler(n_compounds)).astype(int)
+        self.polymer_lengths = sorted(list(set(samples)))
+        self.n_compounds = [
+                list(samples).count(x) for x in self.polymer_lengths
+                ]
+
+    def _weibull_k_expression(self, x):
+        return (
+                (2.0 * x * gamma(2.0 / x)) /
+                gamma(1.0 / x) ** 2 - (self.Mw / self.Mn)
+                )
+
+    def _weibull_lambda_expression(self, k):
+        return self.Mn * k / gamma(1.0 / k)
+
+    def _recover_mass_dist(self, distribution="weibull"):
+        """This function takes in two of the three quantities [Mn, Mw, PDI],
+        and fits either a Gaussian or Weibull distribution of molar masses to
+        them.
+        """
+        distribution = distribution.lower()
+
+        if distribution != "gaussian" and distribution != "weibull":
+            raise ValueError(
+                'Molar mass distribution must be "gaussian" or "weibull".'
+            )
+        if distribution == "gaussian":
+            mean = self.Mn
+            sigma = self.Mn * (self.Mw - self.Mn)
+            mass_dict = {
+                "sampler": lambda N: np.random.normal(
+                    loc=mean, scale=sigma, size=N
+                    ),
+                "functional_form": lambda x: np.exp(
+                    -((x - Mn) ** 2) / (2.0 * sigma)
+                    ),
+                }
+            return mass_dict
+
+        elif distribution == "weibull":
+            a = scipy.optimize.root(self._weibull_k_expression, x0=1.0)
+            recovered_k = a["x"]
+            # get the scale parameter
+            recovered_lambda = self._weibull_lambda_expression(recovered_k)
+            mass_dict = {
+                "sampler": lambda N: recovered_lambda
+                * np.random.weibull(recovered_k, size=N),
+                "functional_form": lambda x: recovered_k
+                / recovered_lambda
+                * (x / recovered_lambda) ** (recovered_k - 1)
+                * np.exp(-((x / recovered_lambda) ** recovered_k)),
+                }
+            return mass_dict
+
+
 class Interface:
     def __init__(
         self,
         slabs,
         ref_distance=None,
-        gap=0.1,
-        forcefield="gaff",
+        gap=0.1
     ):
-        self.forcefield = forcefield
         self.type = "interface"
         self.ref_distance = ref_distance
         if not isinstance(slabs, list):
@@ -60,16 +211,15 @@ class Interface:
         system_box._Lx += 2 * self.ref_distance * 1.1225
         interface.box = system_box
         # Center in the adjusted box
-        interface.translate_to([
-            interface.box.Lx / 2,
-            interface.box.Ly / 2,
-            interface.box.Lz / 2,
-        ])
+        interface.translate_to(
+                [interface.box.Lx / 2,
+                interface.box.Ly / 2,
+                interface.box.Lz / 2,]
+            )
 
-        if forcefield == "gaff":
-            ff_path = f"{FF_DIR}/gaff-nosmarts.xml"
-            forcefield = foyer.Forcefield(forcefield_files=ff_path)
-        self.system_pmd = forcefield.apply(interface)
+        ff_path = f"{FF_DIR}/gaff-nosmarts.xml"
+        forcefield = foyer.Forcefield(forcefield_files=ff_path)
+        self.system = forcefield.apply(interface)
 
     def _gsd_to_mbuild(self, gsd_file, ref_distance):
         element_mapping = {
@@ -106,9 +256,21 @@ class Interface:
             compound.add_bond(particle_pair=[atom1, atom2])
 
 class Initialize:
-    def __init__(system, system_type):
+    def __init__(system):
         self.system = system
-        self.type = system_type
+        if system.type == "melt":
+            system_init = self.melt()
+        elif system.type == "dilute":
+            system_init = self.dilute()
+        elif system.type == "lamellar":
+            system_init = self.lamellar()
+        elif system.type == "coarse_grained":
+            system_init = self.coarse_grained()
+
+        if system.forcefield:
+            system_init = self._apply_ff(system_init)
+
+        self.system_init = system_init
 
     def melt(self):
         mb_compounds = self._generate_compounds()
@@ -124,7 +286,7 @@ class Initialize:
         filled.Box = mb.box.Box([L, L, L])
         return filled
 
-    def dilute(self, separation):
+    def dilute(self, separation=.5):
         mb_compounds = self._generate_compounds()
         L = self._calculate_L()
         system_comp = mb.Compound()
@@ -193,157 +355,6 @@ class Initialize:
             )
             self.system.system_mass += mass  # amu
         return mb_compounds
-
-
-class System:
-    def __init__(
-        self,
-        molecule,
-        density,
-        n_compounds=None,
-        polymer_lengths=None,
-        para_weight=None,
-        monomer_sequence=None,
-        forcefield=None,
-        epsilon=1e-7,
-        sample_pdi=False,
-        pdi=None,
-        Mn=None,
-        Mw=None,
-        mass_dist_type="weibull",
-        remove_hydrogens=False,
-        assert_dihedrals=True,
-        seed=24,
-        expand_factor=5
-    ):
-        self.molecule = molecule
-        self.density = density
-        self.para_weight = para_weight
-        self.monomer_sequence = monomer_sequence
-        self.forcefield = forcefield
-        self.target_L = None
-        self.remove_hydrogens = remove_hydrogens
-        self.assert_dihedrals = assert_dihedrals
-        self.seed = seed
-        self.system_mass = 0
-        self.para = 0
-        self.meta = 0
-        self.expand_factor = expand_factor
-        self.type = "melt"
-        
-        if self.monomer_sequence and self.para_weight:
-            raise ValueError(
-                    "The para weight parameter can only be used when "
-                    "generating random copolymer sequences. "
-                    "If you are defining the monomer sequence, then set "
-                    "para_weight = None."
-                    )
-        if sample_pdi:
-            self.sample_pdi(n_compounds, pdi, Mn, Mw, epsilon)
-        else: 
-            if not isinstance(n_compounds, list):
-                self.n_compounds = [n_compounds]
-            else:
-                self.n_compounds = n_compounds
-
-            if not isinstance(polymer_lengths, list):
-                self.polymer_lengths = [polymer_lengths]
-            else:
-                self.polymer_lengths = polymer_lengths
-
-        if len(self.n_compounds) != len(self.polymer_lengths):
-            raise ValueError(
-                    "n_compounds and polymer_lengths should be equal length"
-                    )
-
-        self.system_mb = self._pack()
-        if self.forcefield:
-            self.system_pmd = self._type_system()
-
-    def sample_pdi(self, n_compounds, pdi, Mn, Mw, epsilon):
-        if isinstance(n_compounds, int):
-            self.n_compounds = n_compounds
-        elif isinstance(n_compounds, list) and len(n_compounds) == 1:
-            self.n_compounds = n_compounds[0]
-        elif isinstance(n_compounds, list) and len(n_compounds) != 1:
-            raise TypeError(
-                "n_compounds should be of length 1 when sample_pdi is True."
-            )
-        pdi_arg_sum = sum([x is not None for x in [pdi, Mn, Mw]])
-        assert (
-            pdi_arg_sum >= 2
-        ), "At least two of [pdi, Mn, Mw] must be given."
-        if pdi_arg_sum == 3:
-            # special case, make sure that pdi = Mw / Mn
-            assert (
-                abs(pdi - (Mw / Mn)) < epsilon
-            ), "PDI value does not match Mn and Mw values."
-        else:
-            if Mn is None:
-                Mn = Mw / pdi
-            if Mw is None:
-                Mw = pdi * Mn
-            if pdi is None:
-                pdi = Mw / Mn
-        self.Mn = Mn
-        self.Mw = Mw
-        self.pdi = pdi
-        # this returns a numpy.random callable set up with
-        # recovered parameters
-        mass_distribution_dict = self._recover_mass_dist(mass_dist_type)
-        self.mass_sampler = mass_distribution_dict["sampler"]
-        self.mass_distribution = mass_distribution_dict["functional_form"]
-        samples = np.round(self.mass_sampler(n_compounds)).astype(int)
-        self.polymer_lengths = sorted(list(set(samples)))
-        self.n_compounds = [
-                list(samples).count(x) for x in self.polymer_lengths
-                ]
-
-    def _weibull_k_expression(self, x):
-        return (
-                (2.0 * x * gamma(2.0 / x)) /
-                gamma(1.0 / x) ** 2 - (self.Mw / self.Mn)
-                )
-
-    def _weibull_lambda_expression(self, k):
-        return self.Mn * k / gamma(1.0 / k)
-
-    def _recover_mass_dist(self, distribution="Gaussian"):
-        """This function takes in two of the three quantities [Mn, Mw, PDI],
-        and fits either a Gaussian or Weibull distribution of molar masses to
-        them.
-        """
-        distribution = distribution.lower()
-
-        if distribution != "gaussian" and distribution != "weibull":
-            raise ValueError(
-                'Molar mass distribution must be "gaussian" or "weibull".'
-            )
-        if distribution == "gaussian":
-            mean = self.Mn
-            sigma = self.Mn * (self.Mw - self.Mn)
-            return {
-                "sampler": lambda N: np.random.normal(
-                    loc=mean, scale=sigma, size=N
-                    ),
-                "functional_form": lambda x: np.exp(
-                    -((x - Mn) ** 2) / (2.0 * sigma)
-                    ),
-            }
-        # Weibull
-        # get the shape parameter
-        a = scipy.optimize.root(self._weibull_k_expression, x0=1.0)
-        recovered_k = a["x"]
-        # get the scale parameter
-        recovered_lambda = self._weibull_lambda_expression(recovered_k)
-        return {
-            "sampler": lambda N: recovered_lambda
-            * np.random.weibull(recovered_k, size=N),
-            "functional_form": lambda x: recovered_k
-            / recovered_lambda
-            * (x / recovered_lambda) ** (recovered_k - 1)
-            * np.exp(-((x / recovered_lambda) ** recovered_k)),
-        }
 
 
 
