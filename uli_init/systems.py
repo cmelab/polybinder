@@ -71,7 +71,14 @@ class System:
                     "para_weight = None."
                     )
         if sample_pdi:
-            self.sample_from_pdi(n_compounds, pdi, Mn, Mw, epsilon)
+            self.sample_from_pdi(
+                    mass_dist_type,
+                    n_compounds,
+                    pdi,
+                    Mn,
+                    Mw,
+                    epsilon
+                    )
         else: 
             if not isinstance(n_compounds, list):
                 self.n_compounds = [n_compounds]
@@ -88,10 +95,18 @@ class System:
                     "n_compounds and polymer_lengths should be equal length"
                     )
 
-        init = Initialize(self)
+        init = Initialize(system=self)
         self.system = init.system_init
 
-    def sample_from_pdi(self, n_compounds, pdi, Mn, Mw, epsilon):
+    def sample_from_pdi(
+            self,
+            mass_dist_type,
+            n_compounds,
+            pdi,
+            Mn,
+            Mw,
+            epsilon
+            ):
         if isinstance(n_compounds, int):
             self.n_compounds = n_compounds
         elif isinstance(n_compounds, list) and len(n_compounds) == 1:
@@ -122,9 +137,9 @@ class System:
         # this returns a numpy.random callable set up with
         # recovered parameters
         mass_distribution_dict = self._recover_mass_dist(mass_dist_type)
-        self.mass_sampler = mass_distribution_dict["sampler"]
-        self.mass_distribution = mass_distribution_dict["functional_form"]
-        samples = np.round(self.mass_sampler(n_compounds)).astype(int)
+        mass_sampler = mass_distribution_dict["sampler"]
+        mass_distribution = mass_distribution_dict["functional_form"]
+        samples = np.round(mass_sampler(n_compounds)).astype(int)
         self.polymer_lengths = sorted(list(set(samples)))
         self.n_compounds = [
                 list(samples).count(x) for x in self.polymer_lengths
@@ -256,7 +271,7 @@ class Interface:
             compound.add_bond(particle_pair=[atom1, atom2])
 
 class Initialize:
-    def __init__(system):
+    def __init__(self, system):
         self.system = system
         if system.type == "melt":
             system_init = self.melt()
@@ -291,7 +306,7 @@ class Initialize:
         L = self._calculate_L()
         system_comp = mb.Compound()
         for idx, comp in enumerate(mb_compounds):
-            comp.translate(np.array([0,0,separation]*idx)
+            comp.translate(np.array([0,0,separation]*idx))
             system_comp.add(comp)
         system_comp.Box = mb.box.Box([L, L, L])
         return system_comp
@@ -308,13 +323,13 @@ class Initialize:
         Right now, assuming cubic box
         Return L in nm (mBuild units)
         """
-        M = self.system_mass * units["amu_to_g"]  # grams
-        L = (M / self.density) ** (1 / 3)  # centimeters
+        M = self.system.system_mass * units["amu_to_g"]  # grams
+        L = (M / self.system.density) ** (1 / 3)  # centimeters
         L *= units["cm_to_nm"]  # convert cm to nm
         self.system.target_L = L  # Used during shrink step
         return L
 
-    def _apply_ff(self):
+    def _apply_ff(self, untyped_system):
         if self.system.forcefield == "gaff":
             ff_path = f"{FF_DIR}/gaff.xml"
             forcefield = foyer.Forcefield(forcefield_files=ff_path)
@@ -322,7 +337,7 @@ class Initialize:
             forcefield = foyer.Forcefield(name="oplsaa")
 
         typed_system = forcefield.apply(
-            self.system_mb,
+            untyped_system,
             assert_dihedral_params=self.system.assert_dihedrals
         )
         if self.system.remove_hydrogens:
@@ -333,7 +348,7 @@ class Initialize:
 
     def _generate_compounds(self):
         if self.system.monomer_sequence:
-            sequence = self.monomer_sequence
+            sequence = self.system.monomer_sequence
         else:
             sequence = "random"
         random.seed(self.system.seed)
@@ -344,7 +359,7 @@ class Initialize:
                 ):
             for i in range(n):
                 polymer, sequence = build_molecule(
-                    self.molecule, length, sequence, self.system.para_weight
+                    self.system.molecule, length, sequence, self.system.para_weight
                 )
                 mb_compounds.append(polymer)
                 self.system.para += sequence.count("P")
@@ -355,7 +370,6 @@ class Initialize:
             )
             self.system.system_mass += mass  # amu
         return mb_compounds
-
 
 
 def build_molecule(molecule, length, sequence, para_weight):
