@@ -43,8 +43,7 @@ class Simulation:
         seed=42,
     ):
 
-        self.system = system
-        self.system_pmd = system.system_pmd  # Parmed structure
+        self.system_pmd = system.system  # Parmed structure
         self.r_cut = r_cut
         self.e_factor = e_factor
         self.tau = tau
@@ -75,7 +74,7 @@ class Simulation:
 
         if system.type == "melt":
             # nm
-            self.reduced_target_L = self.system.target_L / self.ref_distance
+            self.reduced_target_L = system.target_L / self.ref_distance
             # angstroms
             self.reduced_init_L = (self.system_pmd.box[0] / self.ref_distance)
 
