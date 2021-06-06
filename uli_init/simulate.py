@@ -78,7 +78,6 @@ class Simulation:
             # angstroms
             self.reduced_init_L = (self.system_pmd.box[0] / self.ref_distance)
 
-            # TODO: Use target_box to generate non-cubic simulation volumes
             if target_box:
                 self.target_box = target_box
             else:
@@ -97,8 +96,9 @@ class Simulation:
 
     def quench(
         self,
-        kT,
         n_steps,
+        kT=None,
+        pressure=None,
         shrink_kT=None,
         shrink_steps=None,
         shrink_period=None,
@@ -120,8 +120,6 @@ class Simulation:
             init_snap = objs[0]
             _all = hoomd.group.all()
             hoomd.md.integrate.mode_standard(dt=self.dt)
-            integrator = hoomd.md.integrate.nvt(group=_all, kT=kT, tau=self.tau)
-            integrator.randomize_velocities(seed=self.seed)
 
             hoomd.dump.gsd(
                 "sim_traj.gsd",
@@ -141,6 +139,10 @@ class Simulation:
             )
 
             if shrink_kT and shrink_steps:
+                integrator = hoomd.md.integrate.nvt(group=_all, tau=self.tau)
+                integrator.set_params(kT=shrink_kT)
+                integrator.randomize_velocities(seed=self.seed)
+
                 x_variant = hoomd.variant.linear_interp([
                     (0, init_snap.box.Lx),
                     (shrink_steps, self.target_box[0] * 10)
@@ -159,9 +161,6 @@ class Simulation:
                     Lz=z_variant,
                     period=shrink_period
                 )
-
-                integrator.set_params(kT=shrink_kT)  # shrink temp
-                integrator.randomize_velocities(seed=self.seed)
 
                 # Update wall origins during shrinking
                 if walls:
@@ -214,8 +213,26 @@ class Simulation:
                 dynamic=["momentum"]
             )
             # Run the primary simulation
-            integrator.set_params(kT=kT)
-            integrator.randomize_velocities(seed=self.seed)
+            if pressure:
+                try: # Not defined if no shrink step
+                    integrator.disable() 
+                except NameError:
+                    pass
+                integrator = hoomd.md.integrate.npt(
+                        group=_all,
+                        tau=self.tau,
+                        tauO=self.tauP
+                        )
+                integrator.set_params(P=pressure)
+                integrator.set_params(kT=kT)
+                integrator.randomize_velocities(seed=self.seed)
+            elif not pressure:
+                try:
+                    integrator.__getattribute__
+                except:
+                    integrator = hoomd.md.integrate.nvt(group=_all, tau=self.tau)
+                integrator.set_params(kT=kT)
+                integrator.randomize_velocities(seed=self.seed)
             try:
                 hoomd.run(n_steps)
             except hoomd.WalltimeLimitReached:
@@ -227,6 +244,7 @@ class Simulation:
         self,
         kT_init=None,
         kT_final=None,
+        pressure=None,
         step_sequence=None,
         schedule=None,
         walls=True,
@@ -281,6 +299,9 @@ class Simulation:
             )
 
             if shrink_kT and shrink_steps:
+                integrator = hoomd.md.integrate.nvt(group=_all, tau=self.tau)
+                integrator.set_params(kT=shrink_kT)
+
                 x_variant = hoomd.variant.linear_interp([
                     (0, self.reduced_init_L),
                     (shrink_steps, self.target_box[0] * 10)
@@ -299,10 +320,6 @@ class Simulation:
                     Lz=z_variant,
                     period=shrink_period
                 )
-
-                integrator.set_params(kT=shrink_kT)  # shrink temp
-                integrator.randomize_velocities(seed=self.seed)
-
                 if walls:
                     wall_origin = (init_snap.box.Lx / 2, 0, 0)
                     normal_vector = (-1, 0, 0)
@@ -314,7 +331,7 @@ class Simulation:
                             ),
                         wall.plane(
                             origin=wall_origin2, normal=normal_vector2, inside=True
-                            ),
+                            )
                     )
 
                     wall_force = wall.lj(walls, r_cut=2.5)
@@ -348,10 +365,27 @@ class Simulation:
                 dynamic=["momentum"]
             )
 
+            if pressure:
+                try:
+                    integrator.disable()
+                except:
+                    pass
+                integrator = hoomd.md.integrate.npt(
+                        group=_all,
+                        tau=self.tau,
+                        tauP=self.tauP
+                        )
+                integrator.set_params(P=pressure)
+            elif not pressure:
+                try:
+                    integrator.__getattribute__
+                except:
+                    integrator = hoomd.md.integrate.nvt(group=_all, tau=self.tau)
+
             for kT in schedule:  # Start iterating through annealing steps
                 print(f"Running @ Temp = {kT} kT")
-                n_steps = schedule[kT]
                 print(f"Running for {n_steps} steps")
+                n_steps = schedule[kT]
                 integrator.set_params(kT=kT)
                 integrator.randomize_velocities(seed=self.seed)
                 try:
