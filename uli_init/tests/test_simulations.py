@@ -3,6 +3,23 @@ from base_test import BaseTest
 
 
 class TestSimulate(BaseTest):
+    def test_quench_npt(self, peek_system):
+        simulation = simulate.Simulation(
+                peek_system,
+                tau_p=0.1,
+                dt=0.0001,
+                mode="cpu"
+                )
+        simulation.quench(
+            kT=2,
+            pressure=0.1,
+            n_steps=1e3,
+            shrink_kT=8,
+            shrink_steps=1e3,
+            shrink_period=1,
+            walls=False,
+        )
+
     def test_quench(self, peek_system):
         simulation = simulate.Simulation(peek_system, dt=0.0001, mode="cpu")
         simulation.quench(
@@ -19,6 +36,24 @@ class TestSimulate(BaseTest):
         simulation.anneal(
             kT_init=4,
             kT_final=2,
+            step_sequence=[1e3, 1e3],
+            shrink_kT=8,
+            shrink_steps=1e3,
+            shrink_period=1,
+            walls=False,
+        )
+
+    def test_anneal_npt(self, pekk_system):
+        simulation = simulate.Simulation(
+                pekk_system,
+                dt=0.0001,
+                tau_p=0.1,
+                mode="cpu"
+                )
+        simulation.anneal(
+            kT_init=4,
+            kT_final=2,
+            pressure=0.1,
             step_sequence=[1e3, 1e3],
             shrink_kT=8,
             shrink_steps=1e3,

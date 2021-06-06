@@ -33,7 +33,8 @@ class Simulation:
         target_box=None,
         r_cut=1.2,
         e_factor=0.5,
-        tau=0.1,
+        tau_kt=0.1,
+        tau_p=None,
         dt=0.0001,
         auto_scale=True,
         ref_units=None,
@@ -46,7 +47,8 @@ class Simulation:
         self.system_pmd = system.system  # Parmed structure
         self.r_cut = r_cut
         self.e_factor = e_factor
-        self.tau = tau
+        self.tau_kt = tau_kt
+        self.tau_p = tau_p
         self.dt = dt
         self.auto_scale = auto_scale
         self.ref_units = ref_units
@@ -142,7 +144,7 @@ class Simulation:
                 integrator = hoomd.md.integrate.nvt(
                         group=_all,
                         kT=shrink_kT,
-                        tau=self.tau
+                        tau=self.tau_kt
                         )
                 integrator.randomize_velocities(seed=self.seed)
 
@@ -223,18 +225,18 @@ class Simulation:
                     pass
                 integrator = hoomd.md.integrate.npt(
                         group=_all,
-                        tau=self.tau,
-                        tauO=self.tauP
+                        tau=self.tau_kt,
+                        tauP=self.tau_p,
+                        P=pressure,
+                        kT=kT
                         )
-                integrator.set_params(P=pressure, kT=kT)
-                integrator.randomize_velocities(seed=self.seed)
             elif not pressure:
                 try:
                     integrator.__getattribute__
-                except:
+                except NameError:
                     integrator = hoomd.md.integrate.nvt(
                             group=_all,
-                            tau=self.tau,
+                            tau=self.tau_kt,
                             kT=kT)
                 integrator.randomize_velocities(seed=self.seed)
             try:
@@ -299,7 +301,7 @@ class Simulation:
             if shrink_kT and shrink_steps:
                 integrator = hoomd.md.integrate.nvt(
                         group=_all,
-                        tau=self.tau,
+                        tau=self.tau_kt,
                         kT=shrink_kT
                         )
                 integrator.randomize_velocities(seed=self.seed)
@@ -375,9 +377,10 @@ class Simulation:
                     pass
                 integrator = hoomd.md.integrate.npt(
                         group=_all,
-                        tau=self.tau,
-                        tauP=self.tauP,
-                        P=pressure
+                        tau=self.tau_kt,
+                        tauP=self.tau_p,
+                        P=pressure,
+                        kT=1
                         )
             elif not pressure:
                 try:
@@ -385,11 +388,11 @@ class Simulation:
                 except:
                     integrator = hoomd.md.integrate.nvt(
                             group=_all,
-                            kT=kT_init,
-                            tau=self.tau
+                            tau=self.tau_kt,
+                            kT=1
                             )
 
-            for kT in schedule:  # Start iterating through annealing steps
+            for kT in schedule: 
                 n_steps = schedule[kT]
                 integrator.set_params(kT=kT)
                 integrator.randomize_velocities(seed=self.seed)
