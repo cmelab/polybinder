@@ -107,6 +107,10 @@ class Simulation:
         walls=True,
     ):
         """"""
+        if walls and pressure:
+            raise ValueError(
+                    "Wall potentials can only be used with the NVT ensemble"
+                    )
         hoomd_args = f"--single-mpi --mode={self.mode}"
         sim = hoomd.context.initialize(hoomd_args)
         with sim:
@@ -258,7 +262,10 @@ class Simulation:
         shrink_steps=None,
         shrink_period=None,
     ):
-
+        if walls and pressure:
+            raise ValueError(
+                    "Wall potentials can only be used with the NVT ensemble"
+                    )
         if not schedule:
             temps = np.linspace(kT_init, kT_final, len(step_sequence))
             temps = [np.round(t, 1) for t in temps]

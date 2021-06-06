@@ -1,8 +1,39 @@
 from uli_init import simulate, systems
 from base_test import BaseTest
 
+import pytest
+
 
 class TestSimulate(BaseTest):
+    def test_bad_inputs(self, peek_system):
+        simulation = simulate.Simulation(
+                peek_system,
+                tau_p=0.1,
+                dt=0.0001,
+                mode="cpu"
+                )
+        with pytest.raises(ValueError):
+            simulation.quench(
+                kT=2,
+                pressure=0.1,
+                n_steps=1e3,
+                shrink_kT=None,
+                shrink_steps=None,
+                shrink_period=None,
+                walls=True,
+            )
+        with pytest.raises(ValueError):
+            simulation.anneal(
+                kT_init=2,
+                kT_final=1,
+                step_sequence = [1e3, 1e3],
+                pressure=0.1,
+                shrink_kT=None,
+                shrink_steps=None,
+                shrink_period=None,
+                walls=True,
+            )
+
     def test_quench_no_shrink(self, peek_system):
         simulation = simulate.Simulation(
                 peek_system,
