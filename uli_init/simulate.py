@@ -139,8 +139,11 @@ class Simulation:
             )
 
             if shrink_kT and shrink_steps:
-                integrator = hoomd.md.integrate.nvt(group=_all, tau=self.tau)
-                integrator.set_params(kT=shrink_kT)
+                integrator = hoomd.md.integrate.nvt(
+                        group=_all,
+                        kT=shrink_kT,
+                        tau=self.tau
+                        )
                 integrator.randomize_velocities(seed=self.seed)
 
                 x_variant = hoomd.variant.linear_interp([
@@ -223,15 +226,16 @@ class Simulation:
                         tau=self.tau,
                         tauO=self.tauP
                         )
-                integrator.set_params(P=pressure)
-                integrator.set_params(kT=kT)
+                integrator.set_params(P=pressure, kT=kT)
                 integrator.randomize_velocities(seed=self.seed)
             elif not pressure:
                 try:
                     integrator.__getattribute__
                 except:
-                    integrator = hoomd.md.integrate.nvt(group=_all, tau=self.tau)
-                integrator.set_params(kT=kT)
+                    integrator = hoomd.md.integrate.nvt(
+                            group=_all,
+                            tau=self.tau,
+                            kT=kT)
                 integrator.randomize_velocities(seed=self.seed)
             try:
                 hoomd.run(n_steps)
@@ -274,12 +278,6 @@ class Simulation:
             init_snap = objs[0]
             _all = hoomd.group.all()
             hoomd.md.integrate.mode_standard(dt=self.dt)
-            integrator = hoomd.md.integrate.nvt(
-                    group=_all,
-                    kT=kT_init,
-                    tau=self.tau
-                    )
-            integrator.randomize_velocities(seed=self.seed)
 
             hoomd.dump.gsd(
                 "sim_traj.gsd",
@@ -299,8 +297,12 @@ class Simulation:
             )
 
             if shrink_kT and shrink_steps:
-                integrator = hoomd.md.integrate.nvt(group=_all, tau=self.tau)
-                integrator.set_params(kT=shrink_kT)
+                integrator = hoomd.md.integrate.nvt(
+                        group=_all,
+                        tau=self.tau,
+                        kT=shrink_kT
+                        )
+                integrator.randomize_velocities(seed=self.seed)
 
                 x_variant = hoomd.variant.linear_interp([
                     (0, self.reduced_init_L),
@@ -356,6 +358,7 @@ class Simulation:
                 else:
                     hoomd.run_upto(shrink_steps)
                 box_updater.disable()
+
             gsd_restart = hoomd.dump.gsd(
                 "restart.gsd",
                 period=self.gsd_write,
@@ -373,21 +376,25 @@ class Simulation:
                 integrator = hoomd.md.integrate.npt(
                         group=_all,
                         tau=self.tau,
-                        tauP=self.tauP
+                        tauP=self.tauP,
+                        P=pressure
                         )
-                integrator.set_params(P=pressure)
             elif not pressure:
                 try:
                     integrator.__getattribute__
                 except:
-                    integrator = hoomd.md.integrate.nvt(group=_all, tau=self.tau)
+                    integrator = hoomd.md.integrate.nvt(
+                            group=_all,
+                            kT=kT_init,
+                            tau=self.tau
+                            )
 
             for kT in schedule:  # Start iterating through annealing steps
-                print(f"Running @ Temp = {kT} kT")
-                print(f"Running for {n_steps} steps")
                 n_steps = schedule[kT]
                 integrator.set_params(kT=kT)
                 integrator.randomize_velocities(seed=self.seed)
+                print(f"Running @ Temp = {kT} kT")
+                print(f"Running for {n_steps} steps")
                 try:
                     hoomd.run(n_steps)
                 except hoomd.WalltimeLimitReached:
