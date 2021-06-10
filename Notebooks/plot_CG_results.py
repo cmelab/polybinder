@@ -3,6 +3,11 @@ import matplotlib.pyplot as plt
 import hoomd
 import gsd.hoomd
 import glob
+import sys
+
+if(len(sys.argv) != 2):
+    print("Error: you must pass the number of particles")
+    exit(1)
 
 param_fnames = sorted(glob.glob("*params.npy"))
 print(param_fnames)
@@ -20,7 +25,7 @@ for fname in param_fnames:
     plt.ylabel(short_name)
     plt.savefig(f'{short_name}.png')
     
-M = 100
+M = int(sys.argv[1] )
 # create an edge list
 beads_per_molecule = 12
 bonds_per_molecule = beads_per_molecule - 1 # linear polymer

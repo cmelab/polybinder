@@ -1,5 +1,4 @@
 import os
-os.environ['CUDA_VISIBLE_DEVICES'] =  '-1'
 import networkx as nx
 import tensorflow as tf
 from tensorflow.keras import layers
@@ -18,7 +17,7 @@ def get_mol_mapping_idx(filename):
     '''Takes a filename of a .gsd file WITHOUT the '.gsd', loads that gsd,
     then loads or creates a molecule mapping index from it.'''
     # if the mapping doesn't exist, make it
-    context = hoomd.context.initialize('--mode=cpu')
+    context = hoomd.context.initialize('--mode=gpu')
     system = hoomd.init.read_gsd(filename=f'{filename}.gsd')
     context.sorter.disable()
     if not os.path.exists(f'{filename}-mapping.npy'):
@@ -37,7 +36,11 @@ def get_mol_mapping_idx(filename):
 # 5) pass in model to uli-init Simulation object
 # 7) run the hoomd simulation (call the quench method)
 
-one_molecule_fname = '1-length-4-peek-para-only'
+set_rcut = 7.0
+n_molecules = 10
+n_monomers = 2
+
+one_molecule_fname = f'1-length-{n_monomers}-peek-para-only'
 system, molecule_mapping_index = get_mol_mapping_idx(one_molecule_fname)
 
 graph = nx.Graph()
@@ -93,8 +96,7 @@ assert(np.sum(mapping_arr) == MN)
 
 bead_number = mapping_arr.shape[0]
 
-set_rcut = 7.0
-fname = '100-length-4-peek-para-only-production'
+fname = f'{n_molecules}-length-{n_monomers}-peek-para-only-production'
 system, molecule_mapping_index = get_mol_mapping_idx(fname)
 
 cg_mapping = htf.sparse_mapping([mapping_arr for _ in molecule_mapping_index],
@@ -299,13 +301,13 @@ model = TrajModel(nneighbor_cutoff=nneighbor_cutoff,
 model.compile('Adam', ['MeanAbsoluteError', None, None, None, None, None])
 
 system = simulate.System(molecule='PEEK', para_weight=1.0,
-                         density=1.2, n_compounds=[100],
-                         polymer_lengths=[4], forcefield='gaff',
+                         density=1.2, n_compounds=[n_molecules],
+                         polymer_lengths=[n_monomers], forcefield='gaff',
                          assert_dihedrals=True, remove_hydrogens=True)
 
-sim = simulate.Simulation(system, gsd_write=100, mode='cpu', dt=0.0001, r_cut=set_rcut, tf_model=model)
+sim = simulate.Simulation(system, gsd_write=1e4, mode='gpu', dt=0.0001, r_cut=set_rcut, tf_model=model)
 
-sim.quench(kT=1., n_steps=1e2, shrink_steps=2e2)
+sim.quench(kT=1., n_steps=2e5, shrink_steps=1e2)
 
 outputs = sim.tfcompute.outputs
 cg_positions = outputs[0]
