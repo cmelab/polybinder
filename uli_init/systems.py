@@ -275,8 +275,8 @@ class Initialize:
         self.system = system
         if system.type == "melt":
             system_init = self.melt()
-        elif system.type == "dilute":
-            system_init = self.dilute()
+        elif system.type == "stack":
+            system_init = self.stack()
         elif system.type == "lamellar":
             system_init = self.lamellar()
         elif system.type == "coarse_grained":
@@ -301,7 +301,7 @@ class Initialize:
         filled.Box = mb.box.Box([L, L, L])
         return filled
 
-    def dilute(self, separation=.5):
+    def stack(self, separation=.5):
         mb_compounds = self._generate_compounds()
         L = self._calculate_L()
         system_comp = mb.Compound()
@@ -316,6 +316,31 @@ class Initialize:
 
     def coarse_grained(self):
         pass
+
+    def _generate_compounds(self):
+        if self.system.monomer_sequence:
+            sequence = self.system.monomer_sequence
+        else:
+            sequence = "random"
+        random.seed(self.system.seed)
+        mb_compounds = []
+        for length, n in zip(
+                self.system.polymer_lengths,
+                self.system.n_compounds
+                ):
+            for i in range(n):
+                polymer, sequence = build_molecule(
+                    self.system.molecule, length, sequence, self.system.para_weight
+                )
+                mb_compounds.append(polymer)
+                self.system.para += sequence.count("P")
+                self.system.meta += sequence.count("M")
+            mass = n * np.sum(
+                ele.element_from_symbol(p.name).mass
+                for p in polymer.particles()
+            )
+            self.system.system_mass += mass  # amu
+        return mb_compounds
 
     def _calculate_L(self):
         """
@@ -345,31 +370,6 @@ class Initialize:
                     [a.atomic_number == 1 for a in typed_system.atoms]
                     )
         return typed_system
-
-    def _generate_compounds(self):
-        if self.system.monomer_sequence:
-            sequence = self.system.monomer_sequence
-        else:
-            sequence = "random"
-        random.seed(self.system.seed)
-        mb_compounds = []
-        for length, n in zip(
-                self.system.polymer_lengths,
-                self.system.n_compounds
-                ):
-            for i in range(n):
-                polymer, sequence = build_molecule(
-                    self.system.molecule, length, sequence, self.system.para_weight
-                )
-                mb_compounds.append(polymer)
-                self.system.para += sequence.count("P")
-                self.system.meta += sequence.count("M")
-            mass = n * np.sum(
-                ele.element_from_symbol(p.name).mass
-                for p in polymer.particles()
-            )
-            self.system.system_mass += mass  # amu
-        return mb_compounds
 
 
 def build_molecule(molecule, length, sequence, para_weight):
