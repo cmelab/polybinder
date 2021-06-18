@@ -273,6 +273,9 @@ class Interface:
 class Initialize:
     def __init__(self, system):
         self.system = system
+        self.mb_compounds = self._generate_compounds()
+        self.L = self._calculate_L() * self.system.expand_factor
+
         if system.type == "melt":
             system_init = self.melt()
         elif system.type == "stack":
@@ -288,30 +291,26 @@ class Initialize:
         self.system = system_init
 
     def melt(self):
-        mb_compounds = self._generate_compounds()
-        L = self._calculate_L() * self.system.expand_factor 
         filled = mb.packing.fill_box(
-            compound=mb_compounds,
-            n_compounds=[1 for i in mb_compounds],
-            box=[L, L, L],
+            compound=self.mb_compounds,
+            n_compounds=[1 for i in self.mb_compounds],
+            box=[self.L, self.L, self.L],
             overlap=0.2,
             edge=0.9,
             fix_orientation=True,
         )
-        filled.Box = mb.box.Box([L, L, L])
+        filled.Box = mb.box.Box([self.L, self.L, self.L])
         return filled
 
     def stack(self, separation=1.5):
-        mb_compounds = self._generate_compounds()
-        L = self._calculate_L()
         system_comp = mb.Compound()
-        for idx, comp in enumerate(mb_compounds):
+        for idx, comp in enumerate(self.mb_compounds):
             try:
                 comp.translate(np.array(np.array([0,0,separation])*idx))
             except:
                 pass
             system_comp.add(comp)
-        system_comp.Box = mb.box.Box([L, L, L])
+        system_comp.box = mb.box.Box([self.L, self.L, self.L])
         return system_comp
 
     def lamellar(self):

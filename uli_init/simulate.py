@@ -74,7 +74,7 @@ class Simulation:
             self.ref_energy = max(pair_coeffs, key=operator.itemgetter(1))[1]
             self.ref_distance = max(pair_coeffs, key=operator.itemgetter(2))[2]
 
-        if system.type == "melt":
+        if system.type != "interface":
             # nm
             self.reduced_target_L = system.target_L / self.ref_distance
             # angstroms
