@@ -6,6 +6,18 @@ from base_test import BaseTest
 
 
 class TestSystems(BaseTest):
+    def test_stack(self):
+        stacked_system = systems.System(
+                molecule="PEEK",
+                para_weight=0.50,
+                density=0.7,
+                n_compounds=[10],
+                polymer_lengths=[5],
+                system_type="stack",
+                forcefield="gaff",
+                remove_hydrogens=False,
+                expand_factor=4
+                )
 
     def test_build_peek(self):
         for i in range(5):

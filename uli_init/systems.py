@@ -50,18 +50,18 @@ class System:
     ):
         self.molecule = molecule
         self.density = density
+        self.type = system_type 
         self.para_weight = para_weight
         self.monomer_sequence = monomer_sequence
         self.forcefield = forcefield
-        self.target_L = None
         self.remove_hydrogens = remove_hydrogens
         self.assert_dihedrals = assert_dihedrals
         self.seed = seed
+        self.expand_factor = expand_factor
+        self.target_L = None
         self.system_mass = 0
         self.para = 0
         self.meta = 0
-        self.expand_factor = expand_factor
-        self.type = system_type 
         
         if self.monomer_sequence and self.para_weight:
             raise ValueError(
@@ -96,7 +96,7 @@ class System:
                     )
 
         init = Initialize(system=self)
-        self.system = init.system_init
+        self.system = init.system
 
     def sample_from_pdi(
             self,
@@ -285,7 +285,7 @@ class Initialize:
         if system.forcefield:
             system_init = self._apply_ff(system_init)
 
-        self.system_init = system_init
+        self.system = system_init
 
     def melt(self):
         mb_compounds = self._generate_compounds()
@@ -306,6 +306,8 @@ class Initialize:
         L = self._calculate_L()
         system_comp = mb.Compound()
         for idx, comp in enumerate(mb_compounds):
+            if idx == 0:
+                continue
             comp.translate(np.array([0,0,separation]*idx))
             system_comp.add(comp)
         system_comp.Box = mb.box.Box([L, L, L])
