@@ -301,14 +301,15 @@ class Initialize:
         filled.Box = mb.box.Box([L, L, L])
         return filled
 
-    def stack(self, separation=.5):
+    def stack(self, separation=1.5):
         mb_compounds = self._generate_compounds()
         L = self._calculate_L()
         system_comp = mb.Compound()
         for idx, comp in enumerate(mb_compounds):
-            if idx == 0:
-                continue
-            comp.translate(np.array([0,0,separation]*idx))
+            try:
+                comp.translate(np.array(np.array([0,0,separation])*idx))
+            except:
+                pass
             system_comp.add(comp)
         system_comp.Box = mb.box.Box([L, L, L])
         return system_comp
