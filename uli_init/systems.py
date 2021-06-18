@@ -302,7 +302,7 @@ class Initialize:
         filled.Box = mb.box.Box([self.L, self.L, self.L])
         return filled
 
-    def stack(self, separation=1.5):
+    def stack(self, separation=2.5):
         system_comp = mb.Compound()
         for idx, comp in enumerate(self.mb_compounds):
             try:
