@@ -194,90 +194,14 @@ class System:
             return mass_dict
 
 
-class Interface:
-    def __init__(
-        self,
-        slabs,
-        ref_distance=None,
-        gap=0.1
-    ):
-        self.type = "interface"
-        self.ref_distance = ref_distance
-        if not isinstance(slabs, list):
-            slabs = [slabs]
-        if len(slabs) == 2:
-            slab_files = slabs
-        else:
-            slab_files = slabs * 2
-
-        interface = mb.Compound()
-        slab_1 = self._gsd_to_mbuild(slab_files[0], self.ref_distance)
-        slab_2 = self._gsd_to_mbuild(slab_files[1], self.ref_distance)
-        interface.add(new_child=slab_1, label="left")
-        interface.add(new_child=slab_2, label="right")
-        x_len = interface.get_boundingbox().Lx
-        interface["left"].translate((-x_len - gap, 0, 0))
-        
-        system_box = mb.box.Box.from_mins_maxs_angles(
-                mins=(0, 0, 0),
-                maxs = interface.get_boundingbox().lengths,
-                angles = (90, 90, 90)
-            )
-        system_box._Lx += 2 * self.ref_distance * 1.1225
-        interface.box = system_box
-        # Center in the adjusted box
-        interface.translate_to(
-                [interface.box.Lx / 2,
-                interface.box.Ly / 2,
-                interface.box.Lz / 2,]
-            )
-
-        ff_path = f"{FF_DIR}/gaff-nosmarts.xml"
-        forcefield = foyer.Forcefield(forcefield_files=ff_path)
-        self.system = forcefield.apply(interface)
-
-    def _gsd_to_mbuild(self, gsd_file, ref_distance):
-        element_mapping = {
-            "oh": "O",
-            "ca": "C",
-            "os": "O",
-            "o": "O",
-            "c": "C",
-            "ho": "H",
-            "ha": "H",
-        }
-        snap = trajectory = gsd.hoomd.open(gsd_file)[-1]
-        pos_wrap = snap.particles.position * ref_distance
-        atom_types = [snap.particles.types[i] for i in snap.particles.typeid]
-        elements = [element_mapping[i] for i in atom_types]
-
-        comp = mb.Compound()
-        for pos, element, atom_type in zip(pos_wrap, elements, atom_types):
-            child = mb.Compound(name=f"_{atom_type}", pos=pos, element=element)
-            comp.add(child)
-
-        bonds = [(i, j) for (i, j) in snap.bonds.group]
-        self._add_bonds(compound=comp, bonds=bonds)
-        return comp
-
-    def _add_bonds(self, compound, bonds):
-        particle_dict = {}
-        for idx, particle in enumerate(compound.particles()):
-            particle_dict[idx] = particle
-
-        for (i, j) in bonds:
-            atom1 = particle_dict[i]
-            atom2 = particle_dict[j]
-            compound.add_bond(particle_pair=[atom1, atom2])
-
 class Initialize:
     def __init__(self, system):
         self.system = system
         self.mb_compounds = self._generate_compounds()
         self.L = self._calculate_L() * self.system.expand_factor
 
-        if system.type == "melt":
-            system_init = self.melt()
+        if system.type == "pack":
+            system_init = self.pack()
         elif system.type == "stack":
             system_init = self.stack()
         elif system.type == "lamellar":
@@ -290,7 +214,7 @@ class Initialize:
 
         self.system = system_init
 
-    def melt(self):
+    def pack(self):
         filled = mb.packing.fill_box(
             compound=self.mb_compounds,
             n_compounds=[1 for i in self.mb_compounds],
@@ -372,6 +296,82 @@ class Initialize:
                     [a.atomic_number == 1 for a in typed_system.atoms]
                     )
         return typed_system
+
+class Interface:
+    def __init__(
+        self,
+        slabs,
+        ref_distance=None,
+        gap=0.1
+    ):
+        self.type = "interface"
+        self.ref_distance = ref_distance
+        if not isinstance(slabs, list):
+            slabs = [slabs]
+        if len(slabs) == 2:
+            slab_files = slabs
+        else:
+            slab_files = slabs * 2
+
+        interface = mb.Compound()
+        slab_1 = self._gsd_to_mbuild(slab_files[0], self.ref_distance)
+        slab_2 = self._gsd_to_mbuild(slab_files[1], self.ref_distance)
+        interface.add(new_child=slab_1, label="left")
+        interface.add(new_child=slab_2, label="right")
+        x_len = interface.get_boundingbox().Lx
+        interface["left"].translate((-x_len - gap, 0, 0))
+        
+        system_box = mb.box.Box.from_mins_maxs_angles(
+                mins=(0, 0, 0),
+                maxs = interface.get_boundingbox().lengths,
+                angles = (90, 90, 90)
+            )
+        system_box._Lx += 2 * self.ref_distance * 1.1225
+        interface.box = system_box
+        # Center in the adjusted box
+        interface.translate_to(
+                [interface.box.Lx / 2,
+                interface.box.Ly / 2,
+                interface.box.Lz / 2,]
+            )
+
+        ff_path = f"{FF_DIR}/gaff-nosmarts.xml"
+        forcefield = foyer.Forcefield(forcefield_files=ff_path)
+        self.system = forcefield.apply(interface)
+
+    def _gsd_to_mbuild(self, gsd_file, ref_distance):
+        element_mapping = {
+            "oh": "O",
+            "ca": "C",
+            "os": "O",
+            "o": "O",
+            "c": "C",
+            "ho": "H",
+            "ha": "H",
+        }
+        snap = trajectory = gsd.hoomd.open(gsd_file)[-1]
+        pos_wrap = snap.particles.position * ref_distance
+        atom_types = [snap.particles.types[i] for i in snap.particles.typeid]
+        elements = [element_mapping[i] for i in atom_types]
+
+        comp = mb.Compound()
+        for pos, element, atom_type in zip(pos_wrap, elements, atom_types):
+            child = mb.Compound(name=f"_{atom_type}", pos=pos, element=element)
+            comp.add(child)
+
+        bonds = [(i, j) for (i, j) in snap.bonds.group]
+        self._add_bonds(compound=comp, bonds=bonds)
+        return comp
+
+    def _add_bonds(self, compound, bonds):
+        particle_dict = {}
+        for idx, particle in enumerate(compound.particles()):
+            particle_dict[idx] = particle
+
+        for (i, j) in bonds:
+            atom1 = particle_dict[i]
+            atom2 = particle_dict[j]
+            compound.add_bond(particle_pair=[atom1, atom2])
 
 
 def build_molecule(molecule, length, sequence, para_weight):
