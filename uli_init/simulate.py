@@ -35,6 +35,7 @@ class Simulation:
         e_factor=0.5,
         tau_kt=0.1,
         tau_p=None,
+        nlist=hoomd.md.nlist.cell,
         dt=0.0001,
         auto_scale=True,
         ref_units=None,
@@ -49,6 +50,7 @@ class Simulation:
         self.e_factor = e_factor
         self.tau_kt = tau_kt
         self.tau_p = tau_p
+        self.nlist = nlist
         self.dt = dt
         self.auto_scale = auto_scale
         self.ref_units = ref_units
@@ -121,6 +123,7 @@ class Simulation:
                 self.ref_energy,
                 self.r_cut,
                 self.auto_scale,
+                nlist=self.nlist
             )
             hoomd_system = objs[1]
             init_snap = objs[0]
@@ -282,6 +285,7 @@ class Simulation:
                 self.ref_energy,
                 self.r_cut,
                 self.auto_scale,
+                nlist=self.nlist
             )
             hoomd_system = objs[1]
             init_snap = objs[0]
