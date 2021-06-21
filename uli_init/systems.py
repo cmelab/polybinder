@@ -62,6 +62,7 @@ class System:
         self.system_mass = 0
         self.para = 0
         self.meta = 0
+        self.molecule_sequences = []
         
         if self.monomer_sequence and self.para_weight:
             raise ValueError(
@@ -204,8 +205,6 @@ class Initialize:
             system_init = self.pack()
         elif system.type == "stack":
             system_init = self.stack()
-        elif system.type == "coarse_grained":
-            system_init = self.coarse_grained()
 
         if system.forcefield:
             system_init = self._apply_ff(system_init)
@@ -235,9 +234,6 @@ class Initialize:
         system_comp.box = mb.box.Box([self.L, self.L, self.L])
         return system_comp
 
-    def coarse_grained(self):
-        pass
-
     def _generate_compounds(self):
         if self.system.monomer_sequence:
             sequence = self.system.monomer_sequence
@@ -253,6 +249,7 @@ class Initialize:
                 polymer, sequence = build_molecule(
                     self.system.molecule, length, sequence, self.system.para_weight
                 )
+                self.molecule_sequences.append(sequence)
                 mb_compounds.append(polymer)
                 self.system.para += sequence.count("P")
                 self.system.meta += sequence.count("M")
