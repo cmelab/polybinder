@@ -249,7 +249,7 @@ class Initialize:
                 polymer, sequence = build_molecule(
                     self.system.molecule, length, sequence, self.system.para_weight
                 )
-                self.molecule_sequences.append(sequence)
+                self.system.molecule_sequences.append(sequence)
                 mb_compounds.append(polymer)
                 self.system.para += sequence.count("P")
                 self.system.meta += sequence.count("M")
