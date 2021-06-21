@@ -204,8 +204,6 @@ class Initialize:
             system_init = self.pack()
         elif system.type == "stack":
             system_init = self.stack()
-        elif system.type == "lamellar":
-            system_init = self.lamellar()
         elif system.type == "coarse_grained":
             system_init = self.coarse_grained()
 
@@ -236,9 +234,6 @@ class Initialize:
             system_comp.add(comp)
         system_comp.box = mb.box.Box([self.L, self.L, self.L])
         return system_comp
-
-    def lamellar(self):
-        pass
 
     def coarse_grained(self):
         pass
