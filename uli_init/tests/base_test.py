@@ -27,7 +27,7 @@ class BaseTest:
             density=1.2,
             n_compounds=[3],
             polymer_lengths=[3],
-            system_type = "melt",
+            system_type = "pack",
             forcefield="gaff",
             remove_hydrogens=False,
             expand_factor=5
@@ -42,7 +42,7 @@ class BaseTest:
             density=1.2,
             n_compounds=[3],
             polymer_lengths=[3],
-            system_type = "melt",
+            system_type = "pack",
             forcefield="gaff",
             remove_hydrogens=False,
             expand_factor=5
@@ -57,7 +57,7 @@ class BaseTest:
             density=1.2,
             n_compounds=[3],
             polymer_lengths=[3],
-            system_type = "melt",
+            system_type = "pack",
             forcefield="gaff",
             remove_hydrogens=True,
             expand_factor=5
@@ -72,7 +72,7 @@ class BaseTest:
             density=1.2,
             n_compounds=[3],
             polymer_lengths=[3],
-            system_type = "melt",
+            system_type = "pack",
             forcefield="gaff",
             remove_hydrogens=True,
             expand_factor=5

@@ -45,7 +45,7 @@ class TestSystems(BaseTest):
                     n_compounds = [1],
                     polymer_lengths=[4],
                     density=.1,
-                    system_type="melt",
+                    system_type="pack",
                     remove_hydrogens=True
                     )
 
@@ -55,7 +55,7 @@ class TestSystems(BaseTest):
                 n_compounds = [1],
                 polymer_lengths=[4],
                 density=.1,
-                system_type="melt",
+                system_type="pack",
                 remove_hydrogens=True
                 )
         assert system_even.para == system_even.meta  == 2
@@ -66,7 +66,7 @@ class TestSystems(BaseTest):
                 n_compounds = [1],
                 polymer_lengths=[5],
                 density=.1,
-                system_type="melt",
+                system_type="pack",
                 remove_hydrogens=True
                 )
         assert system_odd.para == 3
@@ -78,7 +78,7 @@ class TestSystems(BaseTest):
                 n_compounds = [1],
                 polymer_lengths=[4],
                 density=.1,
-                system_type="melt",
+                system_type="pack",
                 remove_hydrogens=True
                 )
         assert system_large_seq.para == system_large_seq.meta == 2
@@ -102,7 +102,7 @@ class TestSystems(BaseTest):
             density=1,
             n_compounds=[1],
             polymer_lengths=[2],
-            system_type="melt",
+            system_type="pack",
             forcefield="gaff",
             assert_dihedrals=False,
             remove_hydrogens=False,
@@ -115,7 +115,7 @@ class TestSystems(BaseTest):
             density=.1,
             n_compounds=[1],
             polymer_lengths=[2],
-            system_type="melt",
+            system_type="pack",
             forcefield="gaff",
             assert_dihedrals=False,
             remove_hydrogens=True,
@@ -131,7 +131,7 @@ class TestSystems(BaseTest):
             n_compounds=[1],
             polymer_lengths=[2],
             forcefield="gaff",
-            system_type="melt",
+            system_type="pack",
             assert_dihedrals=True,
             remove_hydrogens=False,
         )
@@ -144,7 +144,7 @@ class TestSystems(BaseTest):
             n_compounds=[5, 4, 3, 2, 1],
             polymer_lengths=[2, 4, 5, 11, 22],
             forcefield=None,
-            system_type="melt",
+            system_type="pack",
             assert_dihedrals=False,
             remove_hydrogens=False,
             expand_factor = 7
@@ -159,7 +159,7 @@ class TestSystems(BaseTest):
             sample_pdi=True,
             pdi=1.2,
             Mw=6.0,
-            system_type="melt",
+            system_type="pack",
             forcefield=None,
             assert_dihedrals=False,
             remove_hydrogens=False,
@@ -175,7 +175,7 @@ class TestSystems(BaseTest):
             sample_pdi=True,
             pdi=1.2,
             Mn=5.0,
-            system_type="melt",
+            system_type="pack",
             forcefield=None,
             assert_dihedrals=False,
             remove_hydrogens=False,
@@ -191,7 +191,7 @@ class TestSystems(BaseTest):
             sample_pdi=True,
             Mn=5.0,
             Mw=6.0,
-            system_type="melt",
+            system_type="pack",
             forcefield=None,
             assert_dihedrals=False,
             remove_hydrogens=False,
@@ -205,7 +205,7 @@ class TestSystems(BaseTest):
             density=0.1,
             n_compounds=3,
             sample_pdi=True,
-            system_type="melt",
+            system_type="pack",
             pdi=1.2,
             Mw=6.0,
             Mn=5.0,
@@ -225,7 +225,7 @@ class TestSystems(BaseTest):
                 sample_pdi=True,
                 pdi=1.2,
                 forcefield=None,
-                system_type="melt",
+                system_type="pack",
                 assert_dihedrals=False,
                 remove_hydrogens=False,
             )
@@ -241,7 +241,7 @@ class TestSystems(BaseTest):
                 pdi=1.2,
                 Mn=5.0,
                 Mw=8.0,
-                system_type="melt",
+                system_type="pack",
                 forcefield=None,
                 assert_dihedrals=False,
                 remove_hydrogens=False,
@@ -257,7 +257,7 @@ class TestSystems(BaseTest):
             sample_pdi=True,
             pdi=1.001,
             Mn=5.0,
-            system_type="melt",
+            system_type="pack",
             forcefield=None,
             assert_dihedrals=False,
             remove_hydrogens=False,
