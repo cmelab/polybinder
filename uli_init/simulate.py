@@ -35,7 +35,7 @@ class Simulation:
         e_factor=0.5,
         tau_kt=0.1,
         tau_p=None,
-        nlist=hoomd.md.nlist.cell,
+        nlist="cell",
         dt=0.0001,
         auto_scale=True,
         ref_units=None,
@@ -50,7 +50,6 @@ class Simulation:
         self.e_factor = e_factor
         self.tau_kt = tau_kt
         self.tau_p = tau_p
-        self.nlist = nlist
         self.dt = dt
         self.auto_scale = auto_scale
         self.ref_units = ref_units
@@ -58,6 +57,11 @@ class Simulation:
         self.gsd_write = gsd_write
         self.log_write = log_write
         self.seed = seed
+        
+        if nlist.lower() == "cell":
+            self.nlist = hoomd.md.nlist.cell
+        elif nlist.lower() == "tree":
+            self.nlist = hoomd.md.nlist.tree
 
         if ref_units and not auto_scale:
             self.ref_energy = ref_units["energy"]
