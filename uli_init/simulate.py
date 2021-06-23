@@ -50,6 +50,7 @@ class Simulation:
         self.e_factor = e_factor
         self.tau_kt = tau_kt
         self.tau_p = tau_p
+        self.nlist = getattr(hoomd.md.nlist, nlist.lower())
         self.dt = dt
         self.auto_scale = auto_scale
         self.ref_units = ref_units
@@ -57,11 +58,6 @@ class Simulation:
         self.gsd_write = gsd_write
         self.log_write = log_write
         self.seed = seed
-        
-        if nlist.lower() == "cell":
-            self.nlist = hoomd.md.nlist.cell
-        elif nlist.lower() == "tree":
-            self.nlist = hoomd.md.nlist.tree
 
         if ref_units and not auto_scale:
             self.ref_energy = ref_units["energy"]
@@ -150,7 +146,10 @@ class Simulation:
                 overwrite=True,
                 phase=0,
             )
-
+            if any((shrink_kT, shrink_steps)) == 1:
+                raise ValueError(
+                "Both of  shrink_kT and shrink_steps need to be given"
+                )
             if shrink_kT and shrink_steps:
                 integrator = hoomd.md.integrate.nvt(
                         group=_all,
@@ -243,7 +242,7 @@ class Simulation:
                         )
             elif not pressure:
                 try:
-                    integrator.__getattribute__
+                    integrator
                 except NameError:
                     integrator = hoomd.md.integrate.nvt(
                             group=_all,
@@ -388,7 +387,7 @@ class Simulation:
             if pressure:
                 try:
                     integrator.disable()
-                except:
+                except NameError:
                     pass
                 integrator = hoomd.md.integrate.npt(
                         group=_all,
@@ -399,8 +398,8 @@ class Simulation:
                         )
             elif not pressure:
                 try:
-                    integrator.__getattribute__
-                except:
+                    integrator
+                except NameError:
                     integrator = hoomd.md.integrate.nvt(
                             group=_all,
                             tau=self.tau_kt,
