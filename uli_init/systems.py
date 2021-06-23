@@ -365,7 +365,7 @@ class Interface:
             compound.add_bond(particle_pair=[atom1, atom2])
 
 
-def build_molecule(molecule, length, sequence, para_weight):
+def build_molecule(molecule, length, sequence, para_weight, smiles=False):
     """
     `build_molecule` uses SMILES strings to build up a polymer from monomers.
     The configuration of each monomer is determined by para_weight and the
@@ -390,6 +390,9 @@ def build_molecule(molecule, length, sequence, para_weight):
         Passed into random_sequence() to determine the monomer sequence of the
         polymer.
         A 70/30 para to meta system would require a para_weight = 0.70
+    smiles : bool, optional, default False
+        Set to True if you want to load the molecules from SMILES strings
+        If left False, the molecule will be loaded from their .mol2 files
 
     Notes
     -----
@@ -423,8 +426,17 @@ def build_molecule(molecule, length, sequence, para_weight):
         monomer_sequence += sequence[:(length - len(monomer_sequence))]
 
     compound = Polymer()
-    para = mb.load(mol_dict["para_smiles"], smiles=True, backend="rdkit")
-    meta = mb.load(mol_dict["meta_smiles"], smiles=True, backend="rdkit")
+    if smiles:
+        para = mb.load(mol_dict["para_smiles"], smiles=True, backend="rdkit")
+        meta = mb.load(mol_dict["meta_smiles"], smiles=True, backend="rdkit")
+    else:
+        try:
+            para = mb.load(mol_dict["para_mol2_file"])
+            meta = mb.load(mol_dict["meta_mol2_file"])
+        except KeyError:
+            print("No mol2 file is available; using the SMILES string instead")
+            para = mb.load(mol_dict["para_smiles"], smiles=True, backend="rdkit")
+            meta = mb.load(mol_dict["meta_smiles"], smiles=True, backend="rdkit")
 
     if len(set(monomer_sequence)) == 2: # Copolymer
         compound.add_monomer(meta, 
