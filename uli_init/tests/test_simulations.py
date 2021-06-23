@@ -12,6 +12,17 @@ class TestSimulate(BaseTest):
                 dt=0.0001,
                 mode="cpu"
                 )
+        # Only 1 of shrink params given
+        with pytest.raises(ValueError):
+            simulation.quench(
+                kT=2,
+                n_steps=1e3,
+                shrink_kT=5,
+                shrink_steps=None,
+                shrink_period=None,
+                walls=True,
+            )
+        # Pressure and walls quench
         with pytest.raises(ValueError):
             simulation.quench(
                 kT=2,
@@ -22,6 +33,7 @@ class TestSimulate(BaseTest):
                 shrink_period=None,
                 walls=True,
             )
+        # Pressure and walls anneal
         with pytest.raises(ValueError):
             simulation.anneal(
                 kT_init=2,

@@ -146,7 +146,7 @@ class Simulation:
                 overwrite=True,
                 phase=0,
             )
-            if any((shrink_kT, shrink_steps)) == 1:
+            if len([i for i in (shrink_kT, shrink_steps) if i is None]) == 1:
                 raise ValueError(
                 "Both of  shrink_kT and shrink_steps need to be given"
                 )

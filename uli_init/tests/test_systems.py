@@ -37,7 +37,7 @@ class TestSystems(BaseTest):
                     )
 
     def test_monomer_sequence(self):
-        with pytest.raises(ValueError):
+        with pytest.warns(UserWarning):
             system_even = systems.System(
                     molecule="PEEK",
                     monomer_sequence="PM",

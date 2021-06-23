@@ -1,9 +1,10 @@
+from collections import namedtuple
 import json
 import operator
 import os
 import random
 import time
-from collections import namedtuple
+from warnings import warn
 
 import ele
 import foyer
@@ -65,11 +66,11 @@ class System:
         self.molecule_sequences = []
         
         if self.monomer_sequence and self.para_weight:
-            raise ValueError(
-                    "The para weight parameter can only be used when "
-                    "generating random copolymer sequences. "
-                    "If you are defining the monomer sequence, then set "
-                    "para_weight = None."
+            warn(
+                "Both para_weight and monomer_sequence were given. "
+                "The system will be generated using monomer_sequence. "
+                "para_weight can only be used when "
+                "generating random copolymer sequences. "
                     )
         if sample_pdi:
             self.sample_from_pdi(
