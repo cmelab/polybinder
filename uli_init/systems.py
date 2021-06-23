@@ -224,10 +224,11 @@ class Initialize:
         filled.Box = mb.box.Box([self.L, self.L, self.L])
         return filled
 
-    def stack(self, separation=6.0):
+    def stack(self, buff=.2):
         system_comp = mb.Compound()
         for idx, comp in enumerate(self.mb_compounds):
-            comp.translate(np.array([0, 0, separation])*idx)
+            separation = comp.maxs[0] - comp.mins[0] + buff
+            comp.translate(np.array([separation, 0, 0])*idx)
             system_comp.add(comp)
         system_comp.box = mb.box.Box([self.L, self.L, self.L])
         return system_comp
