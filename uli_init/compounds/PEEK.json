@@ -1,5 +1,7 @@
 {"para_smiles": "Oc1ccc(Oc2ccc(C(=O)c3ccccc3)cc2)cc1",
  "meta_smiles": "Oc1cc(Oc2ccc(C(=O)c3ccccc3)cc2)ccc1",
+ "para_mol2_file": "peek-para.mol2",
+ "meta_mol2_file": "peek-meta.mol2",
 "para_bond_indices": [22, 29],
 "meta_bond_indices": [22, 28],
 "bond_distance": 0.1376,
