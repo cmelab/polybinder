@@ -431,8 +431,8 @@ def build_molecule(molecule, length, sequence, para_weight, smiles=False):
         meta = mb.load(mol_dict["meta_smiles"], smiles=True, backend="rdkit")
     else:
         try:
-            para = mb.load(mol_dict["para_mol2_file"])
-            meta = mb.load(mol_dict["meta_mol2_file"])
+            para = mb.load(os.path.join(COMPOUND_DIR, mol_dict["para_mol2_file"]))
+            meta = mb.load(os.path.join(COMPOUND_DIR, mol_dict["meta_mol2_file"]))
         except KeyError:
             print("No mol2 file is available; using the SMILES string instead")
             para = mb.load(mol_dict["para_smiles"], smiles=True, backend="rdkit")
