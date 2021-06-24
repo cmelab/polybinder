@@ -99,7 +99,7 @@ class TestSystems(BaseTest):
         simple_system = systems.System(
             molecule="PEEK",
             para_weight=0.60,
-            density=1,
+            density=.1,
             n_compounds=[1],
             polymer_lengths=[2],
             system_type="pack",
