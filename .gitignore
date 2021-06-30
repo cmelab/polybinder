@@ -10,3 +10,9 @@
 *.log
 /src/*
 *egg-info
+*.out
+*.error
+*.npy
+*.txt
+*.png
+*.svg
