@@ -49,11 +49,12 @@ class System:
         seed=24,
         expand_factor=5
     ):
-        self.molecule = molecule
+        self.type = system_type
+        if self.type != "custom":
+            self.molecule = molecule
+            self.para_weight = para_weight
+            self.monomer_sequence = monomer_sequence
         self.density = density
-        self.type = system_type 
-        self.para_weight = para_weight
-        self.monomer_sequence = monomer_sequence
         self.forcefield = forcefield
         self.remove_hydrogens = remove_hydrogens
         self.assert_dihedrals = assert_dihedrals
@@ -197,15 +198,14 @@ class System:
 
 
 class Initialize:
-    def __init__(self, system):
+    def __init__(self, system, **kwargs):
         self.system = system
-        self.mb_compounds = self._generate_compounds()
-        self.L = self._calculate_L() * self.system.expand_factor
-
         if system.type == "pack":
             system_init = self.pack()
         elif system.type == "stack":
             system_init = self.stack()
+        elif system.type == "custom":
+            system_init = self.custom(**kwargs)
 
         if system.forcefield:
             system_init = self._apply_ff(system_init)
@@ -213,25 +213,41 @@ class Initialize:
         self.system = system_init
 
     def pack(self):
-        filled = mb.packing.fill_box(
-            compound=self.mb_compounds,
-            n_compounds=[1 for i in self.mb_compounds],
+        mb_compounds = self._generate_compounds()
+        self.L = self._calculate_L() * self.system.expand_factor
+        system = mb.packing.fill_box(
+            compound=mb_compounds,
+            n_compounds=[1 for i in mb_compounds],
             box=[self.L, self.L, self.L],
             overlap=0.2,
             edge=0.9,
             fix_orientation=True,
         )
-        filled.Box = mb.box.Box([self.L, self.L, self.L])
-        return filled
+        system.box = mb.box.Box([self.L, self.L, self.L])
+        return system
 
     def stack(self, buff=.2):
-        system_comp = mb.Compound()
-        for idx, comp in enumerate(self.mb_compounds):
+        mb_compounds = self._generate_compounds()
+        self.L = self._calculate_L() * self.system.expand_factor
+        system = mb.Compound()
+        for idx, comp in enumerate(mb_compounds):
             separation = comp.maxs[0] - comp.mins[0] + buff
             comp.translate(np.array([separation, 0, 0])*idx)
-            system_comp.add(comp)
-        system_comp.box = mb.box.Box([self.L, self.L, self.L])
-        return system_comp
+            system.add(comp)
+        system.box = mb.box.Box([self.L, self.L, self.L])
+        return system
+
+    def custom(self, **kwargs):
+        file_path = kwargs.get("file")
+        system = mb.load(file_path)
+        mass = sum(
+                [ele.element_from_symbol(p.name).mass
+                for p in system.particles()]
+                )
+        self.system.system_mass += mass
+        self.L = self._calculate_L()
+        system.box = system.get_boundingbox()
+        return system
 
     def _generate_compounds(self):
         if self.system.monomer_sequence:
@@ -246,15 +262,18 @@ class Initialize:
                 ):
             for i in range(n):
                 polymer, sequence = build_molecule(
-                    self.system.molecule, length, sequence, self.system.para_weight
+                    self.system.molecule,
+                    length,
+                    sequence,
+                    self.system.para_weight
                 )
                 self.system.molecule_sequences.append(sequence)
                 mb_compounds.append(polymer)
                 self.system.para += sequence.count("P")
                 self.system.meta += sequence.count("M")
-            mass = n * np.sum(
-                ele.element_from_symbol(p.name).mass
-                for p in polymer.particles()
+            mass = n * sum(
+                [ele.element_from_symbol(p.name).mass
+                for p in polymer.particles()]
             )
             self.system.system_mass += mass  # amu
         return mb_compounds
@@ -365,7 +384,7 @@ class Interface:
             compound.add_bond(particle_pair=[atom1, atom2])
 
 
-def build_molecule(molecule, length, sequence, para_weight, smiles=False):
+def build_molecule(molecule, length, sequence, para_weight, smiles=True):
     """
     `build_molecule` uses SMILES strings to build up a polymer from monomers.
     The configuration of each monomer is determined by para_weight and the
