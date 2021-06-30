@@ -36,11 +36,7 @@ def get_mol_mapping_idx(filename):
 # 5) pass in model to uli-init Simulation object
 # 7) run the hoomd simulation (call the quench method)
 
-set_rcut = 7.0
-n_molecules = 10
-n_monomers = 2
-
-one_molecule_fname = f'1-length-{n_monomers}-peek-para-only'
+one_molecule_fname = '1-length-4-peek-para-only'
 system, molecule_mapping_index = get_mol_mapping_idx(one_molecule_fname)
 
 graph = nx.Graph()
@@ -96,6 +92,9 @@ assert(np.sum(mapping_arr) == MN)
 
 bead_number = mapping_arr.shape[0]
 
+set_rcut = 7.0
+n_molecules = 100
+n_monomers = 4
 fname = f'{n_molecules}-length-{n_monomers}-peek-para-only-production'
 system, molecule_mapping_index = get_mol_mapping_idx(fname)
 
@@ -204,7 +203,7 @@ class TrajModel(htf.SimModel):
         self.CG_NN = CG_NN
         #self.cg_mapping = cg_mapping
         self.rcut = rcut
-        self.avg_cg_rdf = tf.keras.metrics.MeanTensor() # set up CG RDF tracking
+        #self.avg_cg_rdf = tf.keras.metrics.MeanTensor() # set up CG RDF tracking
 
         self.avg_cg_radii = tf.keras.metrics.MeanTensor()
         self.avg_cg_angles = tf.keras.metrics.MeanTensor()
@@ -216,77 +215,67 @@ class TrajModel(htf.SimModel):
         self.bond_energy = BondLayer(1., 2.)
         self.angle_energy = AngleLayer(1., 3.14/2.)
         self.dihedral_energy = DihedralLayer(1., 3.14/2.)
-
-    def compute(self, nlist, positions, box):
-        # calculate the center of mass of a CG bead
-        box_size = htf.box_size(box) # [16., 16., 16.]
-        cg_features = htf.compute_cg_graph(DSGPM=False,
+        self.cg_features = htf.compute_cg_graph(DSGPM=False,
                                        infile=None,
                                        adj_mat=self.adjacency_matrix,
                                        cg_beads=self.cg_num)
 
-        radii_list = []
-        angles_list = []
-        dihedrals_list = []
+    def compute(self, nlist, positions, box):
+        # calculate the center of mass of a CG bead
+        box_size = htf.box_size(box) # [16., 16., 16.]
+        cg_features = self.cg_features
+        # angles_list = []
+        # dihedrals_list = []
 
         # because these are tensors, can't use list comprehension
-        for i in range(len(cg_features[0])):
-            cg_radius = htf.mol_bond_distance(CG=True,
-                                              cg_positions=positions[:,:3],
-                                              b1=cg_features[0][i][0],
-                                              b2=cg_features[0][i][1],
-                                              box=box
-                                              )
-            radii_list.append(cg_radius)
-        self.avg_cg_radii.update_state(radii_list)
+        # b1 and b2 come from tuple returned by compute_cg_graph,
+        # so need single idx first, but we can slice the tensor
+        cg_radii = htf.mol_bond_distance(CG=True,
+                                          cg_positions=positions[:,:3],
+                                          b1=cg_features[0][:, 0],
+                                          b2=cg_features[0][:, 1],
+                                          box=box)
+        self.avg_cg_radii.update_state(cg_radii)
 
-        for j in range(len(cg_features[1])):
-            cg_angle = htf.mol_angle(CG=True,
-                                     cg_positions=positions[:,:3],
-                                     b1=cg_features[1][j][0],
-                                     b2=cg_features[1][j][1],
-                                     b3=cg_features[1][j][2],
-                                     box=box
-                                     )
-            angles_list.append(cg_angle)
-        self.avg_cg_angles.update_state(angles_list)
+        cg_angles = htf.mol_angle(CG=True,
+                                  cg_positions=positions[:,:3],
+                                  b1=cg_features[1][:, 0],
+                                  b2=cg_features[1][:, 1],
+                                  b3=cg_features[1][:, 2],
+                                  box=box)
+        self.avg_cg_angles.update_state(cg_angles)
 
-        for k in range(len(cg_features[2])):
-            cg_dihedral = htf.mol_dihedral(CG=True,
-                                           cg_positions=positions[:,:3],
-                                           b1=cg_features[2][k][0],
-                                           b2=cg_features[2][k][1],
-                                           b3=cg_features[2][k][2],
-                                           b4=cg_features[2][k][3],
-                                           box=box
-                                           )
-            dihedrals_list.append(cg_dihedral)
-        self.avg_cg_dihedrals.update_state(dihedrals_list)
+        cg_dihedrals = htf.mol_dihedral(CG=True,
+                                        cg_positions=positions[:,:3],
+                                        b1=cg_features[2][:, 0],
+                                        b2=cg_features[2][:, 1],
+                                        b3=cg_features[2][:, 2],
+                                        b4=cg_features[2][:, 3],
+                                        box=box)
+        self.avg_cg_dihedrals.update_state(cg_dihedrals)
 
         # create mapped neighbor list
         mapped_nlist = nlist# htf.compute_nlist(mapped_pos, self.rcut, self.CG_NN, box_size, True)
         # compute RDF for mapped particles
-        cg_rdf = htf.compute_rdf(mapped_nlist, [0.1, self.rcut])
-        self.avg_cg_rdf.update_state(cg_rdf)
+        # cg_rdf = htf.compute_rdf(mapped_nlist, [0.1, self.rcut])
+        # self.avg_cg_rdf.update_state(cg_rdf)
 
         # now calculate our total energy and train
         nlist_r = htf.safe_norm(tensor=mapped_nlist[:, :, :3], axis=2)
         lj_energy = self.lj_energy(nlist_r) # TODO: something is going on with these  indices.
         lj_energy_total = tf.reduce_sum(input_tensor=lj_energy, axis=1)
-        bonds_energy = self.bond_energy(radii_list)
-        angles_energy = self.angle_energy(angles_list)
-        dihedrals_energy = self.dihedral_energy(dihedrals_list)
+        bonds_energy = self.bond_energy(cg_radii)
+        angles_energy = self.angle_energy(cg_angles)
+        dihedrals_energy = self.dihedral_energy(cg_dihedrals)
         subtotal_energy = tf.reduce_sum(bonds_energy) + tf.reduce_sum(angles_energy) + tf.reduce_sum(dihedrals_energy)
         lj_forces = htf.compute_nlist_forces(mapped_nlist, lj_energy_total)
         other_forces = htf.compute_positions_forces(positions=positions, energy=subtotal_energy)
         total_energy = lj_energy + subtotal_energy
-        # return lj_forces + other_forces, mapped_pos, total_energy, radii_list, angles_list, dihedrals_list
-        # TODO: put back in the bonds angles dihedrals
+        # return lj_forces + other_forces, mapped_pos, total_energy, cg_radii, cg_angles, cg_dihedrals
         # TODO: see if we can plot loss over time, get final loss
-        # TODO: update these outputs to spit out our trained parameters.
-        return lj_forces + other_forces, positions, total_energy, self.lj_energy.w, self.bond_energy.w, self.angle_energy.w, self.dihedral_energy.w # lj_energy, bonds_energy, angles_energy, dihedrals_energy
+        return lj_forces + other_forces, positions, total_energy, self.lj_energy.w, self.bond_energy.w, self.angle_energy.w, self.dihedral_energy.w
 
-nneighbor_cutoff = 32
+nneighbor_cutoff = 64
 model = TrajModel(nneighbor_cutoff=nneighbor_cutoff,
                  cg_num=12, # beads per molecule, not total
                  adjacency_matrix=adjacency_matrix,
@@ -298,7 +287,8 @@ model = TrajModel(nneighbor_cutoff=nneighbor_cutoff,
                  check_nlist=False)
 
 # all the 'None' here is so we only train on the energy
-model.compile('Adam', ['MeanAbsoluteError', None, None, None, None, None])
+optimizer = tf.keras.optimizers.Adam(learning_rate=0.0001)
+model.compile(optimizer, ['MeanAbsoluteError', None, None, None, None, None])
 
 system = simulate.System(molecule='PEEK', para_weight=1.0,
                          density=1.2, n_compounds=[n_molecules],
@@ -307,7 +297,8 @@ system = simulate.System(molecule='PEEK', para_weight=1.0,
 
 sim = simulate.Simulation(system, gsd_write=1e4, mode='gpu', dt=0.0001, r_cut=set_rcut, tf_model=model)
 
-sim.quench(kT=1., n_steps=2e5, shrink_steps=1e2)
+sim.quench(kT=1., n_steps=2e6, shrink_steps=1e5)
+
 
 outputs = sim.tfcompute.outputs
 cg_positions = outputs[0]

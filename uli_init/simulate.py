@@ -243,12 +243,12 @@ class Simulation:
             integrator.randomize_velocities(seed=self.seed)
 
             if self.tf_model is not None:
-                self.nlist = hoomd.md.nlist.cell(check_period=5)
+                self.nlist = hoomd.md.nlist.cell(check_period=100)
                 self.tfcompute.attach(
                         self.nlist,
                         train=True,
                         r_cut=self.r_cut,
-                        save_output_period=5
+                        save_output_period=100
                         )
             try:
                 hoomd.run(n_steps)
