@@ -47,7 +47,8 @@ class System:
         remove_hydrogens=False,
         assert_dihedrals=True,
         seed=24,
-        expand_factor=5
+        expand_factor=5,
+        **kwargs
     ):
         self.type = system_type
         if self.type != "custom":
@@ -98,7 +99,7 @@ class System:
                     "n_compounds and polymer_lengths should be equal length"
                     )
 
-        init = Initialize(system=self)
+        init = Initialize(system=self, **kwargs)
         self.system = init.system
 
     def sample_from_pdi(
@@ -237,8 +238,7 @@ class Initialize:
         system.box = mb.box.Box([self.L, self.L, self.L])
         return system
 
-    def custom(self, **kwargs):
-        file_path = kwargs.get("file")
+    def custom(self, file_path):
         system = mb.load(file_path)
         mass = sum(
                 [ele.element_from_symbol(p.name).mass

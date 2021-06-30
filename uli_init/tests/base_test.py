@@ -11,9 +11,27 @@ class BaseTest:
         tmpdir.chdir()
 
     @pytest.fixture()
+    def peek_from_file(self):
+        peek = os.path.join(
+                COMPOUND_DIR,
+                "test_files",
+                "test_peek_file.mol2"
+                )
+        peek_system = systems.System(
+                density=0.8,
+                forcefield="gaff",
+                remove_hydrogens=True,
+                file_path=peek
+                )
+        return peek_system
+
+    @pytest.fixture()
     def test_slab(self):
         slab = systems.Interface(
-            slabs=os.path.join(COMPOUND_DIR, "test-slab.gsd"),
+            slabs=os.path.join(
+                COMPOUND_DIR,
+                "test_files",
+                "test-slab.gsd"),
             ref_distance=0.33996695084235347,
             gap=0.1
         )

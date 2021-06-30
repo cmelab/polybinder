@@ -6,6 +6,9 @@ from base_test import BaseTest
 
 
 class TestSystems(BaseTest):
+    def test_from_file(self, peek_from_file):
+        peek_from_file
+
     def test_stack(self):
         stacked_system = systems.System(
                 molecule="PEEK",
