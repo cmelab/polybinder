@@ -18,6 +18,7 @@ from foyer import Forcefield
 from hoomd.md import wall
 from mbuild.formats.hoomd_simulation import create_hoomd_simulation
 from mbuild.lib.recipes import Polymer
+from mbuild.coordinate_transform import z_axis_transform
 from scipy.special import gamma
 
 from uli_init.library import COMPOUND_DIR, SYSTEM_DIR, FF_DIR
@@ -244,12 +245,12 @@ class Initialize:
         system.box = mb.box.Box([self.L, self.L, self.L])
         return system
 
-    def stack(self, buff=.2):
+    def stack(self, separation=.25):
         mb_compounds = self._generate_compounds()
         self.L = self._calculate_L() * self.system.expand_factor
         system = mb.Compound()
         for idx, comp in enumerate(mb_compounds):
-            separation = comp.maxs[0] - comp.mins[0] + buff
+            z_axis_transform(comp)
             comp.translate(np.array([separation, 0, 0])*idx)
             system.add(comp)
         system.box = mb.box.Box([self.L, self.L, self.L])
