@@ -245,13 +245,13 @@ class Initialize:
         system.box = mb.box.Box([self.L, self.L, self.L])
         return system
 
-    def stack(self, separation=.25):
+    def stack(self, separation=1.0):
         mb_compounds = self._generate_compounds()
         self.L = self._calculate_L() * self.system.expand_factor
         system = mb.Compound()
         for idx, comp in enumerate(mb_compounds):
             z_axis_transform(comp)
-            comp.translate(np.array([separation, 0, 0])*idx)
+            comp.translate(np.array([separation]*3)*idx)
             system.add(comp)
         system.box = mb.box.Box([self.L, self.L, self.L])
         return system
