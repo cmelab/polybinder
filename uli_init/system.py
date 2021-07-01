@@ -65,6 +65,23 @@ class System:
         self.meta = 0
         self.molecule_sequences = []
         
+        if self.type == "custom":
+            if any((molecule,
+                para_weight,
+                monomer_sequence,
+                n_compounds,
+                polymer_lengths)):
+                warn("If a custom created system is being used, then "
+                     "the system generation parameters of `molecule, "
+                     "para_weight, n_compounds, polymer_lengths, and "
+                     "monomer_sequence will be ignored."
+                        )
+                self.molecule = None
+                self.para_weight = None
+                self.monomer_sequence = None
+                n_compounds = None
+                self.polymer_lengths = None
+
         if self.monomer_sequence and self.para_weight:
             warn(
                 "Both para_weight and monomer_sequence were given. "
@@ -72,6 +89,8 @@ class System:
                 "para_weight can only be used when "
                 "generating random copolymer sequences. "
                     )
+            self.para_weight = None
+
         if sample_pdi:
             self.sample_from_pdi(
                     mass_dist_type,
@@ -81,7 +100,7 @@ class System:
                     Mw,
                     epsilon
                     )
-        else: 
+        elif n_compounds != None: 
             if not isinstance(n_compounds, list):
                 self.n_compounds = [n_compounds]
             else:
@@ -92,10 +111,10 @@ class System:
             else:
                 self.polymer_lengths = polymer_lengths
 
-        if len(self.n_compounds) != len(self.polymer_lengths):
-            raise ValueError(
-                    "n_compounds and polymer_lengths should be equal length"
-                    )
+            if len(self.n_compounds) != len(self.polymer_lengths):
+                raise ValueError(
+                        "n_compounds and polymer_lengths should be equal length"
+                        )
 
         init = Initialize(system=self, **kwargs)
         self.system = init.system

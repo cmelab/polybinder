@@ -1,13 +1,35 @@
+import os
 import pytest
 import random
 
 from uli_init import simulate, system
+from uli_init.library import SYSTEM_DIR
 from base_test import BaseTest
 
 
 class TestSystems(BaseTest):
-    def test_from_file(self, peek_from_file):
-        peek_from_file
+    def test_custom_bad_params(self):
+        file_path = os.path.join(
+                SYSTEM_DIR,
+                "test_peek.mol2"
+                )
+        with pytest.warns(UserWarning):
+            custom_sys = system.System(
+                    system_type = "custom",
+                    density=0.7,
+                    molecule="PEEK",
+                    para_weight=0.50,
+                    n_compounds=10,
+                    polymer_lengths=5,
+                    file_path=file_path
+                    )
+            ignore_args = [
+                    custom_sys.molecule,
+                    custom_sys.para_weight,
+                    custom_sys.polymer_lengths,
+                    custom_sys.n_compounds
+                    ]
+            assert not any(ignore_args)
 
     def test_stack(self):
         stacked_system = system.System(
