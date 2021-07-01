@@ -19,8 +19,7 @@ from mbuild.formats.hoomd_simulation import create_hoomd_simulation
 from mbuild.lib.recipes import Polymer
 from scipy.special import gamma
 
-from uli_init.compounds import COMPOUND_DIR
-from uli_init.forcefields import FF_DIR
+from uli_init.library import FF_DIR
 from uli_init.utils import base_units
 
 units = base_units.base_units()

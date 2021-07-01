@@ -1,7 +1,7 @@
 import pytest
 import random
 
-from uli_init import simulate, systems
+from uli_init import simulate, system
 from base_test import BaseTest
 
 
@@ -10,7 +10,7 @@ class TestSystems(BaseTest):
         peek_from_file
 
     def test_stack(self):
-        stacked_system = systems.System(
+        stacked_system = system.System(
                 molecule="PEEK",
                 para_weight=0.50,
                 density=0.7,
@@ -24,7 +24,7 @@ class TestSystems(BaseTest):
 
     def test_build_peek(self):
         for i in range(5):
-            compound = systems.build_molecule(
+            compound = system.build_molecule(
                     "PEEK", i + 1,
                     sequence = "random",
                     para_weight=0.50
@@ -32,7 +32,7 @@ class TestSystems(BaseTest):
 
     def test_build_pekk(self):
         for i in range(5):
-            compound = systems.build_molecule(
+            compound = system.build_molecule(
                     "PEKK", 
                     i + 1,
                     sequence="random",
@@ -41,7 +41,7 @@ class TestSystems(BaseTest):
 
     def test_monomer_sequence(self):
         with pytest.warns(UserWarning):
-            system_even = systems.System(
+            system_even = system.System(
                     molecule="PEEK",
                     monomer_sequence="PM",
                     para_weight=0.5,
@@ -52,7 +52,7 @@ class TestSystems(BaseTest):
                     remove_hydrogens=True
                     )
 
-        system_even = systems.System(
+        system_even = system.System(
                 molecule="PEEK",
                 monomer_sequence="PM",
                 n_compounds = [1],
@@ -63,7 +63,7 @@ class TestSystems(BaseTest):
                 )
         assert system_even.para == system_even.meta  == 2
 
-        system_odd = systems.System(
+        system_odd = system.System(
                 molecule="PEEK",
                 monomer_sequence="PM",
                 n_compounds = [1],
@@ -75,7 +75,7 @@ class TestSystems(BaseTest):
         assert system_odd.para == 3
         assert system_odd.meta == 2
 
-        system_large_seq = systems.System(
+        system_large_seq = system.System(
                 molecule="PEEK",
                 monomer_sequence="PMPMPMPMPM",
                 n_compounds = [1],
@@ -87,19 +87,19 @@ class TestSystems(BaseTest):
         assert system_large_seq.para == system_large_seq.meta == 2
 
     def test_para_weight(self):
-        all_para = systems.random_sequence(para_weight=1, length=10)
-        all_meta = systems.random_sequence(para_weight=0, length=10)
+        all_para = system.random_sequence(para_weight=1, length=10)
+        all_meta = system.random_sequence(para_weight=0, length=10)
         assert all_para.count("P") == 10
         assert all_meta.count("M") == 10
         random.seed(24)
-        mix_sequence = systems.random_sequence(para_weight=0.50, length=10)
+        mix_sequence = system.random_sequence(para_weight=0.50, length=10)
         assert mix_sequence.count("P") == 4
         random.seed()
-        mix_sequence = systems.random_sequence(para_weight=0.70, length=100)
+        mix_sequence = system.random_sequence(para_weight=0.70, length=100)
         assert 100 - mix_sequence.count("P") == mix_sequence.count("M")
 
     def test_load_forcefiled(self):
-        simple_system = systems.System(
+        simple_system = system.System(
             molecule="PEEK",
             para_weight=0.60,
             density=.1,
@@ -112,7 +112,7 @@ class TestSystems(BaseTest):
         )
 
     def test_remove_hydrogens(self):
-        simple_system = systems.System(
+        simple_system = system.System(
             molecule="PEEK",
             para_weight=0.60,
             density=.1,
@@ -127,7 +127,7 @@ class TestSystems(BaseTest):
         assert sum([int(item.type == "H") for item in post_remove_h.atoms]) == 0
 
     def test_dihedrals(self):
-        simple_system = systems.System(
+        simple_system = system.System(
             molecule="PEEK",
             para_weight=0.60,
             density=.1,
@@ -140,7 +140,7 @@ class TestSystems(BaseTest):
         )
 
     def test_multiple_compounds(self):
-        simple_system = systems.System(
+        simple_system = system.System(
             molecule="PEEK",
             para_weight=0.60,
             density=.1,
@@ -154,7 +154,7 @@ class TestSystems(BaseTest):
         )
 
     def test_pdi_mw(self):
-        simple_system = systems.System(
+        simple_system = system.System(
             molecule="PEEK",
             para_weight=0.60,
             density=0.1,
@@ -170,7 +170,7 @@ class TestSystems(BaseTest):
         )
 
     def test_pdi_mn(self):
-        simple_system = systems.System(
+        simple_system = system.System(
             molecule="PEEK",
             para_weight=0.60,
             density=0.1,
@@ -186,7 +186,7 @@ class TestSystems(BaseTest):
         )
 
     def test_mw_mn(self):
-        simple_system = systems.System(
+        simple_system = system.System(
             molecule="PEEK",
             para_weight=0.60,
             density=0.1,
@@ -202,7 +202,7 @@ class TestSystems(BaseTest):
         )
 
     def test_pdi_mn_mw(self):
-        simple_system = systems.System(
+        simple_system = system.System(
             molecule="PEEK",
             para_weight=0.60,
             density=0.1,
@@ -220,7 +220,7 @@ class TestSystems(BaseTest):
 
     def test_too_few_pdi_vals(self):
         with pytest.raises(AssertionError):
-            simple_system = systems.System(
+            simple_system = system.System(
                 molecule="PEEK",
                 para_weight=0.60,
                 density=0.1,
@@ -235,7 +235,7 @@ class TestSystems(BaseTest):
 
     def test_incorrect_pdi_vals(self):
         with pytest.raises(AssertionError):
-            simple_system = systems.System(
+            simple_system = system.System(
                 molecule="PEEK",
                 para_weight=0.60,
                 density=0.1,
@@ -252,7 +252,7 @@ class TestSystems(BaseTest):
 
     def test_gauss_dist(self):
         random.seed(42)
-        simple_system = systems.System(
+        simple_system = system.System(
             molecule="PEEK",
             para_weight=0.60,
             density=0.1,

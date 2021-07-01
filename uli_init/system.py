@@ -20,8 +20,7 @@ from mbuild.formats.hoomd_simulation import create_hoomd_simulation
 from mbuild.lib.recipes import Polymer
 from scipy.special import gamma
 
-from uli_init.compounds import COMPOUND_DIR
-from uli_init.forcefields import FF_DIR
+from uli_init.library import COMPOUND_DIR, SYSTEM_DIR, FF_DIR
 from uli_init.utils import base_units
 
 units = base_units.base_units()
@@ -30,9 +29,9 @@ units = base_units.base_units()
 class System:
     def __init__(
         self,
-        molecule,
-        density,
         system_type,
+        density,
+        molecule=None,
         n_compounds=None,
         polymer_lengths=None,
         para_weight=None,
@@ -51,10 +50,9 @@ class System:
         **kwargs
     ):
         self.type = system_type
-        if self.type != "custom":
-            self.molecule = molecule
-            self.para_weight = para_weight
-            self.monomer_sequence = monomer_sequence
+        self.molecule = molecule
+        self.para_weight = para_weight
+        self.monomer_sequence = monomer_sequence
         self.density = density
         self.forcefield = forcefield
         self.remove_hydrogens = remove_hydrogens
