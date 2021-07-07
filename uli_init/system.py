@@ -80,8 +80,10 @@ class System:
                 self.molecule = None
                 self.para_weight = None
                 self.monomer_sequence = None
-                n_compounds = None
                 self.polymer_lengths = None
+                n_compounds = None
+                self.n_compounds = None
+                sample_pdi = False
 
         if self.monomer_sequence and self.para_weight:
             warn(
@@ -101,7 +103,7 @@ class System:
                     Mw,
                     epsilon
                     )
-        elif n_compounds != None: 
+        elif not sample_pdi and n_compounds != None: 
             if not isinstance(n_compounds, list):
                 self.n_compounds = [n_compounds]
             else:
@@ -268,7 +270,7 @@ class Initialize:
         return system
 
     def _generate_compounds(self):
-        if self.system.monomer_sequence:
+        if self.system.monomer_sequence is not None:
             sequence = self.system.monomer_sequence
         else:
             sequence = "random"
