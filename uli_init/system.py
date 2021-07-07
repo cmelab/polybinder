@@ -227,6 +227,11 @@ class Initialize:
             system_init = self.stack()
         elif system.type == "custom":
             system_init = self.custom(**kwargs)
+        else:
+            raise ValueError(
+                    "Valid system types are 'pack', 'stack', and 'custom'."
+                    "You passed in {system.type}"
+                    )
 
         if system.forcefield:
             system_init = self._apply_ff(system_init)
@@ -458,11 +463,12 @@ def build_molecule(molecule, length, sequence, para_weight, smiles=True):
     f.close()
 
     if sequence == "random":
-        monomer_sequence = random_sequence(para_weight, length)
+        monomer_sequence = "".join(random_sequence(para_weight, length))
     else:
         n = length // len(sequence)
         monomer_sequence = sequence * n
         monomer_sequence += sequence[:(length - len(monomer_sequence))]
+        monomer_sequence = "".join(monomer_sequence)
 
     compound = Polymer()
     if smiles:

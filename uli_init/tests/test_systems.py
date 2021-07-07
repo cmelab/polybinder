@@ -31,6 +31,20 @@ class TestSystems(BaseTest):
                     ]
             assert not any(ignore_args)
 
+    def bad_system_type(self):
+        with pytest.raises(ValueError):
+            stacked_system = system.System(
+                    molecule="PEEK",
+                    para_weight=0.50,
+                    density=0.7,
+                    n_compounds=[10],
+                    polymer_lengths=[5],
+                    system_type="wrong",
+                    forcefield="gaff",
+                    remove_hydrogens=False,
+                    expand_factor=4
+                    )
+
     def test_stack(self):
         stacked_system = system.System(
                 molecule="PEEK",
@@ -84,7 +98,7 @@ class TestSystems(BaseTest):
                 remove_hydrogens=True
                 )
         assert system_even.para == system_even.meta  == 2
-        assert system_even.molecule_sequences == ["PMPM"]
+        assert system_even.molecule_sequences[0] == "PMPM"
 
         system_odd = system.System(
                 molecule="PEEK",
@@ -97,7 +111,7 @@ class TestSystems(BaseTest):
                 )
         assert system_odd.para == 3
         assert system_odd.meta == 2
-        assert system_odd.molecule_sequences == ["PMPMP"]
+        assert system_odd.molecule_sequences[0] == "PMPMP"
 
         system_large_seq = system.System(
                 molecule="PEEK",
@@ -109,6 +123,7 @@ class TestSystems(BaseTest):
                 remove_hydrogens=True
                 )
         assert system_large_seq.para == system_large_seq.meta == 2
+        assert system_large_seq.molecule_sequences[0] == "PMPM"
 
     def test_para_weight(self):
         all_para = system.random_sequence(para_weight=1, length=10)
@@ -131,7 +146,7 @@ class TestSystems(BaseTest):
                 density=0.1,
                 system_type="pack"
                 )
-        assert para_system.molecule_sequences[0] == ["P"]*10
+        assert para_system.molecule_sequences[0] == "P"*10
 
         random_system = system.System(
                 molecule="PEEK",
@@ -143,6 +158,7 @@ class TestSystems(BaseTest):
                 )
         random.seed(24)
         sequence = system.random_sequence(para_weight=0.40, length=20)
+        sequence = "".join(sequence)
         assert random_system.molecule_sequences[0] == sequence
 
     def test_load_forcefiled(self):
