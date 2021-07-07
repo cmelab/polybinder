@@ -56,6 +56,18 @@ bond_params = np.load(param_fnames[1])
 dihedral_params = np.load(param_fnames[2])
 lj_params = np.load(param_fnames[3])
 
+log_data = np.genfromtxt('sim_traj.log', skip_header=1)
+with open('sim_traj.log', 'r') as f:
+    headers = f.readline().replace('#','').replace('\n','').split('\t')
+potential_idx = headers.index('potential_energy')
+potential = log_data[:, potential_idx]
+plt.figure()
+plt.plot(np.arange(len(potential)), potential)
+plt.xlabel('Timestep')
+plt.ylabel('Potential Energy')
+plt.savefig('potential.png')
+
+
 positions = np.load('cg_positions.npy')
 positions = positions[:,:,:3] # remove types
 
