@@ -20,7 +20,7 @@ DESCRIPTION = 'Thermoplastic simulation package'
 URL = 'https://github.com/cmelab/uli-init'
 EMAIL = 'chrisjones4@u.boisestate.edu'
 AUTHOR = 'CME Lab'
-REQUIRES_PYTHON = '>=3.6.0'
+REQUIRES_PYTHON = '>=3.7.0'
 VERSION = None
 
 # What packages are required for this module to be executed?

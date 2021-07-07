@@ -8,8 +8,9 @@ comment:
         - "master"
 ignore:
     - "uli_init/tests"
-    - "uli_init/compounds"
-    - "uli_init/forcefields"
+    - "uli_init/library/compounds"
+    - "uli_init/library/forcefields"
+    - "uli_init/library/systems"
     - "uli_init/trajectories"
     - "uli_init/logs"
     - "uli_init/__version__.py"
