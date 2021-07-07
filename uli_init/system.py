@@ -71,11 +71,12 @@ class System:
                 para_weight,
                 monomer_sequence,
                 n_compounds,
-                polymer_lengths)):
+                polymer_lengths,
+                sample_pdi)):
                 warn("If a custom created system is being used, then "
                      "the system generation parameters of `molecule, "
-                     "para_weight, n_compounds, polymer_lengths, and "
-                     "monomer_sequence will be ignored."
+                     "para_weight, n_compounds, polymer_lengths, "
+                     "monomer_sequence, and sample_pdi will be ignored."
                         )
                 self.molecule = None
                 self.para_weight = None
