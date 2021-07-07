@@ -84,6 +84,7 @@ class TestSystems(BaseTest):
                 remove_hydrogens=True
                 )
         assert system_even.para == system_even.meta  == 2
+        assert system_even.molecule_sequences == ["PMPM"]
 
         system_odd = system.System(
                 molecule="PEEK",
@@ -96,6 +97,7 @@ class TestSystems(BaseTest):
                 )
         assert system_odd.para == 3
         assert system_odd.meta == 2
+        assert system_odd.molecule_sequences == ["PMPMP"]
 
         system_large_seq = system.System(
                 molecule="PEEK",
@@ -119,6 +121,29 @@ class TestSystems(BaseTest):
         random.seed()
         mix_sequence = system.random_sequence(para_weight=0.70, length=100)
         assert 100 - mix_sequence.count("P") == mix_sequence.count("M")
+    
+    def test_weighted_sequence(self):
+        para_system = system.System(
+                molecule="PEEK",
+                para_weight = 1.0,
+                n_compounds = [1],
+                polymer_lengths=[10],
+                density=0.1,
+                system_type="pack"
+                )
+        assert para_system.molecule_sequences[0] == ["P"]*10
+
+        random_system = system.System(
+                molecule="PEEK",
+                para_weight = 0.40,
+                n_compounds = [1],
+                polymer_lengths=[20],
+                density=0.1,
+                system_type="pack"
+                )
+        random.seed(24)
+        sequence = system.random_sequence(para_weight=0.40, length=20)
+        assert random_system.molecule_sequences[0] == sequence
 
     def test_load_forcefiled(self):
         simple_system = system.System(
