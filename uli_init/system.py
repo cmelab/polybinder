@@ -43,7 +43,6 @@ class System:
         pdi=None,
         Mn=None,
         Mw=None,
-        mass_dist_type="weibull",
         remove_hydrogens=False,
         assert_dihedrals=True,
         seed=24,
@@ -97,7 +96,6 @@ class System:
 
         if sample_pdi:
             self.sample_from_pdi(
-                    mass_dist_type,
                     n_compounds,
                     pdi,
                     Mn,
@@ -125,7 +123,6 @@ class System:
 
     def sample_from_pdi(
             self,
-            mass_dist_type,
             n_compounds,
             pdi,
             Mn,
@@ -161,10 +158,12 @@ class System:
         self.pdi = pdi
         # this returns a numpy.random callable set up with
         # recovered parameters
-        mass_distribution_dict = self._recover_mass_dist(mass_dist_type)
+        mass_distribution_dict = self._recover_mass_dist()
         mass_sampler = mass_distribution_dict["sampler"]
         mass_distribution = mass_distribution_dict["functional_form"]
         samples = np.round(mass_sampler(n_compounds)).astype(int)
+        # hard and fast rule to prevent zero-mass samples
+        samples[np.where(samples == 0)] += 1
         self.polymer_lengths = sorted(list(set(samples)))
         self.n_compounds = [
                 list(samples).count(x) for x in self.polymer_lengths
@@ -179,44 +178,23 @@ class System:
     def _weibull_lambda_expression(self, k):
         return self.Mn * k / gamma(1.0 / k)
 
-    def _recover_mass_dist(self, distribution="weibull"):
+    def _recover_mass_dist(self):
         """This function takes in two of the three quantities [Mn, Mw, PDI],
-        and fits either a Gaussian or Weibull distribution of molar masses to
-        them.
+        and fits a Weibull distribution of molar masses to them.
         """
-        distribution = distribution.lower()
-
-        if distribution != "gaussian" and distribution != "weibull":
-            raise ValueError(
-                'Molar mass distribution must be "gaussian" or "weibull".'
-            )
-        if distribution == "gaussian":
-            mean = self.Mn
-            sigma = self.Mn * (self.Mw - self.Mn)
-            mass_dict = {
-                "sampler": lambda N: np.random.normal(
-                    loc=mean, scale=sigma, size=N
-                    ),
-                "functional_form": lambda x: np.exp(
-                    -((x - Mn) ** 2) / (2.0 * sigma)
-                    ),
-                }
-            return mass_dict
-
-        elif distribution == "weibull":
-            a = scipy.optimize.root(self._weibull_k_expression, x0=1.0)
-            recovered_k = a["x"]
-            # get the scale parameter
-            recovered_lambda = self._weibull_lambda_expression(recovered_k)
-            mass_dict = {
-                "sampler": lambda N: recovered_lambda
-                * np.random.weibull(recovered_k, size=N),
-                "functional_form": lambda x: recovered_k
-                / recovered_lambda
-                * (x / recovered_lambda) ** (recovered_k - 1)
-                * np.exp(-((x / recovered_lambda) ** recovered_k)),
-                }
-            return mass_dict
+        a = scipy.optimize.root(self._weibull_k_expression, x0=1.0)
+        recovered_k = a["x"]
+        #get the scale parameter
+        recovered_lambda = self._weibull_lambda_expression(recovered_k)
+        mass_dict = {
+            "sampler": lambda N: recovered_lambda
+            * np.random.weibull(recovered_k, size=N),
+            "functional_form": lambda x: recovered_k
+            / recovered_lambda
+            * (x / recovered_lambda) ** (recovered_k - 1)
+            * np.exp(-((x / recovered_lambda) ** recovered_k)),
+            }
+        return mass_dict
 
 
 class Initialize:
