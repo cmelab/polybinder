@@ -7,12 +7,13 @@ comment:
     branches:               # branch names that can post comment
         - "master"
 ignore:
-    - "uli-init/tests"
-    - "uli-init/compounds"
-    - "uli-init/forcefields"
-    - "uli-init/trajectories"
-    - "uli-init/logs"
-    - "uli-init/__version__.py"
+    - "uli_init/tests"
+    - "uli_init/library/compounds"
+    - "uli_init/library/forcefields"
+    - "uli_init/library/systems"
+    - "uli_init/trajectories"
+    - "uli_init/logs"
+    - "uli_init/__version__.py"
     - "Notebooks"
     - "setup.py"
 

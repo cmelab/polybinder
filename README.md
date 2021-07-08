@@ -22,18 +22,6 @@ cd uli-init
 conda env create -f environment.yml  
 conda activate uli-init
 ```  
-#### b. **OR** If you'd like to compile HOOMD-Blue to work on GPUs:
-```
-conda env create -f environment-nohoomd.yml  
-conda activate uli-init
-```  
-And install HOOMD following the instructions found in the [docs](https://hoomd-blue.readthedocs.io/en/stable/installation.html)
-
-### 4. Install this repository ###
-
-```
-pip install -e .
-```
 
 ## Containers
 Uli-Init containers with HOOMD compiled to work on cpu and gpu are availiable: `uliinit_cpu` and `uliinit_gpu`. 
@@ -51,13 +39,13 @@ docker run -it cmelab/uniinit_cpu:latest
 
 ## Basic Usage
 
-So far, essentially all of the functionality lives in the `simulate.py` file
+Essentially all of the functionality lives in the `simulate.py` and `system.py` files
 
-`from uli_init import simulate`
+`from uli_init import simulate, system`
 
 There are two primary classes used to initialize a system and simulation:  
 
-`simulate.System()`
+`system.System()`
 Used to generate the entire system, and ultimately a paramaterized parmed struture object.
 
 `simulate.Simulation()`
