@@ -11,7 +11,6 @@ COPY environment.yml ./
 
 # Install in base environment
 RUN conda env update -n base -f environment.yml && \
-    conda remove --force cudatoolkit && \
     conda clean --all --yes -f 
 
 # Install curl for Codecov
