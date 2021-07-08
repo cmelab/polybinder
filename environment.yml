@@ -1,5 +1,6 @@
 name: uli-init
 channels:
+  - conda-forge/label/nocuda
   - conda-forge
 dependencies:
   - ele
