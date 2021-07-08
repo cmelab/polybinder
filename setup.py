@@ -94,7 +94,11 @@ setup(
     # entry_points={
     #     'console_scripts': ['mycli=mymodule:cli'],
     # },
-    package_data={"uli_init": ["compounds/*.json", "forcefields/*.xml"]},
+    package_data={"uli_init": [
+        "library/compounds/*.json",
+        "library/forcefields/*.xml",
+        "library/systems/*
+        ]},
     install_requires=REQUIRED,
     include_package_data=True,
     license='MIT',
