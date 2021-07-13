@@ -42,7 +42,8 @@ class Simulation:
         gsd_write=1e4,
         log_write=1e3,
         seed=42,
-        tf_model = None
+        tf_model = None,
+        tf_nlist_check_period = 100
     ):
 
         self.system_pmd = system.system  # Parmed structure
@@ -261,12 +262,12 @@ class Simulation:
                             kT=kT)
             integrator.randomize_velocities(seed=self.seed)
             if self.tf_model is not None:
-                self.nlist = hoomd.md.nlist.cell(check_period=100)
+                self.nlist = hoomd.md.nlist.cell(check_period=tf_nlist_check_period)
                 self.tfcompute.attach(
                     self.nlist,
                     train=True,
                     r_cut=self.r_cut,
-                    save_output_period=100
+                    save_output_period=tf_nlist_check_period
                     )
             try:
                 hoomd.run(n_steps)
