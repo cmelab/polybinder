@@ -13,7 +13,6 @@ dependencies:
   - pip=21.0
   - pytest
   - mdanalysis
-  - tqdm
   - pytest-cov
   - python=3.7
   - rdkit=2021.03.1
