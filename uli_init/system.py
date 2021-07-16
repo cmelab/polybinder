@@ -120,7 +120,7 @@ class System:
                         "n_compounds and polymer_lengths should be equal length"
                         )
 
-        init = Initialize(system=self, **kwargs)
+        init = Initializer(system=self, **kwargs)
         self.system = init.system
 
     def sample_from_pdi(
@@ -219,7 +219,7 @@ class System:
             return mass_dict
 
 
-class Initialize:
+class Initializer:
     def __init__(self, system, **kwargs):
         self.system = system
         if system.type == "pack":

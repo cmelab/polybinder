@@ -42,6 +42,8 @@ class Simulation:
         gsd_write=1e4,
         log_write=1e3,
         seed=42,
+        tf_model = None,
+        tf_nlist_check_period = 100
     ):
 
         self.system_pmd = system.system  # Parmed structure
@@ -57,6 +59,14 @@ class Simulation:
         self.gsd_write = gsd_write
         self.log_write = log_write
         self.seed = seed
+        self.tf_model = tf_model # pass in a TF model here
+        self.tf_nlist_check_period = tf_nlist_check_period # how often to ask HTF to update its nlist
+
+        if tf_model is not None:
+            # only import this if we're using TF
+            import hoomd.htf as htf
+            # TODO: check if model is compiled already, error out if not
+            self.tfcompute = htf.tfcompute(tf_model)
 
         if ref_units and not auto_scale:
             self.ref_energy = ref_units["energy"]
@@ -126,6 +136,10 @@ class Simulation:
             )
             hoomd_system = objs[1]
             init_snap = objs[0]
+
+            if self.tf_model is not None:
+                sim.sorter.disable()
+
             _all = hoomd.group.all()
             hoomd.md.integrate.mode_standard(dt=self.dt)
 
@@ -226,7 +240,7 @@ class Simulation:
                 phase=0,
                 dynamic=["momentum"]
             )
-            # Run the primary simulation
+
             if pressure:
                 try: # Not defined if no shrink step
                     integrator.disable() 
@@ -247,7 +261,15 @@ class Simulation:
                             group=_all,
                             tau=self.tau_kt,
                             kT=kT)
-                integrator.randomize_velocities(seed=self.seed)
+            integrator.randomize_velocities(seed=self.seed)
+            if self.tf_model is not None:
+                self.nlist = hoomd.md.nlist.cell(check_period=self.tf_nlist_check_period)
+                self.tfcompute.attach(
+                    self.nlist,
+                    train=True,
+                    r_cut=self.r_cut,
+                    save_output_period=self.tf_nlist_check_period
+                    )
             try:
                 hoomd.run(n_steps)
             except hoomd.WalltimeLimitReached:
