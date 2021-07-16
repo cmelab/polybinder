@@ -60,6 +60,7 @@ class Simulation:
         self.log_write = log_write
         self.seed = seed
         self.tf_model = tf_model # pass in a TF model here
+        self.tf_nlist_check_period = tf_nlist_check_period # how often to ask HTF to update its nlist
 
         if tf_model is not None:
             # only import this if we're using TF
@@ -262,12 +263,12 @@ class Simulation:
                             kT=kT)
             integrator.randomize_velocities(seed=self.seed)
             if self.tf_model is not None:
-                self.nlist = hoomd.md.nlist.cell(check_period=tf_nlist_check_period)
+                self.nlist = hoomd.md.nlist.cell(check_period=self.tf_nlist_check_period)
                 self.tfcompute.attach(
                     self.nlist,
                     train=True,
                     r_cut=self.r_cut,
-                    save_output_period=tf_nlist_check_period
+                    save_output_period=self.tf_nlist_check_period
                     )
             try:
                 hoomd.run(n_steps)

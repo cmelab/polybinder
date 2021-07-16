@@ -8,8 +8,8 @@ import hoomd.htf as htf
 import numpy as np
 import gsd
 import os
-from uli_init.utils.smiles_utils import viz
-import uli_init.simulate as simulate
+from uli_init.simulate import Simulation
+from uli_init.system import System
 
 # building an HTF model for coarse graining
 
@@ -290,14 +290,14 @@ model = TrajModel(nneighbor_cutoff=nneighbor_cutoff,
 optimizer = tf.keras.optimizers.Adam(learning_rate=0.0001)
 model.compile(optimizer, ['MeanAbsoluteError', None, None, None, None, None])
 
-system = simulate.System(molecule='PEEK', para_weight=1.0,
-                         density=1.2, n_compounds=[n_molecules],
-                         polymer_lengths=[n_monomers], forcefield='gaff',
-                         assert_dihedrals=True, remove_hydrogens=True)
+system = System(system_type='pack', molecule='PEEK', para_weight=1.0,
+                density=1.2, n_compounds=[n_molecules],
+                polymer_lengths=[n_monomers], forcefield='gaff',
+                assert_dihedrals=True, remove_hydrogens=True)
 
-sim = simulate.Simulation(system, gsd_write=1e4, mode='gpu', dt=0.0001, r_cut=set_rcut, tf_model=model)
+sim = Simulation(system, gsd_write=1e4, mode='gpu', dt=0.0001, r_cut=set_rcut, tf_model=model)
 
-sim.quench(kT=1., n_steps=2e6, shrink_steps=1e5)
+sim.quench(kT=1., n_steps=5e5, shrink_steps=1e5, shrink_kT=1., shrink_period=1e4)
 
 
 outputs = sim.tfcompute.outputs
