@@ -12,6 +12,8 @@ on:
     paths:
       - 'uli_init/*'
       - 'uli_init/tests/*'
+  # Allows workflow to be manually triggered
+  workflow_dispatch:
 
 jobs:
   pytest:
