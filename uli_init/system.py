@@ -30,14 +30,12 @@ units = base_units.base_units()
 class System:
     def __init__(
         self,
-        system_type,
         density,
         molecule=None,
         n_compounds=None,
         polymer_lengths=None,
         para_weight=None,
         monomer_sequence=None,
-        forcefield=None,
         epsilon=1e-7,
         sample_pdi=False,
         pdi=None,
@@ -48,16 +46,13 @@ class System:
         assert_dihedrals=True,
         seed=24,
         expand_factor=5,
-        **kwargs
     ):
         self.type = system_type
         self.molecule = molecule
         self.para_weight = para_weight
         self.monomer_sequence = monomer_sequence
         self.density = density
-        self.forcefield = forcefield
         self.remove_hydrogens = remove_hydrogens
-        self.assert_dihedrals = assert_dihedrals
         self.seed = seed
         self.expand_factor = expand_factor
         self.target_L = None
@@ -119,9 +114,6 @@ class System:
                 raise ValueError(
                         "n_compounds and polymer_lengths should be equal length"
                         )
-
-        init = Initialize(system=self, **kwargs)
-        self.system = init.system
 
     def sample_from_pdi(
             self,
@@ -220,18 +212,37 @@ class System:
 
 
 class Initialize:
-    def __init__(self, system, **kwargs):
+    def __init__(
+            self,
+            system,
+            system_type,
+            focefield,
+            fixed_edges = (None, None, None),
+            assert_dihedrals=True,
+            **kwargs):
+        """
+        fixed_edge : tuple, optional
+            Instructions for handling the system box length along a specific axis.
+            If all are None, then the edge lengths are all the same, and the resulting
+            system box is cubic.
+        """
         self.system = system
-        if system.type == "pack":
-            system_init = self.pack()
-        elif system.type == "stack":
-            system_init = self.stack()
-        elif system.type == "custom":
+        self.system_type = system_type
+        self.forcefield = forcefield
+        self.assert_dihedrals = assert_dihedrals
+        if self.system_type == "custom":
             system_init = self.custom(**kwargs)
         else:
-            raise ValueError(
-                    "Valid system types are 'pack', 'stack', and 'custom'."
-                    "You passed in {system.type}"
+            self.fixed_edges = fixed_edges
+            self.mb_compounds = self._generate_compounds()
+            if self.system_type == "pack":
+                system_init = self.pack()
+            elif self.system_type == "stack":
+                system_init = self.stack()
+            else:
+                raise ValueError(
+                        "Valid system types are 'pack', 'stack', and 'custom'."
+                        "You passed in {system.type}"
                     )
 
         if system.forcefield:
@@ -304,23 +315,28 @@ class Initialize:
             self.system.system_mass += mass  # amu
         return mb_compounds
 
-    def _calculate_L(self):
+    def _calculate_L(self, fixed_edges=(None, None, None)):
         """
         Calcualte the box length needed for entered density
         Right now, assuming cubic box
         Return L in nm (mBuild units)
         """
+
         M = self.system.system_mass * units["amu_to_g"]  # grams
+        _L = (M / self.system.density) #lx*Ly*Lz
+        fixed = [i
+
         L = (M / self.system.density) ** (1 / 3)  # centimeters
         L *= units["cm_to_nm"]  # convert cm to nm
         self.system.target_L = L  # Used during shrink step
-        return L
+        self.system.target_box = [Lx, Ly, Lz]
+        return (Lx, Ly, Lz) 
 
     def _apply_ff(self, untyped_system):
-        if self.system.forcefield == "gaff":
+        if self.forcefield == "gaff":
             ff_path = f"{FF_DIR}/gaff.xml"
             forcefield = foyer.Forcefield(forcefield_files=ff_path)
-        elif self.system.forcefield == "opls":
+        elif self.forcefield == "opls":
             forcefield = foyer.Forcefield(name="oplsaa")
 
         typed_system = forcefield.apply(
