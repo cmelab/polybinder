@@ -253,9 +253,7 @@ class Initialize:
         return system
 
     def crystal(self, a, b, n):
-        assert len(self.mb_compounds) % 2 == 0
         assert len(self.mb_compounds) == n*n*2
-
         next_idx = 0
         crystal = mb.Compound()
         for i in range(n):
