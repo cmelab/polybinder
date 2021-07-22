@@ -42,44 +42,17 @@ class System:
         Mn=None,
         Mw=None,
         mass_dist_type="weibull",
-        remove_hydrogens=False,
-        assert_dihedrals=True,
         seed=24,
-        expand_factor=5,
     ):
-        self.type = system_type
         self.molecule = molecule
         self.para_weight = para_weight
         self.monomer_sequence = monomer_sequence
         self.density = density
-        self.remove_hydrogens = remove_hydrogens
         self.seed = seed
-        self.expand_factor = expand_factor
-        self.target_L = None
         self.system_mass = 0
         self.para = 0
         self.meta = 0
         self.molecule_sequences = []
-        
-        if self.type == "custom":
-            if any((molecule,
-                para_weight,
-                monomer_sequence,
-                n_compounds,
-                polymer_lengths,
-                sample_pdi)):
-                warn("If a custom created system is being used, then "
-                     "the system generation parameters of `molecule, "
-                     "para_weight, n_compounds, polymer_lengths, "
-                     "monomer_sequence, and sample_pdi will be ignored."
-                        )
-                self.molecule = None
-                self.para_weight = None
-                self.monomer_sequence = None
-                self.polymer_lengths = None
-                n_compounds = None
-                self.n_compounds = None
-                sample_pdi = False
 
         if self.monomer_sequence and self.para_weight:
             warn(
@@ -216,20 +189,20 @@ class Initialize:
             self,
             system,
             system_type,
-            focefield,
+            forcefield,
             fixed_edges = (None, None, None),
+            expand_factor=10,
             assert_dihedrals=True,
             **kwargs):
         """
-        fixed_edge : tuple, optional
-            Instructions for handling the system box length along a specific axis.
-            If all are None, then the edge lengths are all the same, and the resulting
-            system box is cubic.
         """
-        self.system = system
+        self.system_parms = system
         self.system_type = system_type
         self.forcefield = forcefield
+        self.expand_factor = expand_factor
         self.assert_dihedrals = assert_dihedrals
+        self.target_box = None
+
         if self.system_type == "custom":
             system_init = self.custom(**kwargs)
         else:
@@ -238,24 +211,29 @@ class Initialize:
             if self.system_type == "pack":
                 system_init = self.pack()
             elif self.system_type == "stack":
-                system_init = self.stack()
+                system_init = self.stack(**kwargs)
+            elif self.system_type == "crystal":
+                system_init = self.crystal(**kwargs)
             else:
                 raise ValueError(
-                        "Valid system types are 'pack', 'stack', and 'custom'."
+                        "Valid system types are:"
+                        "'pack'"
+                        "'stack'"
+                        "'crystal'"
+                        "'custom'."
                         "You passed in {system.type}"
                     )
 
-        if system.forcefield:
+        if self.forcefield:
             system_init = self._apply_ff(system_init)
 
         self.system = system_init
 
     def pack(self):
-        mb_compounds = self._generate_compounds()
-        self.L = self._calculate_L() * self.system.expand_factor
+        self.L = self._calculate_L() * self.expand_factor
         system = mb.packing.fill_box(
-            compound=mb_compounds,
-            n_compounds=[1 for i in mb_compounds],
+            compound=self.mb_compounds,
+            n_compounds=[1 for i in self.mb_compounds],
             box=[self.L, self.L, self.L],
             overlap=0.2,
             edge=0.9,
@@ -265,15 +243,40 @@ class Initialize:
         return system
 
     def stack(self, separation=1.5):
-        mb_compounds = self._generate_compounds()
-        self.L = self._calculate_L() * self.system.expand_factor
+        self.L = self._calculate_L() * self.expand_factor
         system = mb.Compound()
-        for idx, comp in enumerate(mb_compounds):
+        for idx, comp in enumerate(self.mb_compounds):
             z_axis_transform(comp)
             comp.translate(np.array([separation,0,0])*idx)
             system.add(comp)
         system.box = mb.box.Box([self.L, self.L, self.L])
         return system
+
+    def crystal(self, a, b, n):
+        assert len(self.mb_compounds) % 2 == 0
+        assert len(self.mb_compounds) == n*n*2
+
+        next_idx = 0
+        crystal = mb.Compound()
+        for i in range(n):
+            layer = mb.Compound()
+            for j in range(n):
+                try:
+                    comp_1 = self.mb_compounds[next_idx]
+                    comp_2 = self.mb_compounds[next_idx+1]
+                    z_axis_transform(comp_1)
+                    z_axis_transform(comp_2)
+                    comp_2.translate((b/2, a/2, 0))
+                    unit_cell= mb.Compound(subcompounds=[comp_1, comp_2])
+                    unit_cell.translate((0, a*j, 0))
+                    layer.add(unit_cell)
+                    next_idx += 2
+                except IndexError:
+                    pass
+            layer.translate((b*i, 0, 0))
+            crystal.add(layer)
+        return crystal
+
 
     def custom(self, file_path):
         system = mb.load(file_path)
@@ -287,32 +290,32 @@ class Initialize:
         return system
 
     def _generate_compounds(self):
-        if self.system.monomer_sequence is not None:
-            sequence = self.system.monomer_sequence
+        if self.system_parms.monomer_sequence is not None:
+            sequence = self.system_parms.monomer_sequence
         else:
             sequence = "random"
-        random.seed(self.system.seed)
+        random.seed(self.system_parms.seed)
         mb_compounds = []
         for length, n in zip(
-                self.system.polymer_lengths,
-                self.system.n_compounds
+                self.system_parms.polymer_lengths,
+                self.system_parms.n_compounds
                 ):
             for i in range(n):
                 polymer, sequence = build_molecule(
-                    self.system.molecule,
+                    self.system_parms.molecule,
                     length,
                     sequence,
-                    self.system.para_weight
+                    self.system_parms.para_weight
                 )
-                self.system.molecule_sequences.append(sequence)
+                self.system_parms.molecule_sequences.append(sequence)
                 mb_compounds.append(polymer)
-                self.system.para += sequence.count("P")
-                self.system.meta += sequence.count("M")
+                self.system_parms.para += sequence.count("P")
+                self.system_parms.meta += sequence.count("M")
             mass = n * sum(
                 [ele.element_from_symbol(p.name).mass
                 for p in polymer.particles()]
             )
-            self.system.system_mass += mass  # amu
+            self.system_parms.system_mass += mass  # amu
         return mb_compounds
 
     def _calculate_L(self, fixed_edges=(None, None, None)):
@@ -321,16 +324,14 @@ class Initialize:
         Right now, assuming cubic box
         Return L in nm (mBuild units)
         """
-
-        M = self.system.system_mass * units["amu_to_g"]  # grams
-        _L = (M / self.system.density) #lx*Ly*Lz
-        fixed = [i
-
-        L = (M / self.system.density) ** (1 / 3)  # centimeters
+        
+        M = self.system_parms.system_mass * units["amu_to_g"]  # grams
+        _L = (M / self.system_parms.density) #lx*Ly*Lz
+        L = (M / self.system_parms.density) ** (1 / 3)  # centimeters
         L *= units["cm_to_nm"]  # convert cm to nm
-        self.system.target_L = L  # Used during shrink step
-        self.system.target_box = [Lx, Ly, Lz]
-        return (Lx, Ly, Lz) 
+        self.target_L = L  # Used during shrink step
+        self.target_box = [L, L, L]
+        return L
 
     def _apply_ff(self, untyped_system):
         if self.forcefield == "gaff":
@@ -341,13 +342,14 @@ class Initialize:
 
         typed_system = forcefield.apply(
             untyped_system,
-            assert_dihedral_params=self.system.assert_dihedrals
+            assert_dihedral_params=self.assert_dihedrals
         )
         if self.system.remove_hydrogens:
             typed_system.strip(
                     [a.atomic_number == 1 for a in typed_system.atoms]
                     )
         return typed_system
+
 
 class Interface:
     def __init__(
@@ -504,11 +506,13 @@ def build_molecule(molecule, length, sequence, para_weight, smiles=True):
         compound.add_monomer(meta, 
                 mol_dict["meta_bond_indices"],
                 mol_dict["bond_distance"],
+                mol_dict["bond_orientation"],
                 replace=True
             )
         compound.add_monomer(para,
                 mol_dict["para_bond_indices"],
                 mol_dict["bond_distance"],
+                mol_dict["bond_orientation"],
                 replace=True
             )
     else:
@@ -516,12 +520,14 @@ def build_molecule(molecule, length, sequence, para_weight, smiles=True):
             compound.add_monomer(para,
                     mol_dict["para_bond_indices"],
                     mol_dict["bond_distance"],
+                    mol_dict["bond_orientation"],
                     replace=True
                 )
         elif monomer_sequence[0] == "M": # Only meta
             compound.add_monomer(meta,
                     mol_dict["meta_bond_indices"],
                     mol_dict["bond_distance"],
+                    mol_dict["bond_orientation"],
                     replace=True
                 )
 
