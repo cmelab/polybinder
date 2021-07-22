@@ -230,26 +230,23 @@ class Initialize:
         self.system = system_init
 
     def pack(self):
-        self.L = self._calculate_L() * self.expand_factor
+        pack_density = self.system_parms.density / (self.expand_factor**3)
         system = mb.packing.fill_box(
             compound=self.mb_compounds,
             n_compounds=[1 for i in self.mb_compounds],
-            box=[self.L, self.L, self.L],
+            density=pack_density,
             overlap=0.2,
             edge=0.9,
             fix_orientation=True,
         )
-        system.box = mb.box.Box([self.L, self.L, self.L])
         return system
 
     def stack(self, separation=1.5):
-        self.L = self._calculate_L() * self.expand_factor
         system = mb.Compound()
         for idx, comp in enumerate(self.mb_compounds):
             z_axis_transform(comp)
             comp.translate(np.array([separation,0,0])*idx)
             system.add(comp)
-        system.box = mb.box.Box([self.L, self.L, self.L])
         return system
 
     def crystal(self, a, b, n):
@@ -283,9 +280,33 @@ class Initialize:
                 for p in system.particles()]
                 )
         self.system.system_mass += mass
-        self.L = self._calculate_L()
-        system.box = system.get_boundingbox()
         return system
+
+    def set_target_box(
+            self,
+            x_constraint=None,
+            y_constraint=None,
+            z_constraint=None
+            ):
+       """
+       """
+        constraints = [x_constraint, y_constraint, z_constraint]
+        _axes = [
+                i for i, val in enumerate(constraints) if val != None
+                ]
+        if not any(constraints): # All edge lengths are the same (cube volume)
+            L = self._calculate_L()
+            self.target_box = (L, L, L)
+        elif constraints.count(None) == 1: # 2 constraints set
+            fixed_area = constraints[_axes][0] * constraints[_axies][1]
+        elif constraints.count(None) == 2: # 1 constraint set
+            fixed_edge = constraints[_axes][0]
+        else: # Set constraints for all 3 axes; double check against density? or handle even with density?
+            pass
+
+             
+            
+            
 
     def _generate_compounds(self):
         if self.system_parms.monomer_sequence is not None:
@@ -316,7 +337,7 @@ class Initialize:
             self.system_parms.system_mass += mass  # amu
         return mb_compounds
 
-    def _calculate_L(self, fixed_edges=(None, None, None)):
+    def _calculate_L(self):
         """
         Calcualte the box length needed for entered density
         Right now, assuming cubic box
@@ -327,8 +348,6 @@ class Initialize:
         _L = (M / self.system_parms.density) #lx*Ly*Lz
         L = (M / self.system_parms.density) ** (1 / 3)  # centimeters
         L *= units["cm_to_nm"]  # convert cm to nm
-        self.target_L = L  # Used during shrink step
-        self.target_box = [L, L, L]
         return L
 
     def _apply_ff(self, untyped_system):
