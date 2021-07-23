@@ -291,26 +291,17 @@ class Initialize:
             y_constraint=None,
             z_constraint=None
             ):
-       """
-       """
-        constraints = [x_constraint, y_constraint, z_constraint]
-        _axes = [
-                i for i, val in enumerate(constraints) if val != None
-                ]
-
-        if not any(constraints): # All edge lengths are the same (cube volume)
+        """
+        """
+        constraints = np.array([x_constraint, y_constraint, z_constraint])
+        if not any([i for i in constraints]): # All edge lengths are the same
             Lx = Ly = Lz = self._calculate_L()
-        elif constraints.count(None) == 1: # 2 constraints set
-            fixed_area = constraints[_axes][0] * constraints[_axes][1]
-            L = self._calculate_L(fixed_val = fixed_area)
+        else: # At least 1 constraint set
+            fixed_val = np.prod(constraints[np.where(constraints!=None)])
+            L = self._calculate_L(fixed_val = fixed_val)
+            constraints[np.where(constraints==None)] = L
+            Lx, Ly, Lz = constraints
 
-        elif constraints.count(None) == 2: # 1 constraint set
-            fixed_edge = constraints[_axes][0]
-            L = self._calculate_L(fixed_val = fixed_edge)
-        else: # Set constraints for all 3 axes; double check against density? or handle even with density?
-            pass
-
-            
 
     def _generate_compounds(self):
         if self.system_parms.monomer_sequence is not None:
