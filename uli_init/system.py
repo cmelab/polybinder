@@ -190,7 +190,6 @@ class Initialize:
             system,
             system_type,
             forcefield,
-            fixed_edges = (None, None, None),
             expand_factor=10,
             assert_dihedrals=True,
             **kwargs):
@@ -241,7 +240,7 @@ class Initialize:
         )
         return system
 
-    def stack(self, separation=1.5):
+    def stack(self, separation=0.7):
         system = mb.Compound()
         for idx, comp in enumerate(self.mb_compounds):
             z_axis_transform(comp)
@@ -250,7 +249,12 @@ class Initialize:
         return system
 
     def crystal(self, a, b, n):
-        assert len(self.mb_compounds) == n*n*2
+        if len(self.mb_compounds) != n*n*2:
+            raise ValueError(
+                    "The crystal is built as nxn unit cells "
+                    "which each unit cell containing 2 molecules. "
+                    "The number of molecules should equal 2*n*n"
+                    )
         next_idx = 0
         crystal = mb.Compound()
         for i in range(n):
@@ -271,7 +275,6 @@ class Initialize:
             layer.translate((b*i, 0, 0))
             crystal.add(layer)
         return crystal
-
 
     def custom(self, file_path):
         system = mb.load(file_path)
@@ -294,18 +297,19 @@ class Initialize:
         _axes = [
                 i for i, val in enumerate(constraints) if val != None
                 ]
+
         if not any(constraints): # All edge lengths are the same (cube volume)
-            L = self._calculate_L()
-            self.target_box = (L, L, L)
+            Lx = Ly = Lz = self._calculate_L()
         elif constraints.count(None) == 1: # 2 constraints set
-            fixed_area = constraints[_axes][0] * constraints[_axies][1]
+            fixed_area = constraints[_axes][0] * constraints[_axes][1]
+            L = self._calculate_L(fixed_val = fixed_area)
+
         elif constraints.count(None) == 2: # 1 constraint set
             fixed_edge = constraints[_axes][0]
+            L = self._calculate_L(fixed_val = fixed_edge)
         else: # Set constraints for all 3 axes; double check against density? or handle even with density?
             pass
 
-             
-            
             
 
     def _generate_compounds(self):
@@ -337,16 +341,18 @@ class Initialize:
             self.system_parms.system_mass += mass  # amu
         return mb_compounds
 
-    def _calculate_L(self):
+    def _calculate_L(self, fixed_val=None):
         """
         Calcualte the box length needed for entered density
         Right now, assuming cubic box
         Return L in nm (mBuild units)
         """
-        
         M = self.system_parms.system_mass * units["amu_to_g"]  # grams
-        _L = (M / self.system_parms.density) #lx*Ly*Lz
-        L = (M / self.system_parms.density) ** (1 / 3)  # centimeters
+        _L = (M / self.system_parms.density) #Lx*Ly*Lz
+        if fixed_val is None:
+            L = _L**(1/3)
+        else:
+            L = _L / fixed_val
         L *= units["cm_to_nm"]  # convert cm to nm
         return L
 
