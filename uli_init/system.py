@@ -205,7 +205,6 @@ class Initialize:
         if self.system_type == "custom":
             system_init = self.custom(**kwargs)
         else:
-            self.fixed_edges = fixed_edges
             self.mb_compounds = self._generate_compounds()
             if self.system_type == "pack":
                 system_init = self.pack()
@@ -229,10 +228,10 @@ class Initialize:
         if self.target_box is None:
             warn("A target box has not been set for this system. "
                  "The default cubic volume (Lx=Ly=Lz) will be used. "
-                 "See the `target_box()` function to set a non-cubic "
+                 "See the `set_target_box()` function to set a non-cubic "
                  "target box."
                  )
-            self.target_box = target_box()
+            self.target_box = self.set_target_box()
 
         self.system = system_init
 
@@ -247,7 +246,7 @@ class Initialize:
             fix_orientation=True,
         )
         system.box = system.get_boundingbox()
-        self.target_box = target_box()
+        self.target_box = self.set_target_box()
         return system
 
     def stack(self, separation=0.7):
@@ -257,7 +256,10 @@ class Initialize:
             comp.translate(np.array([separation,0,0])*idx)
             system.add(comp)
 
-        self.target_box = target_box(z_constrain=system.get_boundingbox()[2])
+        bounding_box = system.get_boundingbox().lengths
+        self.target_box = self.set_target_box(
+                z_constraint=bounding_box[2]
+                )
         return system
 
     def crystal(self, a, b, n):
@@ -287,7 +289,10 @@ class Initialize:
             layer.translate((b*i, 0, 0))
             crystal.add(layer)
 
-        self.target_box = target_box(z_constraint=crystal.get_boundingbox()[2])
+        bounding_box = crystal.get_boundingbox().lengths
+        self.target_box = self.set_target_box(
+                z_constraint=bounding_box[2]
+                )
         return crystal
 
     def custom(self, file_path):
@@ -299,7 +304,7 @@ class Initialize:
         self.system.system_mass += mass
         return system
 
-    def target_box(
+    def set_target_box(
             self,
             x_constraint=None,
             y_constraint=None,
@@ -316,6 +321,21 @@ class Initialize:
             constraints[np.where(constraints==None)] = L
             Lx, Ly, Lz = constraints
         return (Lx, Ly, Lz)
+
+    def _calculate_L(self, fixed_val=None):
+        """
+        Calcualte the box length needed for entered density
+        Right now, assuming cubic box
+        Return L in nm (mBuild units)
+        """
+        M = self.system_parms.system_mass * units["amu_to_g"]  # grams
+        _L = (M / self.system_parms.density) #Lx*Ly*Lz
+        if fixed_val is None:
+            L = _L**(1/3)
+        else:
+            L = _L / fixed_val
+        L *= units["cm_to_nm"]  # convert cm to nm
+        return L
 
     def _generate_compounds(self):
         if self.system_parms.monomer_sequence is not None:
@@ -345,21 +365,6 @@ class Initialize:
             )
             self.system_parms.system_mass += mass  # amu
         return mb_compounds
-
-    def _calculate_L(self, fixed_val=None):
-        """
-        Calcualte the box length needed for entered density
-        Right now, assuming cubic box
-        Return L in nm (mBuild units)
-        """
-        M = self.system_parms.system_mass * units["amu_to_g"]  # grams
-        _L = (M / self.system_parms.density) #Lx*Ly*Lz
-        if fixed_val is None:
-            L = _L**(1/3)
-        else:
-            L = _L / fixed_val
-        L *= units["cm_to_nm"]  # convert cm to nm
-        return L
 
     def _apply_ff(self, untyped_system):
         if self.forcefield == "gaff":
