@@ -313,7 +313,7 @@ class Initialize:
         """
         """
         constraints = np.array([x_constraint, y_constraint, z_constraint])
-        if not any([i for i in constraints]): # All edge lengths are the same
+        if not any([i for i in constraints]): # All edge lengths equal 
             Lx = Ly = Lz = self._calculate_L()
         else:
             fixed_L = constraints[np.where(constraints!=None)]
@@ -326,18 +326,14 @@ class Initialize:
 
     def _calculate_L(self, fixed_L=None):
         """
-        Calcualte the box length needed for entered density
-        Right now, assuming cubic box
-        Return L in nm (mBuild units)
         """
         M = self.system_parms.system_mass * units["amu_to_g"]  # grams
-        _L = (M / self.system_parms.density) #Lx*Ly*Lz
-        if fixed_L is None: #_L is cm^3
-            L = _L**(1/3)
+        vol = (M / self.system_parms.density) # cm^3
+        if fixed_L is None: 
+            L = vol**(1/3)
         else:
-            divide_by = np.prod(fixed_L)
-            L = _L / divide_by
-            if len(fixed_L) == 1: #L is cm^2 
+            L = vol / np.prod(fixed_L) 
+            if len(fixed_L) == 1: # L is cm^2 
                 L = L**(1/2)
         L *= units["cm_to_nm"]  # convert cm to nm
         return L
