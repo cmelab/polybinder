@@ -1,28 +1,11 @@
-import json
 import operator
-import os
-import random
-import time
-from collections import namedtuple
 
-import ele
-import foyer
 import gsd
 import hoomd
 import hoomd.md
-import mbuild as mb
 import numpy as np
-import scipy.optimize
-from foyer import Forcefield
 from hoomd.md import wall
 from mbuild.formats.hoomd_simulation import create_hoomd_simulation
-from mbuild.lib.recipes import Polymer
-from scipy.special import gamma
-
-from uli_init.library import FF_DIR
-from uli_init.utils import base_units
-
-units = base_units.base_units()
 
 
 class Simulation:
@@ -143,6 +126,28 @@ class Simulation:
                 overwrite=True,
                 phase=0,
             )
+
+            if walls:
+                wall_origin = (init_snap.box.Lx / 2, 0, 0)
+                normal_vector = (-1, 0, 0)
+                wall_origin2 = (-init_snap.box.Lx / 2, 0, 0)
+                normal_vector2 = (1, 0, 0)
+                walls = wall.group(
+                    wall.plane(
+                        origin=wall_origin, normal=normal_vector, inside=True
+                        ),
+                    wall.plane(
+                        origin=wall_origin2, normal=normal_vector2, inside=True
+                        ),
+                )
+                wall_force = wall.lj(walls, r_cut=2.5)
+                wall_force.force_coeff.set(
+                    init_snap.particles.types,
+                    sigma=1.0,
+                    epsilon=1.0,
+                    r_extrap=0
+                )
+
             if shrink_kT and shrink_steps:
                 integrator = hoomd.md.integrate.nvt(
                         group=_all,
@@ -153,15 +158,15 @@ class Simulation:
 
                 x_variant = hoomd.variant.linear_interp([
                     (0, init_snap.box.Lx),
-                    (shrink_steps, self.target_box[0] * 10)
+                    (shrink_steps, self.target_box[0])
                 ])
                 y_variant = hoomd.variant.linear_interp([
                     (0, init_snap.box.Ly),
-                    (shrink_steps, self.target_box[1] * 10)
+                    (shrink_steps, self.target_box[1])
                 ])
                 z_variant = hoomd.variant.linear_interp([
                     (0, init_snap.box.Lz),
-                    (shrink_steps, self.target_box[2] * 10)
+                    (shrink_steps, self.target_box[2])
                 ])
                 box_updater = hoomd.update.box_resize(
                     Lx=x_variant,
@@ -172,27 +177,7 @@ class Simulation:
 
                 # Update wall origins during shrinking
                 if walls:
-                    wall_origin = (init_snap.box.Lx / 2, 0, 0)
-                    normal_vector = (-1, 0, 0)
-                    wall_origin2 = (-init_snap.box.Lx / 2, 0, 0)
-                    normal_vector2 = (1, 0, 0)
-                    walls = wall.group(
-                        wall.plane(
-                            origin=wall_origin, normal=normal_vector, inside=True
-                            ),
-                        wall.plane(
-                            origin=wall_origin2, normal=normal_vector2, inside=True
-                            ),
-                    )
-                    wall_force = wall.lj(walls, r_cut=2.5)
-                    wall_force.force_coeff.set(
-                        init_snap.particles.types,
-                        sigma=1.0,
-                        epsilon=1.0,
-                        r_extrap=0
-                    )
                     step = 0
-                    start = time.time()
                     while step < shrink_steps:
                         hoomd.run_upto(step + shrink_period)
                         current_box = hoomd_system.box
@@ -307,6 +292,28 @@ class Simulation:
                 phase=0,
             )
 
+            if walls:
+                wall_origin = (init_snap.box.Lx / 2, 0, 0)
+                normal_vector = (-1, 0, 0)
+                wall_origin2 = (-init_snap.box.Lx / 2, 0, 0)
+                normal_vector2 = (1, 0, 0)
+                walls = wall.group(
+                    wall.plane(
+                        origin=wall_origin, normal=normal_vector, inside=True
+                        ),
+                    wall.plane(
+                        origin=wall_origin2, normal=normal_vector2, inside=True
+                        )
+                )
+
+                wall_force = wall.lj(walls, r_cut=2.5)
+                wall_force.force_coeff.set(
+                    init_snap.particles.types,
+                    sigma=1.0,
+                    epsilon=1.0,
+                    r_extrap=0
+                )
+
             if shrink_kT and shrink_steps:
                 integrator = hoomd.md.integrate.nvt(
                         group=_all,
@@ -317,15 +324,15 @@ class Simulation:
 
                 x_variant = hoomd.variant.linear_interp([
                     (0, init_snap.box.Lx),
-                    (shrink_steps, self.target_box[0] * 10)
+                    (shrink_steps, self.target_box[0])
                 ])
                 y_variant = hoomd.variant.linear_interp([
                     (0, init_snap.box.Ly),
-                    (shrink_steps, self.target_box[1] * 10)
+                    (shrink_steps, self.target_box[1])
                 ])
                 z_variant = hoomd.variant.linear_interp([
                     (0, init_snap.box.Lz),
-                    (shrink_steps, self.target_box[2] * 10)
+                    (shrink_steps, self.target_box[2])
                 ])
                 box_updater = hoomd.update.box_resize(
                     Lx=x_variant,
@@ -334,26 +341,6 @@ class Simulation:
                     period=shrink_period
                 )
                 if walls:
-                    wall_origin = (init_snap.box.Lx / 2, 0, 0)
-                    normal_vector = (-1, 0, 0)
-                    wall_origin2 = (-init_snap.box.Lx / 2, 0, 0)
-                    normal_vector2 = (1, 0, 0)
-                    walls = wall.group(
-                        wall.plane(
-                            origin=wall_origin, normal=normal_vector, inside=True
-                            ),
-                        wall.plane(
-                            origin=wall_origin2, normal=normal_vector2, inside=True
-                            )
-                    )
-
-                    wall_force = wall.lj(walls, r_cut=2.5)
-                    wall_force.force_coeff.set(
-                        init_snap.particles.types,
-                        sigma=1.0,
-                        epsilon=1.0,
-                        r_extrap=0
-                    )
                     step = 0
                     while step < shrink_steps:
                         hoomd.run_upto(step + shrink_period)
