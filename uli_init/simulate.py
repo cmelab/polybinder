@@ -29,7 +29,6 @@ class Simulation:
     def __init__(
         self,
         system,
-        target_box=None,
         r_cut=1.2,
         e_factor=0.5,
         tau_kt=0.1,
@@ -76,15 +75,8 @@ class Simulation:
             self.ref_distance = max(pair_coeffs, key=operator.itemgetter(2))[2]
 
         if system.type != "interface":
-            # nm
-            self.reduced_target_L = system.target_L / self.ref_distance
-            # angstroms
-            self.reduced_init_L = (self.system_pmd.box[0] / self.ref_distance)
-
-            if target_box:
-                self.target_box = target_box
-            else:
-                self.target_box = [self.reduced_target_L] * 3
+            # Conv from nm (mBuild) to ang (parmed) and set to reduced length 
+            self.target_box = system.target_box * 10 / self.ref_distance
 
         self.log_quantities = [
             "temperature",
@@ -112,6 +104,12 @@ class Simulation:
             raise ValueError(
                     "Wall potentials can only be used with the NVT ensemble"
                     )
+        if [shrik_kT, shirnk_steps, shrink_period].count(None) %3 != 0:
+            raise ValueError(
+            "If shrinking, all of  shrink_kT, shrink_steps and "
+            "shrink_periopd need to be given."
+        )
+
         hoomd_args = f"--single-mpi --mode={self.mode}"
         sim = hoomd.context.initialize(hoomd_args)
         with sim:
@@ -145,10 +143,6 @@ class Simulation:
                 overwrite=True,
                 phase=0,
             )
-            if len([i for i in (shrink_kT, shrink_steps) if i is None]) == 1:
-                raise ValueError(
-                "Both of  shrink_kT and shrink_steps need to be given"
-                )
             if shrink_kT and shrink_steps:
                 integrator = hoomd.md.integrate.nvt(
                         group=_all,
@@ -211,9 +205,6 @@ class Simulation:
                                 normal_vector2
                                 )
                         step += shrink_period
-                        print(f"Finished step {step} of {shrink_steps}")
-                        print(f"Shrinking is {round(step / shrink_steps, 5) * 100}% complete")
-                        print(f"time elapsed: {time.time() - start}")
                 else:
                     hoomd.run_upto(shrink_steps)
                 box_updater.disable()
@@ -240,14 +231,14 @@ class Simulation:
                         kT=kT
                         )
             elif not pressure:
-                try:
-                    integrator
-                except NameError:
+                try: # Integrator already created (shrinking), update kT
+                    integrator.set_params(kT=kT) 
+                except NameError: # Integrator not yet created (no shrinking)
                     integrator = hoomd.md.integrate.nvt(
                             group=_all,
                             tau=self.tau_kt,
                             kT=kT)
-                integrator.randomize_velocities(seed=self.seed)
+            integrator.randomize_velocities(seed=self.seed)
             try:
                 hoomd.run(n_steps)
             except hoomd.WalltimeLimitReached:
@@ -270,6 +261,11 @@ class Simulation:
         if walls and pressure:
             raise ValueError(
                     "Wall potentials can only be used with the NVT ensemble"
+                    )
+        if [shrink_kT, shrink_steps, shrink_period].count(None) %3 != 0:
+            raise ValueError(
+                    "If shrinking, then all of shirnk_kT, shrink_steps "
+                    "and shrink_period need to be given"
                     )
         if not schedule:
             temps = np.linspace(kT_init, kT_final, len(step_sequence))
@@ -320,15 +316,15 @@ class Simulation:
                 integrator.randomize_velocities(seed=self.seed)
 
                 x_variant = hoomd.variant.linear_interp([
-                    (0, self.reduced_init_L),
+                    (0, init_snap.box.Lx),
                     (shrink_steps, self.target_box[0] * 10)
                 ])
                 y_variant = hoomd.variant.linear_interp([
-                    (0, self.reduced_init_L),
+                    (0, init_snap.box.Ly),
                     (shrink_steps, self.target_box[1] * 10)
                 ])
                 z_variant = hoomd.variant.linear_interp([
-                    (0, self.reduced_init_L),
+                    (0, init_snap.box.Lz),
                     (shrink_steps, self.target_box[2] * 10)
                 ])
                 box_updater = hoomd.update.box_resize(
