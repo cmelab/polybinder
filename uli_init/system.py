@@ -191,6 +191,7 @@ class Initialize:
             system_type,
             forcefield,
             expand_factor=10,
+            remove_hydrogens=False,
             assert_dihedrals=True,
             **kwargs):
         """
@@ -199,6 +200,7 @@ class Initialize:
         self.system_type = system_type
         self.forcefield = forcefield
         self.expand_factor = expand_factor
+        self.remove_hydrogens = remove_hydrogens
         self.assert_dihedrals = assert_dihedrals
         self.target_box = None
 
@@ -378,7 +380,7 @@ class Initialize:
             untyped_system,
             assert_dihedral_params=self.assert_dihedrals
         )
-        if self.system.remove_hydrogens:
+        if self.remove_hydrogens:
             typed_system.strip(
                     [a.atomic_number == 1 for a in typed_system.atoms]
                     )
