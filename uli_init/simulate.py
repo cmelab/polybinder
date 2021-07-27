@@ -57,7 +57,7 @@ class Simulation:
             self.ref_energy = max(pair_coeffs, key=operator.itemgetter(1))[1]
             self.ref_distance = max(pair_coeffs, key=operator.itemgetter(2))[2]
 
-        if system.type != "interface":
+        if system.system_type != "interface":
             # Conv from nm (mBuild) to ang (parmed) and set to reduced length 
             self.target_box = system.target_box * 10 / self.ref_distance
 
@@ -87,7 +87,7 @@ class Simulation:
             raise ValueError(
                     "Wall potentials can only be used with the NVT ensemble"
                     )
-        if [shrik_kT, shirnk_steps, shrink_period].count(None) %3 != 0:
+        if [shrink_kT, shrink_steps, shrink_period].count(None) %3 != 0:
             raise ValueError(
             "If shrinking, all of  shrink_kT, shrink_steps and "
             "shrink_periopd need to be given."
@@ -109,6 +109,11 @@ class Simulation:
             init_snap = objs[0]
             _all = hoomd.group.all()
             hoomd.md.integrate.mode_standard(dt=self.dt)
+            integrator = hoomd.md.integrate.nvt(
+                    group=_all,
+                    kT=kT,
+                    tau=self.tau_kt
+                    )
 
             hoomd.dump.gsd(
                 "sim_traj.gsd",
@@ -149,11 +154,12 @@ class Simulation:
                 )
 
             if shrink_kT and shrink_steps:
-                integrator = hoomd.md.integrate.nvt(
-                        group=_all,
-                        kT=shrink_kT,
-                        tau=self.tau_kt
-                        )
+#                integrator = hoomd.md.integrate.nvt(
+#                        group=_all,
+#                        kT=shrink_kT,
+#                        tau=self.tau_kt
+#                        )
+                integrator.set_params(kT=shrink_kT)
                 integrator.randomize_velocities(seed=self.seed)
 
                 x_variant = hoomd.variant.linear_interp([
