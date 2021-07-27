@@ -1,22 +1,16 @@
-from collections import namedtuple
 import json
-import operator
 import os
 import random
-import time
 from warnings import warn
 
 import ele
 import foyer
 import gsd
-import hoomd
-import hoomd.md
+import gsd.hoomd
 import mbuild as mb
 import numpy as np
 import scipy.optimize
 from foyer import Forcefield
-from hoomd.md import wall
-from mbuild.formats.hoomd_simulation import create_hoomd_simulation
 from mbuild.lib.recipes import Polymer
 from mbuild.coordinate_transform import z_axis_transform
 from scipy.special import gamma
@@ -224,9 +218,6 @@ class Initialize:
                         "You passed in {system.type}"
                     )
 
-        if self.forcefield:
-            system_init = self._apply_ff(system_init)
-
         if self.target_box is None:
             warn("A target box has not been set for this system. "
                  "The default cubic volume (Lx=Ly=Lz) will be used. "
@@ -235,20 +226,22 @@ class Initialize:
                  )
             self.target_box = self.set_target_box()
 
-        self.system = system_init
+        if self.forcefield:
+            self.system = self._apply_ff(system_init)
+        else:
+            self.system = system_init
 
     def pack(self):
-        pack_density = self.system_parms.density / (self.expand_factor**3)
+        self.target_box = self.set_target_box()
+        pack_box = self.target_box * self.expand_factor
         system = mb.packing.fill_box(
             compound=self.mb_compounds,
             n_compounds=[1 for i in self.mb_compounds],
-            density=pack_density,
+            box=list(pack_box),
             overlap=0.2,
             edge=0.9,
             fix_orientation=True,
         )
-        system.box = system.get_boundingbox()
-        self.target_box = self.set_target_box()
         return system
 
     def stack(self, separation=0.7):
@@ -268,7 +261,7 @@ class Initialize:
         if len(self.mb_compounds) != n*n*2:
             raise ValueError(
                     "The crystal is built as nxn unit cells "
-                    "which each unit cell containing 2 molecules. "
+                    "whith each unit cell containing 2 molecules. "
                     "The number of molecules should equal 2*n*n"
                     )
         next_idx = 0
@@ -293,7 +286,13 @@ class Initialize:
 
         bounding_box = crystal.get_boundingbox().lengths
         self.target_box = self.set_target_box(
-                z_constraint=bounding_box[2]
+                z_constraint=bounding_box[2] + 0.2
+                )
+        crystal.box = mb.box.Box(self.target_box*5)
+        crystal.translate(
+                (crystal.box.Lx / 2,
+                crystal.box.Ly / 2,
+                crystal.box.Lz / 2)
                 )
         return crystal
 
@@ -352,13 +351,13 @@ class Initialize:
                 self.system_parms.n_compounds
                 ):
             for i in range(n):
-                polymer, sequence = build_molecule(
+                polymer, mol_sequence = build_molecule(
                     self.system_parms.molecule,
                     length,
                     sequence,
                     self.system_parms.para_weight
                 )
-                self.system_parms.molecule_sequences.append(sequence)
+                self.system_parms.molecule_sequences.append(mol_sequence)
                 mb_compounds.append(polymer)
                 self.system_parms.para += sequence.count("P")
                 self.system_parms.meta += sequence.count("M")
@@ -394,7 +393,7 @@ class Interface:
         ref_distance=None,
         gap=0.1
     ):
-        self.type = "interface"
+        self.system_type = "interface"
         self.ref_distance = ref_distance
         if not isinstance(slabs, list):
             slabs = [slabs]
@@ -569,7 +568,6 @@ def build_molecule(molecule, length, sequence, para_weight, smiles=True):
 
     compound.build(n=1, sequence=monomer_sequence, add_hydrogens=True)
     return compound, monomer_sequence
-
 
 def random_sequence(para_weight, length):
     """
