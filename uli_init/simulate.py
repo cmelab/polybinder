@@ -82,7 +82,7 @@ class Simulation:
         use_walls=True,
     ):
         """"""
-        if walls and pressure:
+        if use_walls and pressure:
             raise ValueError(
                     "Wall potentials can only be used with the NVT ensemble."
                     )
