@@ -189,8 +189,8 @@ class Initialize:
             self,
             system,
             system_type,
-            forcefield,
-            expand_factor=10,
+            forcefield="gaff",
+            expand_factor=5,
             remove_hydrogens=False,
             assert_dihedrals=True,
             **kwargs):
@@ -324,7 +324,7 @@ class Initialize:
             L = self._calculate_L(fixed_L = fixed_L)
             constraints[np.where(constraints==None)] = L
             Lx, Ly, Lz = constraints
-        return (Lx, Ly, Lz)
+        return np.array([Lx, Ly, Lz])
 
     def _calculate_L(self, fixed_L=None):
         """
