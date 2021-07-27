@@ -284,12 +284,12 @@ class Initialize:
             layer.translate((b*i, 0, 0))
             crystal.add(layer)
 
-        bounding_box = crystal.get_boundingbox().lengths
+        bounding_box = np.array(crystal.get_boundingbox().lengths)
         self.target_box = self.set_target_box(
-                z_constraint=bounding_box[2] + 0.2
+                z_constraint=bounding_box[2]
                 )
-        crystal.box = mb.box.Box(self.target_box*5)
-        crystal.translate(
+        crystal.box = mb.box.Box(bounding_box*1.1)
+        crystal.translate_to(
                 (crystal.box.Lx / 2,
                 crystal.box.Ly / 2,
                 crystal.box.Lz / 2)
