@@ -237,12 +237,12 @@ class Simulation:
         pressure=None,
         step_sequence=None,
         schedule=None,
-        walls=True,
+        use_walls=True,
         shrink_kT=None,
         shrink_steps=None,
         shrink_period=None,
     ):
-        if walls and pressure:
+        if use_walls and pressure:
             raise ValueError(
                     "Wall potentials can only be used with the NVT ensemble"
                     )
@@ -290,8 +290,8 @@ class Simulation:
                 overwrite=True,
                 phase=0,
             )
-
-            if walls:
+            # Set up wall LJ potentials
+            if use_walls:
                 wall_origin = (init_snap.box.Lx / 2, 0, 0)
                 normal_vector = (-1, 0, 0)
                 wall_origin2 = (-init_snap.box.Lx / 2, 0, 0)
@@ -339,7 +339,8 @@ class Simulation:
                     Lz=z_variant,
                     period=shrink_period
                 )
-                if walls:
+                # Update walls due to shrink box changes
+                if use_walls:
                     step = 0
                     while step < shrink_steps:
                         hoomd.run_upto(step + shrink_period)
