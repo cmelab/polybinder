@@ -30,14 +30,61 @@ class System:
         polymer_lengths=None,
         para_weight=None,
         monomer_sequence=None,
-        epsilon=1e-7,
         sample_pdi=False,
         pdi=None,
         Mn=None,
         Mw=None,
-        mass_dist_type="weibull",
+        epsilon=1e-7,
         seed=24,
     ):
+        """
+        This class handles the system parameters such as number 
+        and type of molecules, length of the polymers, the monomer
+        sequence of the polymers, density, and polydispersity.
+
+        Parameters:
+        -----------
+        density : float, required
+            The desired density of the system.
+            Requires units of grams per cubic centimeter.
+        molecule : str, required
+            The type of molecule to be used.
+            Supported types are "PEEK" and "PEKK".
+            See the .json files in 'library/compounds'
+        n_compounds : int or list of int, required
+            The number of molecules in the system.
+            If using `polymer_lengths` as well `n_compounds`
+            and `polymer_lengths` should be equal length.
+            If sampling from a PDI, `n_compounds` should be
+            a single value.
+        polymer_lengths : int or list of int, optional
+            The number of monomer units in each molecule
+            If using multiple lengths, the number of each
+            length will correspond to the `n_compounds`
+            parameter. Leave as None if sampling from a PDI.
+        para_weight : float (0.0 - 1.0), optional
+            Sets the relative amount of para vs meta conformations
+            throughout the system. 1.0 is all para, 0.0 is all meta.
+            Use this if you want to generate random co-polymers.
+            Leave as None if defining the sequence via `monomer_sequence`
+        monomer_sequence : str, optional
+            Manually defines the co-polymer sequence.
+            Example:
+            monomer_sequence = "PM" sets an alternative para-meta 
+            co-polymer sequence.
+        sample_pdi : bool, optional
+            If True, the lengths of the polymers will be determined
+            by sampling from a distribution.
+        pdi : float, optional
+            The poly dispersity index used to generate a distribution of
+            polymer lengths.
+        Mn : float, optional
+            The mean molecular length of the poly dispersity distribution
+        Mw : float, optional
+            The mean molecular mass of the poly dispersity distribution
+
+  
+        """
         self.molecule = molecule
         self.para_weight = para_weight
         self.monomer_sequence = monomer_sequence
