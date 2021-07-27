@@ -26,7 +26,7 @@ class Simulation:
         seed=42,
     ):
 
-        self.system_pmd = system.system  # Parmed structure
+        self.system_pmd = system.system # Parmed structure
         self.r_cut = r_cut
         self.e_factor = e_factor
         self.tau_kt = tau_kt
@@ -44,7 +44,6 @@ class Simulation:
             self.ref_energy = ref_units["energy"]
             self.ref_distance = ref_units["distance"]
             self.ref_mass = ref_units["mass"]
-
         # Pulled from mBuild hoomd_simulation.py
         elif auto_scale and not ref_units:
             self.ref_mass = max([atom.mass for atom in self.system_pmd.atoms])
@@ -80,12 +79,12 @@ class Simulation:
         shrink_kT=None,
         shrink_steps=None,
         shrink_period=None,
-        walls=True,
+        use_walls=True,
     ):
         """"""
         if walls and pressure:
             raise ValueError(
-                    "Wall potentials can only be used with the NVT ensemble"
+                    "Wall potentials can only be used with the NVT ensemble."
                     )
         if [shrink_kT, shrink_steps, shrink_period].count(None) %3 != 0:
             raise ValueError(
@@ -109,11 +108,6 @@ class Simulation:
             init_snap = objs[0]
             _all = hoomd.group.all()
             hoomd.md.integrate.mode_standard(dt=self.dt)
-            integrator = hoomd.md.integrate.nvt(
-                    group=_all,
-                    kT=kT,
-                    tau=self.tau_kt
-                    )
 
             hoomd.dump.gsd(
                 "sim_traj.gsd",
@@ -132,7 +126,7 @@ class Simulation:
                 phase=0,
             )
 
-            if walls:
+            if use_walls:
                 wall_origin = (init_snap.box.Lx / 2, 0, 0)
                 normal_vector = (-1, 0, 0)
                 wall_origin2 = (-init_snap.box.Lx / 2, 0, 0)
@@ -154,12 +148,11 @@ class Simulation:
                 )
 
             if shrink_kT and shrink_steps:
-#                integrator = hoomd.md.integrate.nvt(
-#                        group=_all,
-#                        kT=shrink_kT,
-#                        tau=self.tau_kt
-#                        )
-                integrator.set_params(kT=shrink_kT)
+                integrator = hoomd.md.integrate.nvt(
+                        group=_all,
+                        kT=shrink_kT,
+                        tau=self.tau_kt
+                        )
                 integrator.randomize_velocities(seed=self.seed)
 
                 x_variant = hoomd.variant.linear_interp([
@@ -182,7 +175,7 @@ class Simulation:
                 )
 
                 # Update wall origins during shrinking
-                if walls:
+                if use_walls:
                     step = 0
                     while step < shrink_steps:
                         hoomd.run_upto(step + shrink_period)
