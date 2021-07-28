@@ -82,8 +82,10 @@ class System:
             The mean molecular length of the poly dispersity distribution
         Mw : float, optional
             The mean molecular mass of the poly dispersity distribution
+        epsilon : int, optional
 
-  
+        seed : int, optional, default=24
+            Used to generate random co-polymer sequences
         """
         self.molecule = molecule
         self.para_weight = para_weight
@@ -231,16 +233,29 @@ class Initialize:
             system,
             system_type,
             forcefield="gaff",
-            expand_factor=5,
             remove_hydrogens=False,
             assert_dihedrals=True,
             **kwargs):
         """
+        system : uli_init.system.System, required
+            Contains the parameters for system generation
+
+        system_type : str, required
+            The type of system initialization scheme to use for
+            generating the morphology.
+            Options include:
+            'pack': Molecules randomly packed into a box.
+            'stack': Polymer chains stacked into layers.
+            'crystal': Polymer chains arranged by n x n unit cells.
+            'custom': Load a system from a file.
+
+        forcefield : str, optional, default="gaff"
+            The type of foyer compatible forcefield to use.
+            As of now, only gaff is supported.
         """
         self.system_parms = system
         self.system_type = system_type
         self.forcefield = forcefield
-        self.expand_factor = expand_factor
         self.remove_hydrogens = remove_hydrogens
         self.assert_dihedrals = assert_dihedrals
         self.target_box = None
@@ -250,7 +265,7 @@ class Initialize:
         else:
             self.mb_compounds = self._generate_compounds()
             if self.system_type == "pack":
-                system_init = self.pack()
+                system_init = self.pack(**kwargs)
             elif self.system_type == "stack":
                 system_init = self.stack(**kwargs)
             elif self.system_type == "crystal":
@@ -278,9 +293,9 @@ class Initialize:
         else:
             self.system = system_init
 
-    def pack(self):
+    def pack(self, expand_factor=5):
         self.target_box = self.set_target_box()
-        pack_box = self.target_box * self.expand_factor
+        pack_box = self.target_box * expand_factor
         system = mb.packing.fill_box(
             compound=self.mb_compounds,
             n_compounds=[1 for i in self.mb_compounds],
@@ -304,11 +319,11 @@ class Initialize:
                 )
         return system
 
-    def crystal(self, a, b, n):
+    def crystal(self, a, b, n, vector=[.5, .5, 0]):
         if len(self.mb_compounds) != n*n*2:
             raise ValueError(
                     "The crystal is built as nxn unit cells "
-                    "whith each unit cell containing 2 molecules. "
+                    "with each unit cell containing 2 molecules. "
                     "The number of molecules should equal 2*n*n"
                     )
         next_idx = 0
@@ -321,7 +336,8 @@ class Initialize:
                     comp_2 = self.mb_compounds[next_idx+1]
                     z_axis_transform(comp_1)
                     z_axis_transform(comp_2)
-                    comp_2.translate((b/2, a/2, 0))
+                    translate_by = np.array(vector)*(b, a, 0)
+                    comp_2.translate(translate_by)
                     unit_cell= mb.Compound(subcompounds=[comp_1, comp_2])
                     unit_cell.translate((0, a*j, 0))
                     layer.add(unit_cell)
