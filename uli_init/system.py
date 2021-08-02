@@ -34,7 +34,6 @@ class System:
         pdi=None,
         Mn=None,
         Mw=None,
-        epsilon=1e-7,
         seed=24,
     ):
         """
@@ -82,8 +81,6 @@ class System:
             The mean molecular length of the poly dispersity distribution
         Mw : float, optional
             The mean molecular mass of the poly dispersity distribution
-        epsilon : int, optional
-
         seed : int, optional, default=24
             Used to generate random co-polymer sequences
         """
@@ -113,7 +110,6 @@ class System:
                     pdi,
                     Mn,
                     Mw,
-                    epsilon
                     )
         elif not sample_pdi and n_compounds != None: 
             if not isinstance(n_compounds, list):
@@ -138,7 +134,6 @@ class System:
             pdi,
             Mn,
             Mw,
-            epsilon
             ):
         if isinstance(n_compounds, int):
             self.n_compounds = n_compounds
@@ -155,7 +150,7 @@ class System:
         if pdi_arg_sum == 3:
             # special case, make sure that pdi = Mw / Mn
             assert (
-                abs(pdi - (Mw / Mn)) < epsilon
+                abs(pdi - (Mw / Mn)) < 1e-7 
             ), "PDI value does not match Mn and Mw values."
         else:
             if Mn is None:
