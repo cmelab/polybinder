@@ -1,6 +1,6 @@
 name: uli-init
 channels:
-  - conda-forge/label/nocuda
+  - jaimergp/label/unsupported-cudatoolkit-shim
   - conda-forge
 dependencies:
   - ele
