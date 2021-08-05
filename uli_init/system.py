@@ -346,7 +346,7 @@ class Initialize:
         self.target_box = self.set_target_box(
                 z_constraint=bounding_box[2]
                 )
-        crystal.box = mb.box.Box(bounding_box*1.1)
+        crystal.box = mb.box.Box(bounding_box*1.05)
         crystal.translate_to(
                 (crystal.box.Lx / 2,
                 crystal.box.Ly / 2,
