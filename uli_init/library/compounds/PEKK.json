@@ -1,6 +1,8 @@
 {
 "para_smiles": "c1ccc(Oc2ccc(C(=O)c3ccc(C(=O))cc3)cc2)cc1",
 "meta_smiles": "c1cc(Oc2ccc(C(=O)c3cc(C(=O))ccc3)cc2)ccc1",
+"para_file": "pekk_para.mol2",
+"meta_file": "pekk_meta.mol2",
 "para_bond_indices": [35, 36],
 "meta_bond_indices": [35, 36],
 "bond_orientation": [[-1,0,0], [1,0,0]],
