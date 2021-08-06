@@ -521,7 +521,7 @@ class Interface:
             compound.add_bond(particle_pair=[atom1, atom2])
 
 
-def build_molecule(molecule, length, sequence, para_weight, smiles=True):
+def build_molecule(molecule, length, sequence, para_weight, smiles=False):
     """
     `build_molecule` uses SMILES strings to build up a polymer from monomers.
     The configuration of each monomer is determined by para_weight and the
@@ -588,12 +588,10 @@ def build_molecule(molecule, length, sequence, para_weight, smiles=True):
         meta = mb.load(mol_dict["meta_smiles"], smiles=True, backend="rdkit")
     else:
         try:
-            para = mb.load(os.path.join(COMPOUND_DIR, mol_dict["para_mol2_file"]))
-            meta = mb.load(os.path.join(COMPOUND_DIR, mol_dict["meta_mol2_file"]))
+            para = mb.load(os.path.join(COMPOUND_DIR, mol_dict["para_file"]))
+            meta = mb.load(os.path.join(COMPOUND_DIR, mol_dict["meta_file"]))
         except KeyError:
-            print("No mol2 file is available; using the SMILES string instead")
-            para = mb.load(mol_dict["para_smiles"], smiles=True, backend="rdkit")
-            meta = mb.load(mol_dict["meta_smiles"], smiles=True, backend="rdkit")
+            print("No file is available for this compound")
 
     if len(set(monomer_sequence)) == 2: # Copolymer
         compound.add_monomer(meta, 
