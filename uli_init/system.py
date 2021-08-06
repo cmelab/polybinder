@@ -321,6 +321,12 @@ class Initialize:
                     "with each unit cell containing 2 molecules. "
                     "The number of molecules should equal 2*n*n"
                     )
+        if self.system_parms.para_weight is not None:
+            warn("Initializing crystalline systems may not work well "
+                 "when generating random co-polymers "
+                 "(e.g. overlapping particles). You may want to "
+                 "use the `monomer_sequence` as opposed to `para_weight'."
+                 )
         next_idx = 0
         crystal = mb.Compound()
         for i in range(n):
