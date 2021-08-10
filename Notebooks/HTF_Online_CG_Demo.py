@@ -197,12 +197,13 @@ class DihedralLayer(tf.keras.layers.Layer):
         return energy
 
 class TrajModel(htf.SimModel):
-    def setup(self, cg_num, adjacency_matrix, CG_NN, rcut):
+    def setup(self, cg_num, adjacency_matrix, 
+              CG_NN, cg_mapping, r_cut, dtype=tf.float32):
         self.cg_num = cg_num
         self.adjacency_matrix = adjacency_matrix
         self.CG_NN = CG_NN
-        #self.cg_mapping = cg_mapping
-        self.rcut = rcut
+        self.cg_mapping = cg_mapping
+        self.r_cut = r_cut
         #self.avg_cg_rdf = tf.keras.metrics.MeanTensor() # set up CG RDF tracking
 
         self.avg_cg_radii = tf.keras.metrics.MeanTensor()
@@ -219,6 +220,7 @@ class TrajModel(htf.SimModel):
                                        infile=None,
                                        adj_mat=self.adjacency_matrix,
                                        cg_beads=self.cg_num)
+        
 
     def compute(self, nlist, positions, box):
         # calculate the center of mass of a CG bead
@@ -276,14 +278,14 @@ class TrajModel(htf.SimModel):
         return lj_forces + other_forces, positions, total_energy, self.lj_energy.w, self.bond_energy.w, self.angle_energy.w, self.dihedral_energy.w
 
 nneighbor_cutoff = 64
+
 model = TrajModel(nneighbor_cutoff=nneighbor_cutoff,
                  cg_num=12, # beads per molecule, not total
                  adjacency_matrix=adjacency_matrix,
                  CG_NN=nneighbor_cutoff,
                  cg_mapping=cg_mapping,
-                 r_cut=set_rcut,
                  output_forces=False,
-                 rcut=set_rcut,
+                 r_cut=set_rcut,
                  check_nlist=False)
 
 # all the 'None' here is so we only train on the energy
@@ -295,7 +297,55 @@ system = System(system_type='pack', molecule='PEEK', para_weight=1.0,
                 polymer_lengths=[n_monomers], forcefield='gaff',
                 assert_dihedrals=True, remove_hydrogens=True)
 
-sim = Simulation(system, gsd_write=1e4, mode='gpu', dt=0.0001, r_cut=set_rcut, tf_model=model)
+# hacky workaround needing box in htf utils function
+def center_of_mass_no_box(positions, mapping, name='center-of-mass'):
+    ''' Computes mapped positions given positions and system-level mapping
+    by considering PBC.
+    :param positions: The tensor of particle positions
+    :type positions: N x 3 tensor
+    :param mapping: The coarse-grain system-level mapping used to produce
+        the particles in system
+    :type mapping: M x N tensor
+    :param name: The name of the op to add to the TF graph
+    :type name: string
+    :return: An [M x 3] mapped particles
+    '''
+
+    try:
+        sorting = hoomd.context.current.sorter.enabled
+        if sorting:
+            raise ValueError(
+                'You must disable hoomd sorting to use center_of_mass!')
+    except AttributeError:
+        pass
+
+    # slice to avoid accidents
+    positions = positions[:, :3]
+    # https://en.wikipedia.org/wiki/
+    # /Center_of_mass#Systems_with_periodic_boundary_conditions
+    # Adapted for -L to L boundary conditions
+    # box dim in hoomd is 2 * L
+    # make a pretend box just around our particles
+    xmin, xmax = min(positions[:, 0]), max(positions[:, 0])
+    ymin, ymax = min(positions[:, 1]), max(positions[:, 1])
+    zmin, zmax = min(positions[:, 2]), max(positions[:, 2])
+    box_dim = [xmax - xmin, ymax - ymin, zmax - zmin]
+    theta = positions / box_dim * 2 * np.pi
+    xi = tf.math.cos(theta)
+    zeta = tf.math.sin(theta)
+    ximean = tf.sparse.sparse_dense_matmul(mapping, xi)
+    zetamean = tf.sparse.sparse_dense_matmul(mapping, zeta)
+    thetamean = tf.math.atan2(zetamean, ximean)
+    return tf.identity(thetamean / np.pi / 2 * box_dim, name=name)
+
+def get_cg_positions(aa_positions):
+    mapped_positions_raw = center_of_mass_no_box(
+        positions=aa_positions,
+        mapping=cg_mapping
+    )
+    return tf.concat([mapped_positions_raw, tf.ones((mapped_positions_raw.shape[0], 1), dtype=mapped_positions_raw.dtype)], axis=-1, name='cg-pos-input')
+
+sim = Simulation(system, gsd_write=1e4, mode='gpu', dt=0.0001, r_cut=set_rcut, tf_model=model, mapping_func=get_cg_positions)
 
 sim.quench(kT=1., n_steps=5e5, shrink_steps=1e5, shrink_kT=1., shrink_period=1e4)
 

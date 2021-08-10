@@ -43,6 +43,7 @@ class Simulation:
         log_write=1e3,
         seed=42,
         tf_model = None,
+        mapping_func = None,
         tf_nlist_check_period = 100
     ):
 
@@ -60,6 +61,7 @@ class Simulation:
         self.log_write = log_write
         self.seed = seed
         self.tf_model = tf_model # pass in a TF model here
+        self.mapping_func = mapping_func # should computes CG positions from AA
         self.tf_nlist_check_period = tf_nlist_check_period # how often to ask HTF to update its nlist
 
         if tf_model is not None:
@@ -138,9 +140,32 @@ class Simulation:
             init_snap = objs[0]
 
             if self.tf_model is not None:
+                assert self.mapping_func is not None,\
+                       "If you are doing coarse-graining, you must \
+                       provide a mapping function (see HTF)"
+                # save real atom types from initial snapshot
+                aa_type_list = hoomd_system.particles.get_metadata()['types']
                 sim.sorter.disable()
-
-            _all = hoomd.group.all()
+                aa_group, cg_group = self.tfcompute.enable_mapped_nlist(
+                    hoomd_system,
+                    self.mapping_func)
+                # grab the LJ interactions from mbuild
+                lj = objs[3]
+                # get the cg bead type
+                all_types = hoomd_system.particles.get_metadata()['types']
+                cg_types = list(set(all_types) - set(aa_type_list))
+                lj.pair_coeff.set(cg_types, all_types, r_cut=False, epsilon=0., sigma=0.)
+                _all = aa_group
+                hoomd.dump.gsd(
+                    'cg_traj.gsd',
+                    period=self.gsd_write,
+                    group=cg_group,
+                    phase=0,
+                    dynamic=['momentum'],
+                    overwrite=False
+                )
+            else:
+                _all = hoomd.group.all()
             hoomd.md.integrate.mode_standard(dt=self.dt)
 
             hoomd.dump.gsd(
@@ -149,7 +174,7 @@ class Simulation:
                 group=_all,
                 phase=0,
                 dynamic=["momentum"],
-                overwrite=False,
+                overwrite=False
             )
             hoomd.analyze.log(
                 "sim_traj.log",
@@ -157,7 +182,7 @@ class Simulation:
                 quantities=self.log_quantities,
                 header_prefix="#",
                 overwrite=True,
-                phase=0,
+                phase=0
             )
             if len([i for i in (shrink_kT, shrink_steps) if i is None]) == 1:
                 raise ValueError(
@@ -211,6 +236,13 @@ class Simulation:
                         epsilon=1.0,
                         r_extrap=0
                     )
+                    if self.tf_model is not None:
+                        wall_force.force_coeff.set(
+                            cg_types,
+                            sigma=1.0,
+                            epsilon=1.0,
+                            r_extrap=0
+                        )    
                     step = 0
                     start = time.time()
                     while step < shrink_steps:
