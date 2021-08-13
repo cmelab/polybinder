@@ -89,7 +89,6 @@ class System:
         self.monomer_sequence = monomer_sequence
         self.density = density
         self.seed = seed
-        self.system_mass = 0
         self.para = 0
         self.meta = 0
         self.molecule_sequences = []
@@ -229,9 +228,19 @@ class Initialize:
             system_type,
             forcefield="gaff",
             remove_hydrogens=False,
-            assert_dihedrals=True,
             **kwargs):
         """
+        Given a set of system parameters, this class handles
+        the system initialzation steps..
+
+        In this case, system initialization includes:
+            1. The molecular arrangement
+            2. Setting system volume
+            3. Removal of hydrogens if desired
+            4. Application of a forcefield
+
+        Parameters:
+        ----------
         system : uli_init.system.System, required
             Contains the parameters for system generation
 
@@ -243,16 +252,18 @@ class Initialize:
             'stack': Polymer chains stacked into layers.
             'crystal': Polymer chains arranged by n x n unit cells.
             'custom': Load a system from a file.
-
         forcefield : str, optional, default="gaff"
             The type of foyer compatible forcefield to use.
             As of now, only gaff is supported.
+        remove_hydrogens : bool, optional, default=False
+            If True, hydrogen atoms are removed from the system.
+
         """
         self.system_parms = system
         self.system_type = system_type
         self.forcefield = forcefield
         self.remove_hydrogens = remove_hydrogens
-        self.assert_dihedrals = assert_dihedrals
+        self.system_mass = 0
         self.target_box = None
 
         if self.system_type == "custom":
@@ -317,7 +328,7 @@ class Initialize:
     def crystal(self, a, b, n, vector=[.5, .5, 0]):
         if len(self.mb_compounds) != n*n*2:
             raise ValueError(
-                    "The crystal is built as nxn unit cells "
+                    "The crystal is built as n x n unit cells "
                     "with each unit cell containing 2 molecules. "
                     "The number of molecules should equal 2*n*n"
                     )
@@ -366,7 +377,7 @@ class Initialize:
                 [ele.element_from_symbol(p.name).mass
                 for p in system.particles()]
                 )
-        self.system.system_mass += mass
+        self.system_mass += mass
         return system
 
     def set_target_box(
@@ -376,6 +387,20 @@ class Initialize:
             z_constraint=None
             ):
         """
+        Set the target volume of the system during an initial
+        shrink step is performed.
+        If no constraints are set, the target box is cubic.
+        Setting constraints will hold certain box vectors
+        constant and adjust others to match the target density.
+
+        Parameters:
+        -----------
+        x_constraint : float, optional, defualt=None
+            Fixes the box length along the x axis
+        y_constraint : float, optional, default=None
+            Fixes the box length along the y axis
+        z_constraint : float, optional, default=None
+            Fixes the box length along the z axis
         """
         constraints = np.array([x_constraint, y_constraint, z_constraint])
         if not any([i for i in constraints]): # All edge lengths equal 
@@ -391,8 +416,14 @@ class Initialize:
 
     def _calculate_L(self, fixed_L=None):
         """
+        Calculates the required box length(s) given the
+        mass of a sytem and the target density.
+        Box edge length constraints can be set by set_target_box().
+        If constraints are set, this will solve for the required
+        lengths of the remaining non-constrained edges to match
+        the target density.
         """
-        M = self.system_parms.system_mass * units["amu_to_g"]  # grams
+        M = self.system_mass * units["amu_to_g"]  # grams
         vol = (M / self.system_parms.density) # cm^3
         if fixed_L is None: 
             L = vol**(1/3)
@@ -404,6 +435,13 @@ class Initialize:
         return L
 
     def _generate_compounds(self):
+        """
+        Generates a list of mbuild.Compound() objects
+        from the number and lengths given by the
+        system parameters.
+        This function also updates the mass of the system
+        as compounds are generated.
+        """
         if self.system_parms.monomer_sequence is not None:
             sequence = self.system_parms.monomer_sequence
         else:
@@ -439,10 +477,7 @@ class Initialize:
         elif self.forcefield == "opls":
             forcefield = foyer.Forcefield(name="oplsaa")
 
-        typed_system = forcefield.apply(
-            untyped_system,
-            assert_dihedral_params=self.assert_dihedrals
-        )
+        typed_system = forcefield.apply(untyped_system)
         if self.remove_hydrogens:
             typed_system.strip(
                     [a.atomic_number == 1 for a in typed_system.atoms]
@@ -558,7 +593,7 @@ def build_molecule(molecule, length, sequence, para_weight, smiles=False):
 
     Notes
     -----
-    Any values entered for length and sequence should be compatible.
+    Any combined values entered for length and sequence should be compatible.
     This is designed to follow the sequence until it has reached it's
     terminal length. For example::
 
@@ -582,7 +617,7 @@ def build_molecule(molecule, length, sequence, para_weight, smiles=False):
 
     if sequence == "random":
         monomer_sequence = "".join(random_sequence(para_weight, length))
-    else:
+    else: # Generate sequence that matches polymer length
         n = length // len(sequence)
         monomer_sequence = sequence * n
         monomer_sequence += sequence[:(length - len(monomer_sequence))]
