@@ -467,7 +467,7 @@ class Initialize:
                 [ele.element_from_symbol(p.name).mass
                 for p in polymer.particles()]
             )
-            self.system_parms.system_mass += mass  # amu
+            self.system_mass += mass  # amu
         return mb_compounds
 
     def _apply_ff(self, untyped_system):
