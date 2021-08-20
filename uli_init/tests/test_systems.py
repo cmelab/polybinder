@@ -8,55 +8,71 @@ from base_test import BaseTest
 
 
 class TestSystems(BaseTest):
-    def test_custom_bad_params(self):
-        file_path = os.path.join(
-                SYSTEM_DIR,
-                "test_peek.mol2"
-                )
-        with pytest.warns(UserWarning):
-            custom_sys = system.System(
-                    system_type = "custom",
-                    density=0.7,
-                    molecule="PEEK",
-                    para_weight=0.50,
-                    n_compounds=10,
-                    polymer_lengths=5,
-                    file_path=file_path
-                    )
-            ignore_args = [
-                    custom_sys.molecule,
-                    custom_sys.para_weight,
-                    custom_sys.polymer_lengths,
-                    custom_sys.n_compounds
-                    ]
-            assert not any(ignore_args)
-
-    def bad_system_type(self):
+    def test_bad_system_type(self):
         with pytest.raises(ValueError):
-            stacked_system = system.System(
-                    molecule="PEEK",
-                    para_weight=0.50,
-                    density=0.7,
-                    n_compounds=[10],
-                    polymer_lengths=[5],
-                    system_type="wrong",
-                    forcefield="gaff",
-                    remove_hydrogens=False,
-                    expand_factor=4
+            system_params = system.System(
+                        density=0.7,
+                        molecule="PEEK",
+                        para_weight=0.50,
+                        n_compounds=10,
+                        polymer_lengths=5,
+                        )
+            system = system.Initialize(
+                    system_params, system_type="wrong"
                     )
 
-    def test_stack(self):
-        stacked_system = system.System(
+    def test_pack(self):
+        system_parms = system.System(
                 molecule="PEEK",
                 para_weight=0.50,
                 density=0.7,
                 n_compounds=[10],
                 polymer_lengths=[5],
-                system_type="stack",
-                forcefield="gaff",
-                remove_hydrogens=False,
-                expand_factor=4
                 )
+        system = system.Initialize(
+                system_parms, system_type="pack", expand_factor=10
+                )
+
+
+    def test_stack(self):
+        system_parms = system.System(
+                molecule="PEEK",
+                para_weight=0.50,
+                density=0.7,
+                n_compounds=[10],
+                polymer_lengths=[5],
+                )
+        system = system.Initialize(
+                system_parms, system_type="stack", separation=1.0
+                )
+
+    def test_crystal(self):
+        system_parms = system.System(
+                molecule="PEEK",
+                para_weight=1.0,
+                density=0.7,
+                n_compounds=[16],
+                polymer_lengths=[5],
+                )
+        system = system.Initialize(
+                system_parms, system_type="crystal",
+                a = 1.5, b = 0.9, n=2
+                )
+
+    def test_crystal_bad_n(self):
+        system_parms = system.System(
+                molecule="PEEK",
+                para_weight=1.0,
+                density=0.7,
+                n_compounds=[12],
+                polymer_lengths=[5],
+                )
+        with pytest.raises(ValueError):
+            system = system.Initialize(
+                system_parms, system_type="crystal",
+                a = 1.5, b = 0.9, n=2
+                )
+
 
     def test_build_peek(self):
         for i in range(5):
@@ -77,53 +93,54 @@ class TestSystems(BaseTest):
 
     def test_monomer_sequence(self):
         with pytest.warns(UserWarning):
-            system_even = system.System(
+            system_parms = system.System(
                     molecule="PEEK",
                     monomer_sequence="PM",
                     para_weight=0.5,
                     n_compounds = [1],
                     polymer_lengths=[4],
                     density=.1,
-                    system_type="pack",
-                    remove_hydrogens=True
                     )
 
-        system_even = system.System(
+        system_parms_even = system.System(
                 molecule="PEEK",
                 monomer_sequence="PM",
                 n_compounds = [1],
                 polymer_lengths=[4],
                 density=.1,
-                system_type="pack",
-                remove_hydrogens=True
                 )
-        assert system_even.para == system_even.meta  == 2
-        assert system_even.molecule_sequences[0] == "PMPM"
+        system_even = system.Initialize(
+                system_parms, "pack"
+                )
+        assert system_parms.para == system_parms.meta  == 2
+        assert system_parms.molecule_sequences[0] == "PMPM"
 
-        system_odd = system.System(
+        system_parms = system.System(
                 molecule="PEEK",
                 monomer_sequence="PM",
                 n_compounds = [1],
                 polymer_lengths=[5],
                 density=.1,
-                system_type="pack",
-                remove_hydrogens=True
                 )
-        assert system_odd.para == 3
-        assert system_odd.meta == 2
-        assert system_odd.molecule_sequences[0] == "PMPMP"
+        system_odd = system.Initialize(
+                system_parms, "pack"
+                )
+        assert system_parms.para == 3
+        assert system_parms.meta == 2
+        assert system_parms.molecule_sequences[0] == "PMPMP"
 
-        system_large_seq = system.System(
+        system_parms = system.System(
                 molecule="PEEK",
                 monomer_sequence="PMPMPMPMPM",
                 n_compounds = [1],
                 polymer_lengths=[4],
                 density=.1,
-                system_type="pack",
-                remove_hydrogens=True
                 )
-        assert system_large_seq.para == system_large_seq.meta == 2
-        assert system_large_seq.molecule_sequences[0] == "PMPM"
+        system_long_seq = system.Initialize(
+                system_parms, "pack"
+                )
+        assert system_parms.para == system_parms.meta == 2
+        assert system_parms.molecule_sequences[0] == "PMPM"
 
     def test_para_weight(self):
         all_para = system.random_sequence(para_weight=1, length=10)
