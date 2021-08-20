@@ -15,14 +15,18 @@ class BaseTest:
                 SYSTEM_DIR,
                 "test_peek.mol2"
                 )
-        peek_system = system.System(
-                system_type="custom",
-                density=0.8,
-                forcefield="gaff",
-                remove_hydrogens=True,
-                file_path=peek
+        system_parms = system.System(
+                    density=0.8,
+                    forcefield="gaff",
+                    file_path=peek
+                    )
+        system = system.Initialize(
+                system_parms,
+                "custom"
+                remove_hydrogens=True
                 )
-        return peek_system
+
+        return system
 
     @pytest.fixture()
     def test_slab(self):
@@ -37,60 +41,69 @@ class BaseTest:
 
     @pytest.fixture
     def peek_system(self):
-        peek_sys = system.System(
-            molecule="PEEK",
-            para_weight=0.50,
-            density=1.2,
-            n_compounds=[3],
-            polymer_lengths=[3],
-            system_type = "pack",
-            forcefield="gaff",
-            remove_hydrogens=False,
-            expand_factor=5
+        system_parms = system.System(
+                molecule="PEEK",
+                para_weight=0.50,
+                density=1.2,
+                n_compounds=[3],
+                polymer_lengths=[3],
         )
+        peek_sys = system.Initialize(
+                system_parms,
+                system_type="pack",
+                forcefield="gaff",
+                remove_hydrogens=False
+                )
         return peek_sys
 
     @pytest.fixture
     def pekk_system(self):
-        pekk_sys = system.System(
-            molecule="PEKK",
-            para_weight=0.50,
-            density=1.2,
-            n_compounds=[3],
-            polymer_lengths=[3],
-            system_type = "pack",
-            forcefield="gaff",
-            remove_hydrogens=False,
-            expand_factor=5
+        system_parms = system.System(
+                molecule="PEKK",
+                para_weight=0.50,
+                density=1.2,
+                n_compounds=[3],
+                polymer_lengths=[3],
         )
+        pekk_sys = system.Initialize(
+                system_parms,
+                system_type="pack",
+                forcefield="gaff",
+                remove_hydrogens=False
+                )
         return pekk_sys
 
     @pytest.fixture
     def peek_system_noH(self):
-        peek_sys = system.System(
-            molecule="PEEK",
-            para_weight=0.50,
-            density=1.2,
-            n_compounds=[3],
-            polymer_lengths=[3],
-            system_type = "pack",
-            forcefield="gaff",
-            remove_hydrogens=True,
-            expand_factor=5
+        system_parms = system.System(
+                molecule="PEEK",
+                para_weight=0.50,
+                density=1.2,
+                n_compounds=[3],
+                polymer_lengths=[3],
         )
+        peek_sys = system.Initialize(
+                system_parms,
+                system_type="pack",
+                forcefield="gaff",
+                remove_hydrogens=True
+                )
         return peek_sys
 
     @pytest.fixture
     def pekk_system_noH(self):
-        pekk_sys = system.System(
-            molecule="PEKK",
-            para_weight=0.50,
-            density=1.2,
-            n_compounds=[3],
-            polymer_lengths=[3],
-            system_type = "pack",
-            forcefield="gaff",
-            remove_hydrogens=True,
-            expand_factor=5
+        system_parms = system.System(
+                molecule="PEKK",
+                para_weight=0.50,
+                density=1.2,
+                n_compounds=[3],
+                polymer_lengths=[3],
         )
+        pekk_sys = system.Initialize(
+                system_parms,
+                system_type="pack",
+                forcefield="gaff",
+                remove_hydrogens=True
+                )
+        return pekk_sys
         return pekk_sys
