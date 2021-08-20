@@ -332,7 +332,7 @@ class Initialize:
                     "with each unit cell containing 2 molecules. "
                     "The number of molecules should equal 2*n*n"
                     )
-        if self.system_parms.para_weight is not None:
+        if self.system_parms.para_weight is not in [None, 1.0, 0.0]:
             warn("Initializing crystalline systems may not work well "
                  "when generating random co-polymers "
                  "(e.g. overlapping particles). You may want to "
