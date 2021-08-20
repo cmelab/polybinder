@@ -22,7 +22,7 @@ class BaseTest:
                     )
         system = system.Initialize(
                 system_parms,
-                "custom"
+                "custom",
                 remove_hydrogens=True
                 )
 
