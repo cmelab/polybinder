@@ -1,7 +1,7 @@
 import os
 
 import pytest
-from uli_init import simulate, system
+from uli_init.system import System, Initialize
 from uli_init.library import COMPOUND_DIR, SYSTEM_DIR
 
 class BaseTest:
@@ -11,18 +11,13 @@ class BaseTest:
 
     @pytest.fixture()
     def peek_from_file(self):
-        peek = os.path.join(
-                SYSTEM_DIR,
-                "test_peek.mol2"
-                )
-        system_parms = system.System(
-                    density=0.8,
-                    forcefield="gaff",
-                    file_path=peek
-                    )
-        system = system.Initialize(
+        peek = os.path.join(SYSTEM_DIR, "test_peek.mol2")
+        system_parms = System(density=0.8)
+        system = Initialize(
                 system_parms,
                 "custom",
+                file_path=peek,
+                forcefield="gaff",
                 remove_hydrogens=True
                 )
 
@@ -41,14 +36,14 @@ class BaseTest:
 
     @pytest.fixture
     def peek_system(self):
-        system_parms = system.System(
+        system_parms = System(
                 molecule="PEEK",
                 para_weight=0.50,
                 density=1.2,
                 n_compounds=[3],
                 polymer_lengths=[3],
         )
-        peek_sys = system.Initialize(
+        peek_sys = Initialize(
                 system_parms,
                 system_type="pack",
                 forcefield="gaff",
@@ -58,14 +53,14 @@ class BaseTest:
 
     @pytest.fixture
     def pekk_system(self):
-        system_parms = system.System(
+        system_parms = System(
                 molecule="PEKK",
                 para_weight=0.50,
                 density=1.2,
                 n_compounds=[3],
                 polymer_lengths=[3],
         )
-        pekk_sys = system.Initialize(
+        pekk_sys = Initialize(
                 system_parms,
                 system_type="pack",
                 forcefield="gaff",
@@ -75,14 +70,14 @@ class BaseTest:
 
     @pytest.fixture
     def peek_system_noH(self):
-        system_parms = system.System(
+        system_parms = System(
                 molecule="PEEK",
                 para_weight=0.50,
                 density=1.2,
                 n_compounds=[3],
                 polymer_lengths=[3],
         )
-        peek_sys = system.Initialize(
+        peek_sys = Initialize(
                 system_parms,
                 system_type="pack",
                 forcefield="gaff",
@@ -92,14 +87,14 @@ class BaseTest:
 
     @pytest.fixture
     def pekk_system_noH(self):
-        system_parms = system.System(
+        system_parms = System(
                 molecule="PEKK",
                 para_weight=0.50,
                 density=1.2,
                 n_compounds=[3],
                 polymer_lengths=[3],
         )
-        pekk_sys = system.Initialize(
+        pekk_sys = Initialize(
                 system_parms,
                 system_type="pack",
                 forcefield="gaff",

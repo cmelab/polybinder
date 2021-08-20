@@ -16,7 +16,7 @@ class TestSimulate(BaseTest):
                 shrink_kT=2,
                 shrink_steps=1e3,
                 shrink_period=20,
-                walls=False
+                use_walls=False
                 )
 
     def test_bad_inputs(self, peek_system):
@@ -34,7 +34,7 @@ class TestSimulate(BaseTest):
                 shrink_kT=5,
                 shrink_steps=None,
                 shrink_period=None,
-                walls=True,
+                use_walls=True,
             )
         # Pressure and walls quench
         with pytest.raises(ValueError):
@@ -45,7 +45,7 @@ class TestSimulate(BaseTest):
                 shrink_kT=None,
                 shrink_steps=None,
                 shrink_period=None,
-                walls=True,
+                use_walls=True,
             )
         # Pressure and walls anneal
         with pytest.raises(ValueError):
@@ -57,7 +57,7 @@ class TestSimulate(BaseTest):
                 shrink_kT=None,
                 shrink_steps=None,
                 shrink_period=None,
-                walls=True,
+                use_walls=True,
             )
 
     def test_quench_no_shrink(self, peek_system):
@@ -74,7 +74,7 @@ class TestSimulate(BaseTest):
             shrink_kT=None,
             shrink_steps=None,
             shrink_period=None,
-            walls=False,
+            use_walls=False,
         )
 
     def test_anneal_no_shrink(self, peek_system):
@@ -86,7 +86,7 @@ class TestSimulate(BaseTest):
             shrink_kT=None,
             shrink_steps=None,
             shrink_period=None,
-            walls=False,
+            use_walls=False,
         )
 
     def test_quench_npt(self, peek_system):
@@ -103,7 +103,7 @@ class TestSimulate(BaseTest):
             shrink_kT=8,
             shrink_steps=1e3,
             shrink_period=1,
-            walls=False,
+            use_walls=False,
         )
 
     def test_quench(self, peek_system):
@@ -114,7 +114,7 @@ class TestSimulate(BaseTest):
             shrink_kT=8,
             shrink_steps=1e3,
             shrink_period=1,
-            walls=False,
+            use_walls=False,
         )
 
     def test_anneal_npt(self, pekk_system):
@@ -132,7 +132,7 @@ class TestSimulate(BaseTest):
             shrink_kT=8,
             shrink_steps=1e3,
             shrink_period=1,
-            walls=False,
+            use_walls=False,
         )
 
     def test_anneal(self, pekk_system):
@@ -144,7 +144,7 @@ class TestSimulate(BaseTest):
             shrink_kT=8,
             shrink_steps=1e3,
             shrink_period=1,
-            walls=False,
+            use_walls=False,
         )
 
     def test_quench_noH(self, pekk_system_noH):
@@ -155,7 +155,7 @@ class TestSimulate(BaseTest):
             shrink_kT=8,
             shrink_steps=1e3,
             shrink_period=1,
-            walls=False,
+            use_walls=False,
         )
 
     def test_anneal_noH(self, peek_system_noH):
@@ -167,7 +167,7 @@ class TestSimulate(BaseTest):
             shrink_kT=8,
             shrink_steps=1e3,
             shrink_period=1,
-            walls=False,
+            use_walls=False,
         )
 
     def test_walls_quench(self, peek_system_noH):
@@ -178,7 +178,7 @@ class TestSimulate(BaseTest):
             shrink_kT=8,
             shrink_steps=1e3,
             shrink_period=20,
-            walls=True,
+            use_walls=True,
         )
 
     def test_walls_anneal(self, peek_system_noH):
@@ -190,15 +190,15 @@ class TestSimulate(BaseTest):
             shrink_kT=8,
             shrink_steps=1e3,
             shrink_period=20,
-            walls=True,
+            use_walls=True,
         )
 
     def test_slabs_quench(self, test_slab):
         simulation = simulate.Simulation(test_slab, dt=0.0001, mode="cpu")
-        simulation.quench(kT=2, n_steps=1e3, walls=True)
+        simulation.quench(kT=2, n_steps=1e3, use_walls=True)
 
     def test_slabs_anneal(self, test_slab):
         simulation = simulate.Simulation(test_slab, dt=0.0001, mode="cpu")
         simulation.anneal(
-            kT_init=4, kT_final=2, step_sequence=[1e3, 1e3, 1e3], walls=True
+            kT_init=4, kT_final=2, step_sequence=[1e3, 1e3, 1e3], use_walls=True
         )
