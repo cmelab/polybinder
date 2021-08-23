@@ -437,8 +437,8 @@ class Initialize:
                     self.system_parms.para_weight
                 )
                 mb_compounds.append(polymer)
-                if len(self.system_parms.monomer_sequence) == 0:
-                    self.system_parms.monomer_sequences.append(mol_sequence)
+                if len(self.system_parms.molecule_sequences) == 0:
+                    self.system_parms.molecule_sequences.append(mol_sequence)
                     self.system_parms.para += mol_sequence.count("P")
                     self.system_parms.meta += mol_sequence.count("M")
             mass = n * sum(
