@@ -12,7 +12,7 @@ class Simulation:
     def __init__(
         self,
         system,
-        r_cut=1.2,
+        r_cut=2.5,
         e_factor=0.5,
         tau_kt=0.1,
         tau_p=None,
