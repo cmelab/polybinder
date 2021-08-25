@@ -223,7 +223,7 @@ class Initialize:
 
         system_type : str, required
             The type of system initialization scheme to use for
-            generating the morphology.
+            generating the starting morphology.
             Options include:
             'pack': Molecules randomly packed into a box.
             'stack': Polymer chains stacked into layers.
@@ -276,7 +276,7 @@ class Initialize:
         else:
             self.system = system_init
 
-    def pack(self, expand_factor=5):
+    def pack(self, expand_factor=7):
         self.target_box = self.set_target_box()
         pack_box = self.target_box * expand_factor
         system = mb.packing.fill_box(
