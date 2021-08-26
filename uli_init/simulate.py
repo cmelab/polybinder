@@ -154,7 +154,7 @@ class Simulation:
                 # get the cg bead type
                 all_types = hoomd_system.particles.get_metadata()['types']
                 cg_types = list(set(all_types) - set(aa_type_list))
-                lj.pair_coeff.set(cg_types, all_types, r_cut=False, epsilon=0., sigma=0.)
+                lj.pair_coeff.set(cg_types, all_types, r_cut=self.r_cut, epsilon=0., sigma=0.)
                 _all = aa_group
                 hoomd.dump.gsd(
                     'cg_traj.gsd',

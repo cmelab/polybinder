@@ -92,7 +92,7 @@ assert(np.sum(mapping_arr) == MN)
 
 bead_number = mapping_arr.shape[0]
 
-set_rcut = 7.0
+set_rcut = 3.0
 n_molecules = 100
 n_monomers = 4
 fname = f'{n_molecules}-length-{n_monomers}-peek-para-only-production'
