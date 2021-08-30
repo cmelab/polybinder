@@ -44,7 +44,8 @@ class Simulation:
         seed=42,
         tf_model = None,
         mapping_func = None,
-        tf_nlist_check_period = 100
+        tf_nlist_check_period = 100,
+        tf_batch_size = None
     ):
 
         self.system_pmd = system.system  # Parmed structure
@@ -63,6 +64,7 @@ class Simulation:
         self.tf_model = tf_model # pass in a TF model here
         self.mapping_func = mapping_func # should computes CG positions from AA
         self.tf_nlist_check_period = tf_nlist_check_period # how often to ask HTF to update its nlist
+        self.tf_batch_size = tf_batch_size
 
         if tf_model is not None:
             # only import this if we're using TF
@@ -300,7 +302,8 @@ class Simulation:
                     self.nlist,
                     train=True,
                     r_cut=self.r_cut,
-                    save_output_period=self.tf_nlist_check_period
+                    save_output_period=self.tf_nlist_check_period,
+                    batch_size=self.tf_batch_size
                     )
             try:
                 hoomd.run(n_steps)

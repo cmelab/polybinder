@@ -92,7 +92,7 @@ assert(np.sum(mapping_arr) == MN)
 
 bead_number = mapping_arr.shape[0]
 
-set_rcut = 3.0
+set_rcut = 2.0
 n_molecules = 100
 n_monomers = 4
 fname = f'{n_molecules}-length-{n_monomers}-peek-para-only-production'
@@ -198,11 +198,10 @@ class DihedralLayer(tf.keras.layers.Layer):
 
 class TrajModel(htf.SimModel):
     def setup(self, cg_num, adjacency_matrix, 
-              CG_NN, cg_mapping, r_cut, dtype=tf.float32):
+              CG_NN, r_cut, dtype=tf.float32):
         self.cg_num = cg_num
         self.adjacency_matrix = adjacency_matrix
         self.CG_NN = CG_NN
-        self.cg_mapping = cg_mapping
         self.r_cut = r_cut
         #self.avg_cg_rdf = tf.keras.metrics.MeanTensor() # set up CG RDF tracking
 
@@ -292,7 +291,7 @@ model = TrajModel(nneighbor_cutoff=nneighbor_cutoff,
 optimizer = tf.keras.optimizers.Adam(learning_rate=0.0001)
 model.compile(optimizer, ['MeanAbsoluteError', None, None, None, None, None])
 
-system = System(system_type='pack', molecule='PEEK', para_weight=1.0,
+sim_system = System(system_type='pack', molecule='PEEK', para_weight=1.0,
                 density=1.2, n_compounds=[n_molecules],
                 polymer_lengths=[n_monomers], forcefield='gaff',
                 assert_dihedrals=True, remove_hydrogens=True)
@@ -345,7 +344,8 @@ def get_cg_positions(aa_positions):
     )
     return tf.concat([mapped_positions_raw, tf.ones((mapped_positions_raw.shape[0], 1), dtype=mapped_positions_raw.dtype)], axis=-1, name='cg-pos-input')
 
-sim = Simulation(system, gsd_write=1e4, mode='gpu', dt=0.0001, r_cut=set_rcut, tf_model=model, mapping_func=get_cg_positions)
+sim = Simulation(sim_system, gsd_write=1e4, mode='gpu', dt=0.0001, r_cut=set_rcut,
+                 tf_model=model, mapping_func=get_cg_positions, tf_batch_size=512)
 
 sim.quench(kT=1., n_steps=5e5, shrink_steps=1e5, shrink_kT=1., shrink_period=1e4)
 
