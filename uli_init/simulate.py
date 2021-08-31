@@ -241,13 +241,13 @@ class Simulation:
                         )
             elif not pressure:
                 try:
-                    integrator
+                    integrator.set_params(kT=kT)
                 except NameError:
                     integrator = hoomd.md.integrate.nvt(
                             group=_all,
                             tau=self.tau_kt,
                             kT=kT)
-                integrator.randomize_velocities(seed=self.seed)
+            integrator.randomize_velocities(seed=self.seed)
             try:
                 hoomd.run(n_steps)
             except hoomd.WalltimeLimitReached:
