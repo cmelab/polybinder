@@ -47,7 +47,7 @@ class System:
         remove_hydrogens=False,
         assert_dihedrals=True,
         seed=24,
-        expand_factor=5,
+        expand_factor=7,
         **kwargs
     ):
         self.type = system_type
