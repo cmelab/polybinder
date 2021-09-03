@@ -603,8 +603,7 @@ def build_molecule(molecule, length, sequence, para_weight, smiles=False):
 
     compound = Polymer()
     if smiles:
-        para = mb.load(mol_dict["para_smiles"], smiles=True, backend="rdkit")
-        meta = mb.load(mol_dict["meta_smiles"], smiles=True, backend="rdkit")
+        raise ValueError("SMILES strings in the compound .JSON files not currently supported")
     else:
         try:
             para = mb.load(os.path.join(COMPOUND_DIR, mol_dict["para_file"]))
