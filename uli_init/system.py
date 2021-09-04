@@ -97,7 +97,7 @@ class System:
             warn(
                 "Both para_weight and monomer_sequence were given. "
                 "The system will be generated using monomer_sequence. "
-                "para_weight can only be used when "
+                "para_weight should only be used when "
                 "generating random copolymer sequences. "
                     )
             self.para_weight = None
@@ -208,7 +208,7 @@ class Initialize:
             **kwargs):
         """
         Given a set of system parameters, this class handles
-        the system initialzation steps..
+        the system initialzation steps.
 
         In this case, system initialization includes:
             1. The molecular arrangement
@@ -220,7 +220,6 @@ class Initialize:
         ----------
         system : uli_init.system.System, required
             Contains the parameters for system generation
-
         system_type : str, required
             The type of system initialization scheme to use for
             generating the starting morphology.
