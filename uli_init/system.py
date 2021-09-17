@@ -301,7 +301,29 @@ class Initialize:
                 )
         return system
 
-    def crystal(self, a, b, n, vector=[.5, .5, 0]):
+    def crystal(self, a, b, n, vector=[.5, .5, 0], z_adjust=1.0):
+        """
+        Creates a system of n x n repeating unit cells
+        where each unit cell contains 2 molecules.
+
+        Parameters:
+        -----------
+        a : float, required
+            Sets the distance between repeat units in the a direction
+        b : float, required
+            Sets the distance between repeat units in the b direction
+        n : int, required
+            The number of times to repeat a unit cell in both of
+            the a and b direction. 
+        vector : np.array, optional, default = [.5, .5, 0]
+            The vector to translate the 2nd molecule by
+        z_adjust : float, optional, default = 1.0
+            By default, the length of the bounding box along the
+            length of the chains is used to set the z_constraint in
+            `set_target_box`. z_adjust can be used to adjust the target
+            length of the simulation volume in the z direction. It is
+            used as a multiplier of the bounding box z length.
+        """
         if len(self.mb_compounds) != n*n*2:
             raise ValueError(
                     "The crystal is built as n x n unit cells "
@@ -336,8 +358,9 @@ class Initialize:
             crystal.add(layer)
 
         bounding_box = np.array(crystal.get_boundingbox().lengths)
+        target_z = bounding_box * z_adjust
         self.target_box = self.set_target_box(
-                z_constraint=bounding_box[2]
+                z_constraint=target_z
                 )
         crystal.box = mb.box.Box(bounding_box*1.05)
         crystal.translate_to(
