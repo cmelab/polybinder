@@ -411,6 +411,7 @@ class Initialize:
                     [ele.element_from_symbol(p.name).mass
                     for p in system.particles()]
                     )
+                print(f"Calculated a system mass of {mass}.")
             except:
                 raise ValueError(
                         "mBuild was not able to determine the mass "

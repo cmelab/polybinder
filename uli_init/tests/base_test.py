@@ -29,7 +29,7 @@ class BaseTest:
             slabs=os.path.join(
                 SYSTEM_DIR,
                 "test-slab.gsd"),
-            ref_distance=0.33996695084235347,
+            ref_distance=0.33997,
             gap=0.1
         )
         return slab
@@ -39,7 +39,7 @@ class BaseTest:
         system_parms = System(
                 molecule="PEEK",
                 para_weight=0.50,
-                density=1.2,
+                density=1.0,
                 n_compounds=[3],
                 polymer_lengths=[3],
         )
