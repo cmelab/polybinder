@@ -262,7 +262,7 @@ class Initialize:
                         "'stack'"
                         "'crystal'"
                         "'custom'."
-                        f"You passed in {system.type}"
+                        f"You passed in {system_type}"
                     )
 
         if self.target_box is None:
@@ -378,7 +378,7 @@ class Initialize:
             crystal.add(layer)
 
         bounding_box = np.array(crystal.get_boundingbox().lengths)
-        target_z = bounding_box * z_adjust
+        target_z = bounding_box[-1] * z_adjust
         self.target_box = self.set_target_box(
                 z_constraint=target_z
                 )
@@ -442,10 +442,10 @@ class Initialize:
         z_constraint : float, optional, default=None
             Fixes the box length along the z axis
         """
-        constraints = np.array([x_constraint, y_constraint, z_constraint])
-        if not any([i for i in constraints]): # All edge lengths equal 
+        if not any([x_constraint, y_constraint, z_constraint]): 
             Lx = Ly = Lz = self._calculate_L()
         else:
+            constraints = np.array([x_constraint, y_constraint, z_constraint])
             fixed_L = constraints[np.where(constraints!=None)]
             #Conv from nm to cm for _calculate_L
             fixed_L /= units["cm_to_nm"]
