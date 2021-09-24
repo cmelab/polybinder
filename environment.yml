@@ -3,7 +3,7 @@ channels:
   - jaimergp/label/unsupported-cudatoolkit-shim
   - conda-forge
 dependencies:
-  - foyer=0.9.2
+  - foyer=0.9.4
   - gsd=2.4.0
   - hoomd=2.9.4
   - mbuild=0.12.0
