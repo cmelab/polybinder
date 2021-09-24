@@ -1,7 +1,7 @@
 import os
 
 import pytest
-from uli_init.system import System, Initialize
+from uli_init.system import System, Initialize, Interface
 from uli_init.library import COMPOUND_DIR, SYSTEM_DIR
 
 class BaseTest:
@@ -25,7 +25,7 @@ class BaseTest:
 
     @pytest.fixture()
     def test_slab(self):
-        slab = system.Interface(
+        slab = Interface(
             slabs=os.path.join(
                 SYSTEM_DIR,
                 "test-slab.gsd"),

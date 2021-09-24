@@ -202,3 +202,8 @@ class TestSimulate(BaseTest):
         simulation.anneal(
             kT_init=4, kT_final=2, step_sequence=[1e3, 1e3, 1e3], use_walls=True
         )
+
+    def test_tensile_sim(self, test_slab):
+        simulation = simulate.Simulation(test_slab, dt=0.001, mode="cpu")
+        simulation.tensile(kT=2.0, strain=0.25, n_steps=1e3, expand_period=10)
+
