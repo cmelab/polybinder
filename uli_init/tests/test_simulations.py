@@ -204,6 +204,6 @@ class TestSimulate(BaseTest):
         )
 
     def test_tensile_sim(self, test_slab):
-        simulation = simulate.Simulation(test_slab, dt=0.001, mode="cpu")
+        simulation = simulate.Simulation(test_slab, dt=0.00001, mode="cpu")
         simulation.tensile(kT=2.0, strain=0.25, n_steps=1e3, expand_period=10)
 

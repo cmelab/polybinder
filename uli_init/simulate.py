@@ -486,7 +486,7 @@ class Simulation:
                 walls.del_plane([0, 1])
                 walls.add_plane((current_box.Lx / 2, 0, 0), normal_vector)
                 walls.add_plane((-current_box.Lx / 2, 0, 0),normal_vector2)
-                step += shrink_period
+                step += expand_period
             except hoomd.WalltimeLimitReached:
                 pass
             finally:
