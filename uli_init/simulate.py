@@ -401,3 +401,93 @@ class Simulation:
                 finally:
                     gsd_restart.write_restart()
 
+    def tensile(self, kT, strain, n_steps, expand_period):
+        hoomd_args = f"--single-mpi --mode={self.mode}"
+        sim = hoomd.context.initialize(hoomd_args)
+        with sim:
+            obs, refs = create_hoomd_simulation(
+                    self.system_pmd,
+                    self.ref_distance,
+                    self.ref_mass,
+                    self.ref_energy,
+                    self.r_cut,
+                    self.auto_scale,
+                    nlist=self.nlist
+                )
+            hoomd_system = objs[1]
+            _init_snap = objs[0]
+            _all = hoomd.group.all()
+            hoomd.md.integrate.mode_standard(dt=self.dt)
+            integrator = hoomd.md.integrate.nve(
+                    group=_all, limit=None, zero_force=False
+                    )
+            integrator.randomize_velocities(kT, seed=self.seed)
+
+            hoomd.dump.gsd(
+                    "sim_traj.gsd",
+                    period=self.gsd_write,
+                    group=_all,
+                    phase=0,
+                    dynamic=["momentum"],
+                    overwrite=False
+                )
+            hoomd.analyze.log(
+                    "sim_traj.log",
+                    period=self.log_write,
+                    quantities=self.log_quantities,
+                    header_prefix="#",
+                    overwrite=True,
+                    phase=0
+                )
+
+            gsd_restart = hoomd.dump.gsd(
+                    "restart.gsd",
+                    period=self.gsd_write,
+                    group=_all,
+                    truncate=True,
+                    phase=0,
+                    dynamic=["momentum"]
+                )
+            
+            # Set up volume expansion
+            target_length = init_snap.box.Lx*(1+strain)
+            x_variant = hoomd.variant.linear_interp(
+                [(0, init_snap.box.Lx), (n_steps, target_length)]
+            )
+            box_updater = hoomd.update.box_resize(
+                    Lx=x_variant, period=expand_period
+                    )
+            # Set up walls along tensile axis
+            wall_origin = (init_snap.box.Lx / 2, 0, 0)
+            normal_vector = (-1, 0, 0)
+            wall_origin2 = (-init_snap.box.Lx / 2, 0, 0)
+            normal_vector2 = (1, 0, 0)
+            walls = wall.group(
+                wall.plane(
+                    origin=wall_origin, normal=normal_vector, inside=True
+                    ),
+                wall.plane(
+                    origin=wall_origin2, normal=normal_vector2, inside=True
+                    ),
+            )
+            wall_force = wall.lj(walls, r_cut=2.5)
+            wall_force.force_coeff.set(
+                init_snap.particles.types,
+                sigma=1.0,
+                epsilon=1.0,
+                r_extrap=0
+            )
+
+    step = 0
+    while step < n_steps:
+        try:
+            hoomd.run_upto(step + expand_period)
+            current_box = hoomd_system.box
+            walls.del_plane([0, 1])
+            walls.add_plane((current_box.Lx / 2, 0, 0), normal_vector)
+            walls.add_plane((-current_box.Lx / 2, 0, 0),normal_vector2)
+            step += shrink_period
+        except hoomd.WalltimeLimitReached:
+            pass
+        finally:
+            gsd_restart.write_restart()
