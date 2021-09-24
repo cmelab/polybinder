@@ -405,7 +405,7 @@ class Simulation:
         hoomd_args = f"--single-mpi --mode={self.mode}"
         sim = hoomd.context.initialize(hoomd_args)
         with sim:
-            obs, refs = create_hoomd_simulation(
+            objs, refs = create_hoomd_simulation(
                     self.system_pmd,
                     self.ref_distance,
                     self.ref_mass,
@@ -415,7 +415,7 @@ class Simulation:
                     nlist=self.nlist
                 )
             hoomd_system = objs[1]
-            _init_snap = objs[0]
+            init_snap = objs[0]
             _all = hoomd.group.all()
             hoomd.md.integrate.mode_standard(dt=self.dt)
             integrator = hoomd.md.integrate.nve(
@@ -478,16 +478,16 @@ class Simulation:
                 r_extrap=0
             )
 
-    step = 0
-    while step < n_steps:
-        try:
-            hoomd.run_upto(step + expand_period)
-            current_box = hoomd_system.box
-            walls.del_plane([0, 1])
-            walls.add_plane((current_box.Lx / 2, 0, 0), normal_vector)
-            walls.add_plane((-current_box.Lx / 2, 0, 0),normal_vector2)
-            step += shrink_period
-        except hoomd.WalltimeLimitReached:
-            pass
-        finally:
-            gsd_restart.write_restart()
+        step = 0
+        while step < n_steps:
+            try:
+                hoomd.run_upto(step + expand_period)
+                current_box = hoomd_system.box
+                walls.del_plane([0, 1])
+                walls.add_plane((current_box.Lx / 2, 0, 0), normal_vector)
+                walls.add_plane((-current_box.Lx / 2, 0, 0),normal_vector2)
+                step += shrink_period
+            except hoomd.WalltimeLimitReached:
+                pass
+            finally:
+                gsd_restart.write_restart()

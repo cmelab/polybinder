@@ -531,14 +531,14 @@ class FusedInterface:
             self,
             gsd_file,
             ref_distance
-            )
-    self.gsd_file = gsd_file
-    self.ref_distance = ref_distance
-    self.system_type = "interface"
-    system = _gsd_to_mbuild(self.gsd_file, self.ref_distance)
-    ff_path = f"{FF_DIR}/gaff-nosmarts.xml"
-    forcefield = foyer.Forcefield(forcefield_files=ff_path)
-    self.system = forcefield.apply(system)
+            ):
+        self.gsd_file = gsd_file
+        self.ref_distance = ref_distance
+        self.system_type = "interface"
+        system = _gsd_to_mbuild(self.gsd_file, self.ref_distance)
+        ff_path = f"{FF_DIR}/gaff-nosmarts.xml"
+        forcefield = foyer.Forcefield(forcefield_files=ff_path)
+        self.system = forcefield.apply(system)
     
 class Interface:
     def __init__(
