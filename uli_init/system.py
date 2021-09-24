@@ -179,7 +179,7 @@ class System:
     def _weibull_lambda_expression(self, k):
         return self.Mn * k / gamma(1.0 / k)
 
-    def _recover_mass_dist(self, distribution="weibull"):
+    def _recover_mass_dist(self):
         """This function takes in two of the three quantities [Mn, Mw, PDI],
         and fits a Weibull distribution of molar masses to them.
         """
@@ -233,6 +233,9 @@ class Initialize:
             As of now, only gaff is supported.
         remove_hydrogens : bool, optional, default=False
             If True, hydrogen atoms are removed from the system.
+        kwargs : dict, optional
+            The kwargs for each of the system initialization functions.
+            See the doc strings for each function for allowable args.
 
         """
         self.system_parms = system
@@ -259,7 +262,7 @@ class Initialize:
                         "'stack'"
                         "'crystal'"
                         "'custom'."
-                        "You passed in {system.type}"
+                        f"You passed in {system.type}"
                     )
 
         if self.target_box is None:
@@ -276,6 +279,15 @@ class Initialize:
             self.system = system_init
 
     def pack(self, expand_factor=7):
+        """Uses PACKMOL via mBuild to randomlly fill a box
+        with the generated polymer chains.
+
+        Parameters:
+        -----------
+        expand_factor : int, required, default = 7
+            How much to multiply each box edge length by
+            before passing to PACKMOL to fill.
+        """
         self.target_box = self.set_target_box()
         pack_box = self.target_box * expand_factor
         system = mb.packing.fill_box(
@@ -289,6 +301,15 @@ class Initialize:
         return system
 
     def stack(self, separation=0.7):
+        """This method organizes the polymer chains in a single layer.
+        This approach may be useful for simulating a small number of
+        chains to see the chain-specific dynamics
+
+        Parameters:
+        -----------
+        separation : float, required, default=0.7
+            The distances (nm) between individually stacked chains.
+        """
         system = mb.Compound()
         for idx, comp in enumerate(self.mb_compounds):
             z_axis_transform(comp)
@@ -302,8 +323,7 @@ class Initialize:
         return system
 
     def crystal(self, a, b, n, vector=[.5, .5, 0], z_adjust=1.0):
-        """
-        Creates a system of n x n repeating unit cells
+        """Creates a system of n x n repeating unit cells
         where each unit cell contains 2 molecules.
 
         Parameters:
@@ -370,12 +390,33 @@ class Initialize:
                 )
         return crystal
 
-    def custom(self, file_path):
+    def custom(self, file_path, mass=None):
+        """Initializes a system from a file.
+        Check mbuild for allowable file types
+        
+        Parameters:
+        -----------
+        file_path : str, required
+            Path to the file to be loaded
+
+        mass : float, optional, default=None
+            Manually set the mass of your system.
+            If None, then it will attempt to determine the mass
+            via mBuild.
+        """
         system = mb.load(file_path)
-        mass = sum(
-                [ele.element_from_symbol(p.name).mass
-                for p in system.particles()]
-                )
+        if mass == None:
+            try:
+                mass = sum(
+                    [ele.element_from_symbol(p.name).mass
+                    for p in system.particles()]
+                    )
+            except:
+                raise ValueError(
+                        "mBuild was not able to determine the mass "
+                        "of the system, use the mass parameter to "
+                        "manually define the system's mass"
+                        )
         self.system_mass += mass
         return system
 
