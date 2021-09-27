@@ -401,7 +401,7 @@ class Simulation:
                 finally:
                     gsd_restart.write_restart()
 
-    def tensile(self, kT, strain, n_steps, expand_period):
+    def tensile(self, kT, strain, n_steps, expand_period, scale=True):
         hoomd_args = f"--single-mpi --mode={self.mode}"
         sim = hoomd.context.initialize(hoomd_args)
         with sim:
@@ -455,7 +455,7 @@ class Simulation:
                 [(0, init_snap.box.Lx), (n_steps, target_length)]
             )
             box_updater = hoomd.update.box_resize(
-                    Lx=x_variant, period=expand_period
+                    Lx=x_variant, period=expand_period, scale_particles=scale
                     )
             # Set up walls along tensile axis
             wall_origin = (init_snap.box.Lx / 2, 0, 0)
