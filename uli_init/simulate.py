@@ -468,7 +468,7 @@ class Simulation:
             hoomd.dump.gsd(
                     "not_fixed_traj.gsd",
                     period=self.gsd_write,
-                    group=_all_fixed,
+                    group=_integrate,
                     phase=0,
                     dynamic=["momentum"],
                     overwrite=False
