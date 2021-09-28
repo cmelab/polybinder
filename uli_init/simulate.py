@@ -419,25 +419,30 @@ class Simulation:
             hoomd_system = objs[1]
             init_snap = objs[0]
             # Set up groups, based in fix length along X
-            fix_length = init_snap.Lx * x_fix
+            fix_length = (init_snap.box.Lx / 2) * x_fix
             fix_left = hoomd.group.cuboid( # Negative x side of box
-
                     name="left",
-                    x_min=-init_snap.box.Lx,
-                    x_max=-init_snap.box.Lx + fix_length
+                    xmin=-init_snap.box.Lx / 2,
+                    xmax=(-init_snap.box.Lx / 2)  + fix_length
                 )
             # Positive x side of box
             fix_right = hoomd.group.cuboid(
                     name="right",
-                    xmin=init_snap.box.Lx - fix_length,
-                    x_max=init_snap.box.Lx
+                    xmin=(init_snap.box.Lx / 2) - fix_length,
+                    xmax=init_snap.box.Lx / 2
                 )
-            _all_fixed = hoomd.group.union(name="fixed", fix_left, fix_right)
+            _all_fixed = hoomd.group.union(
+                    name="fixed", a=fix_left, b=fix_right
+                )
             _all = hoomd.group.all()
             _integrate = hoomd.group.difference(
-                    name="integrate", _all, _all_fixed
+                    name="integrate", a=_all, b=_all_fixed
                     )
-
+            assert(
+                len([p for p in _integrate]) == (len([p for p in _all]) -
+                    len([p for p in _all_fixed])
+                    )
+                )
             hoomd.md.integrate.mode_standard(dt=self.dt)
             integrator = hoomd.md.integrate.nve(
                     group=_integrate, limit=None, zero_force=False
@@ -448,6 +453,22 @@ class Simulation:
                     "sim_traj.gsd",
                     period=self.gsd_write,
                     group=_all,
+                    phase=0,
+                    dynamic=["momentum"],
+                    overwrite=False
+                )
+            hoomd.dump.gsd(
+                    "fixed_traj.gsd",
+                    period=self.gsd_write,
+                    group=_all_fixed,
+                    phase=0,
+                    dynamic=["momentum"],
+                    overwrite=False
+                )
+            hoomd.dump.gsd(
+                    "not_fixed_traj.gsd",
+                    period=self.gsd_write,
+                    group=_all_fixed,
                     phase=0,
                     dynamic=["momentum"],
                     overwrite=False
@@ -478,43 +499,23 @@ class Simulation:
             box_updater = hoomd.update.box_resize(
                     Lx=x_variant, period=expand_period, scale_particles=scale
                     )
-            ###########################
-            # Set up walls along tensile axis
-            wall_origin = (init_snap.box.Lx / 2, 0, 0)
-            normal_vector = (-1, 0, 0)
-            wall_origin2 = (-init_snap.box.Lx / 2, 0, 0)
-            normal_vector2 = (1, 0, 0)
-            walls = wall.group(
-                wall.plane(
-                    origin=wall_origin, normal=normal_vector, inside=True
-                    ),
-                wall.plane(
-                    origin=wall_origin2, normal=normal_vector2, inside=True
-                    ),
-            )
-            wall_force = wall.lj(walls, r_cut=2.5)
-            wall_force.force_coeff.set(
-                init_snap.particles.types,
-                sigma=1.0,
-                epsilon=1.0,
-                r_extrap=0
-            )
-            ################################
-        step = 0
-        last_Lx = init_snap.Lx
-        while step < n_steps:
-            try:
-                hoomd.run_upto(step + expand_period)
-                current_box = hoomd_system.box
-                scale_by = current_box.Lx / last_Lx
-
-                ###############
-                #walls.del_plane([0, 1])
-                #walls.add_plane((current_box.Lx / 2, 0, 0), normal_vector)
-                #walls.add_plane((-current_box.Lx / 2, 0, 0),normal_vector2)
-                #############33
-                step += expand_period
-            except hoomd.WalltimeLimitReached:
-                pass
-            finally:
-                gsd_restart.write_restart()
+            # Start simulation run
+            step = 0
+            last_Lx = init_snap.box.Lx
+            while step < n_steps:
+                try:
+                    hoomd.run_upto(step + expand_period)
+                    current_box = hoomd_system.box
+                    scale_by = current_box.Lx / last_Lx
+                    for particle in _all_fixed:
+                        new_x = particle.position[0] * scale_by
+                        particle.position = (
+                            new_x, particle.position[1], particle.position[2]
+                        )
+                    step += expand_period
+                    last_Lx = current_box.Lx
+                    step += expand_period
+                except hoomd.WalltimeLimitReached:
+                    pass
+                finally:
+                    gsd_restart.write_restart()
