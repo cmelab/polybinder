@@ -507,6 +507,10 @@ class Simulation:
                     hoomd.run_upto(step + expand_period)
                     current_box = hoomd_system.box
                     scale_by = current_box.Lx / last_Lx
+                    diff = current_box.Lx - last_Lx
+                    print("######################")
+                    print(scale_by, diff)
+                    print("######################")
                     for particle in _all_fixed:
                         new_x = particle.position[0] * scale_by
                         particle.position = (
