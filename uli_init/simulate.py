@@ -401,7 +401,9 @@ class Simulation:
                 finally:
                     gsd_restart.write_restart()
 
-    def tensile(self, kT, strain, n_steps, expand_period, scale=True):
+    def tensile(self, kT, strain, n_steps, expand_period, scale=True, x_fix=0.05):
+        """
+        """
         hoomd_args = f"--single-mpi --mode={self.mode}"
         sim = hoomd.context.initialize(hoomd_args)
         with sim:
@@ -416,10 +418,29 @@ class Simulation:
                 )
             hoomd_system = objs[1]
             init_snap = objs[0]
+            # Set up groups, based in fix length along X
+            fix_length = init_snap.Lx * x_fix
+            fix_left = hoomd.group.cuboid( # Negative x side of box
+
+                    name="left",
+                    x_min=-init_snap.box.Lx,
+                    x_max=-init_snap.box.Lx + fix_length
+                )
+            # Positive x side of box
+            fix_right = hoomd.group.cuboid(
+                    name="right",
+                    xmin=init_snap.box.Lx - fix_length,
+                    x_max=init_snap.box.Lx
+                )
+            _all_fixed = hoomd.group.union(name="fixed", fix_left, fix_right)
             _all = hoomd.group.all()
+            _integrate = hoomd.group.difference(
+                    name="integrate", _all, _all_fixed
+                    )
+
             hoomd.md.integrate.mode_standard(dt=self.dt)
             integrator = hoomd.md.integrate.nve(
-                    group=_all, limit=None, zero_force=False
+                    group=_integrate, limit=None, zero_force=False
                     )
             integrator.randomize_velocities(kT, seed=self.seed)
 
@@ -457,6 +478,7 @@ class Simulation:
             box_updater = hoomd.update.box_resize(
                     Lx=x_variant, period=expand_period, scale_particles=scale
                     )
+            ###########################
             # Set up walls along tensile axis
             wall_origin = (init_snap.box.Lx / 2, 0, 0)
             normal_vector = (-1, 0, 0)
@@ -477,15 +499,20 @@ class Simulation:
                 epsilon=1.0,
                 r_extrap=0
             )
-
+            ################################
         step = 0
+        last_Lx = init_snap.Lx
         while step < n_steps:
             try:
                 hoomd.run_upto(step + expand_period)
                 current_box = hoomd_system.box
-                walls.del_plane([0, 1])
-                walls.add_plane((current_box.Lx / 2, 0, 0), normal_vector)
-                walls.add_plane((-current_box.Lx / 2, 0, 0),normal_vector2)
+                scale_by = current_box.Lx / last_Lx
+
+                ###############
+                #walls.del_plane([0, 1])
+                #walls.add_plane((current_box.Lx / 2, 0, 0), normal_vector)
+                #walls.add_plane((-current_box.Lx / 2, 0, 0),normal_vector2)
+                #############33
                 step += expand_period
             except hoomd.WalltimeLimitReached:
                 pass
