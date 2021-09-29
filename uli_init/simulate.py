@@ -401,7 +401,14 @@ class Simulation:
                 finally:
                     gsd_restart.write_restart()
 
-    def tensile(self, kT, strain, n_steps, expand_period, scale=True, x_fix=0.05):
+    def tensile(self,
+            kT,
+            strain,
+            n_steps,
+            expand_period,
+            scale=False,
+            x_fix=0.05
+            ):
         """
         """
         hoomd_args = f"--single-mpi --mode={self.mode}"
@@ -481,7 +488,6 @@ class Simulation:
                     overwrite=True,
                     phase=0
                 )
-
             gsd_restart = hoomd.dump.gsd(
                     "restart.gsd",
                     period=self.gsd_write,
@@ -492,7 +498,7 @@ class Simulation:
                 )
             
             # Set up volume expansion
-            target_length = init_snap.box.Lx*(1+strain)
+            target_length = init_snap.box.Lx*(1 + strain)
             x_variant = hoomd.variant.linear_interp(
                 [(0, init_snap.box.Lx), (n_steps, target_length)]
             )
@@ -506,19 +512,22 @@ class Simulation:
                 try:
                     hoomd.run_upto(step + expand_period)
                     current_box = hoomd_system.box
-                    scale_by = current_box.Lx / last_Lx
                     diff = current_box.Lx - last_Lx
-                    print("######################")
-                    print(scale_by, diff)
-                    print("######################")
-                    for particle in _all_fixed:
-                        new_x = particle.position[0] * scale_by
+                    for particle in fix_left:
                         particle.position = (
-                            new_x, particle.position[1], particle.position[2]
-                        )
+                                    particle.position[0] - (diff / 2),
+                                    particle.position[1],
+                                    particle.position[2]
+                                )
+                    for particle in fix_right:
+                        particle.position = (
+                                    particle.position[0] + (diff / 2),
+                                    particle.position[1],
+                                    particle.position[2]
+                                )
+
                     step += expand_period
                     last_Lx = current_box.Lx
-                    step += expand_period
                 except hoomd.WalltimeLimitReached:
                     pass
                 finally:
