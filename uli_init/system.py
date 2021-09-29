@@ -536,11 +536,17 @@ class FusedInterface:
         self.ref_distance = ref_distance
         self.system_type = "interface"
         system = _gsd_to_mbuild(self.gsd_file, self.ref_distance)
-        system_box = mb.box.Box.from_mins_maxs_angles(
-                mins= -system.get_boundingbox().lengths / 2,
-                maxs = system.get_boundingbox().lengths / 2,
+        system.box = mb.box.Box.from_mins_maxs_angles(
+                mins=(0,0,0),
+                maxs=system.get_boundingbox().lengths,
                 angles = (90, 90, 90)
             )
+        system.translate_to(
+                [system.box.Lx / 2,
+                system.box.Ly / 2,
+                system.box.Lz / 2,]
+            )
+
         ff_path = f"{FF_DIR}/gaff-nosmarts.xml"
         forcefield = foyer.Forcefield(forcefield_files=ff_path)
         self.system = forcefield.apply(system)
