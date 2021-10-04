@@ -175,6 +175,7 @@ class Simulation:
                 )
 
                 # Update wall origins during shrinking
+                momentum = hoomd.md.update.zero_momentum(period=shrink_steps)
                 if use_walls:
                     step = 0
                     while step < shrink_steps:
@@ -192,6 +193,8 @@ class Simulation:
                 else:
                     hoomd.run_upto(shrink_steps)
                 box_updater.disable()
+                momentum.disable()
+
 
             gsd_restart = hoomd.dump.gsd(
                 "restart.gsd",
