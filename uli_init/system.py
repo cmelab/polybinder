@@ -390,6 +390,28 @@ class Initialize:
                 )
         return crystal
 
+    def coarse_grain_system(self, bead_mapping=None, segment_length=None):
+        #self.system_parms.molecule_sequences.append(mol_sequence)
+        try:
+            from paek_cg.coarse_grain import System
+        except ImportError:
+            print("You first need to install paek_cg " +
+                    "before generating coarse grain systems."
+                    )
+
+        if self.system_parms.molecule == "PEEK":
+            atoms_per_monomer = 35
+            if self.remove_hydrogens:
+                atoms_per_monomer -= 11
+        elif self.system_parms.molecule == "PEKK":
+            atoms_per_monomer=36
+            if self.remove_hydrogens:
+                atoms_per_monomer -= 11
+
+        atomistic_gsd = self.system.save("cg_input_gsd.gsd")
+        cg_system = System(atoms_per_monomer, atomistic_gsd)
+        
+
     def custom(self, file_path, mass=None):
         """Initializes a system from a file.
         Check mbuild for allowable file types
