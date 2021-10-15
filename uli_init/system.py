@@ -399,18 +399,44 @@ class Initialize:
                     "before generating coarse grain systems."
                     )
 
+        if self.forcefield is not None:
+            raise ValueError(
+                    "If you want to coarse grain, set forcefield=None"
+                    " when initializing the system"
+                    )
         if self.system_parms.molecule == "PEEK":
-            atoms_per_monomer = 35
+            atoms_per_monomer = 36
             if self.remove_hydrogens:
-                atoms_per_monomer -= 11
+                atoms_per_monomer -= 14
+                for p in [p for p in self.system.particles_by_name("H")]:
+                    self.system.remove(p)
         elif self.system_parms.molecule == "PEKK":
-            atoms_per_monomer=36
+            atoms_per_monomer=37
             if self.remove_hydrogens:
-                atoms_per_monomer -= 11
+                atoms_per_monomer -= 14
+                for p in [p for p in self.system.particles_by_name("H")]:
+                    self.system.remove(p)
+        # Save mbuild system to gsd file, and resort bond group
+        atomistic_gsd = self.system.save("mbuild_gsd.gsd", overwrite=True)
+        with gsd.hoomd.open("mbuild_gsd.gsd", "rb") as f:
+            snap = f[0]
+            bond_array = snap.bonds.group
+            sorted_bond_array = bond_array[bond_array[:, 0].argsort()]
+            snap.bonds.group = sorted_bond_array
+        with gsd.hoomd.open("mbuild_gsd.gsd", "wb") as f:
+            f.append(snap)       
 
-        atomistic_gsd = self.system.save("cg_input_gsd.gsd")
-        cg_system = System(atoms_per_monomer, atomistic_gsd)
-        
+        cg_system = System(atoms_per_monomer, "mbuild_gsd.gsd")
+        if any([bead_mapping, segment_length]):
+            raise ValueError(
+                    "Only a mapping scheme of 1 monomer --> 1 bead "
+                    "is currently supported"
+                    )
+        for idx, mol in enumerate(cg_system.molecules):
+            mol.sequence = self.system_parms.molecule_sequences[idx]
+            mol.assign_types()
+        cg_snap = cg_system.coarse_grain_snap(use_monomers=True)
+        self.system = cg_snap
 
     def custom(self, file_path, mass=None):
         """Initializes a system from a file.
