@@ -390,7 +390,23 @@ class Initialize:
                 )
         return crystal
 
-    def coarse_grain_system(self, bead_mapping=None, segment_length=None):
+    def coarse_grain_system(
+            self,
+            ref_distance,
+            ref_mass,
+            bead_mapping=None,
+            segment_length=None
+            ):
+        """
+        ref_distance : float, required
+            The reference distance to scale particle positions by.
+            Enter the distance in units of nm as they are scaled
+            in the mBuild compound.
+        ref_mass : float, required
+            The reference mass to scale particle masses by.
+            Enter the mass in amu as they are scaled in the
+            mBuild compound.
+        """
         #self.system_parms.molecule_sequences.append(mol_sequence)
         try:
             from paek_cg.coarse_grain import System
@@ -416,6 +432,10 @@ class Initialize:
                 atoms_per_monomer -= 14
                 for p in [p for p in self.system.particles_by_name("H")]:
                     self.system.remove(p)
+        # Scale the positions and mass of the atoms
+        for p in self.system.particles():
+            p.xyz / ref_distance
+            p.mass / ref_mass
         # Save mbuild system to gsd file, and resort bond group
         atomistic_gsd = self.system.save("mbuild_gsd.gsd", overwrite=True)
         with gsd.hoomd.open("mbuild_gsd.gsd", "rb") as f:
