@@ -1,11 +1,14 @@
 import operator
 
 import gsd
+import gsd.hoomd
 import hoomd
 import hoomd.md
 import numpy as np
+import parmed as pmd
 from hoomd.md import wall
 from mbuild.formats.hoomd_simulation import create_hoomd_simulation
+from uli_init.library import COMPOUND_DIR, SYSTEM_DIR, FF_DIR
 
 
 class Simulation:
@@ -26,7 +29,6 @@ class Simulation:
         seed=42,
     ):
 
-        self.system_pmd = system.system # Parmed structure
         self.r_cut = r_cut
         self.e_factor = e_factor
         self.tau_kt = tau_kt
@@ -39,15 +41,29 @@ class Simulation:
         self.gsd_write = gsd_write
         self.log_write = log_write
         self.seed = seed
-
-        if ref_units and not auto_scale:
+        if isinstance(system.system, gsd.hoomd.snapshot):
+            assert ref_units != None, (
+                    "Autoscaling is not supported for coarse-grained systems."
+                    "Provide the relevant reference units"
+                    )
+            self.cg_system = True
             self.ref_energy = ref_units["energy"]
             self.ref_distance = ref_units["distance"]
             self.ref_mass = ref_units["mass"]
-        # Pulled from mBuild hoomd_simulation.py
-        elif auto_scale and not ref_units:
-            self.ref_mass = max([atom.mass for atom in self.system_pmd.atoms])
-            pair_coeffs = list(
+            self.system = system.system
+        elif isinstance(system.system, pmd.Structure):
+            self.system = system.system
+            self.cg_system = False
+            if ref_units and not auto_scale:
+                self.ref_energy = ref_units["energy"]
+                self.ref_distance = ref_units["distance"]
+                self.ref_mass = ref_units["mass"]
+            # Pulled from mBuild hoomd_simulation.py
+            elif auto_scale and not ref_units:
+                self.ref_mass = max(
+                        [atom.mass for atom in self.system_pmd.atoms]
+                        )
+                pair_coeffs = list(
                 set(
                     (atom.type, atom.epsilon, atom.sigma)
                     for atom in self.system_pmd.atoms
@@ -70,6 +86,55 @@ class Simulation:
             "bond_harmonic_energy",
             "angle_harmonic_energy",
         ]
+
+    def set_bonding_coefficients(self, bond_dicts, angle_dicts):
+        """
+        """
+        bond_objs = []
+        for b in bond_dicts:
+            bond_name = "f{b["type1"]}-{b["type2"]}"
+            k = b["k"]
+            r0 = b["r0"]
+            bond_objs.append(
+                    f"harmonic_bond.bond_coeff.set({bond_name},k={k}, r0={r0})"
+                )
+
+
+
+    def create_hoomd_sim_from_snapshot(self):
+        hoomd_system = hoomd.init.read_snapshot(self.system)
+        
+        nlist = self.nlist
+        table = hoomd.md.pair.table(width=101, nlist=nlist)
+        for pair in self.system.bonds.types:
+            table_pot_file = 
+        
+
+        harmonic_bond = hoomd.md.bond.harmonic()
+        harmonic_angle = hoomd.md.angle.harmonic()
+        for bond in self.bond_dicts:
+            name = "-".join(bond["type1"], bond["type2"])
+            k, r0 = bond["k"], bond["r0"]
+            harmonic_bond.bond_coeff.set(name, k, r0)
+        for angle in self.angle_dicts:
+            name = "-".join(
+                    angle["type1"], angle["type2"], angle["type3"]
+                )
+            k, theta0 = angle["k"], angle["theta0"]
+            harmonic_angle.angle_coeff.set(
+                    name, k, theta0
+                )
+        hoomd_objs = [
+                self.system,
+                hoomd_system,
+                nlist, table,
+                harmonic_bond,
+                harmonic_angle,
+            ]
+                
+        return hoomd_obs 
+
+        
 
     def quench(
         self,
@@ -95,17 +160,22 @@ class Simulation:
         hoomd_args = f"--single-mpi --mode={self.mode}"
         sim = hoomd.context.initialize(hoomd_args)
         with sim:
-            objs, refs = create_hoomd_simulation(
-                self.system_pmd,
-                self.ref_distance,
-                self.ref_mass,
-                self.ref_energy,
-                self.r_cut,
-                self.auto_scale,
-                nlist=self.nlist
-            )
-            hoomd_system = objs[1]
-            init_snap = objs[0]
+            if self.cg_system is False:
+                objs, refs = create_hoomd_simulation(
+                    self.system_pmd,
+                    self.ref_distance,
+                    self.ref_mass,
+                    self.ref_energy,
+                    self.r_cut,
+                    self.auto_scale,
+                    nlist=self.nlist
+                )
+                hoomd_system = objs[1]
+                init_snap = objs[0]
+            elif self.cg_system is True:
+                init_snap = self.system
+                hoomd_system = hoomd.init.read_snapshot(self.system)
+
             _all = hoomd.group.all()
             hoomd.md.integrate.mode_standard(dt=self.dt)
 

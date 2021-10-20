@@ -407,7 +407,6 @@ class Initialize:
             Enter the mass in amu as they are scaled in the
             mBuild compound.
         """
-        #self.system_parms.molecule_sequences.append(mol_sequence)
         try:
             from paek_cg.coarse_grain import System
         except ImportError:
