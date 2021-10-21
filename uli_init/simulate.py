@@ -27,8 +27,8 @@ class Simulation:
         gsd_write=1e4,
         log_write=1e3,
         seed=42,
-        bond_dict=None,
-        angle_dict=None
+        bond_dicts=None,
+        angle_dicts=None
     ):
 
         self.r_cut = r_cut
@@ -43,15 +43,15 @@ class Simulation:
         self.gsd_write = gsd_write
         self.log_write = log_write
         self.seed = seed
-        self.bond_dict = bond_dict
-        self.angle_dict = angle_dict
+        self.bond_dicts = bond_dicts
+        self.angle_dicts = angle_dicts
 
-        if isinstance(system.system, gsd.hoomd.snapshot):
+        if isinstance(system.system, str):
             assert ref_units != None, (
                     "Autoscaling is not supported for coarse-grained systems."
                     "Provide the relevant reference units"
                     )
-            assert all([self.bond_dict, self.angle_dict]), (
+            assert all([self.bond_dicts, self.angle_dicts]), (
                     "If using a coarse-grain system, pass in the bonding "
                     "and angle information via the bond_dict and angle_dict "
                     "parameters."
@@ -99,43 +99,46 @@ class Simulation:
 
 
     def create_hoomd_sim_from_snapshot(self):
-        hoomd_system = hoomd.init.read_snapshot(self.system)
-        table = hoomd.md.pair.table(width=101, nlist=self.nlist)
-        for pair in [list(i) for i in combo(self.system.particles.types, r=2)]:
+        hoomd_system = hoomd.init.read_gsd(self.system)
+        nlist = self.nlist()
+        with gsd.hoomd.open(self.system, "rb") as f:
+            init_snap = f[0]
+        table = hoomd.md.pair.table(width=101, nlist=nlist)
+        for pair in [list(i) for i in combo(init_snap.particles.types, r=2)]:
             pair.sort()
             _pair = "-".join(pair)
             table_pot_file = f"{FF_DIR}/{_pair}.txt"
             table.set_from_file(
-                f"{pair[0]}", "{pair[1]}", filename='{table_pot_file}'
+                f"{pair[0]}", f"{pair[1]}", filename=f"{table_pot_file}"
             )
         # Create bond and angle objects 
         harmonic_bond = hoomd.md.bond.harmonic()
-        harmonic_angle = hoomd.md.angle.harmonic()
         for bond in self.bond_dicts:
-            bond_pair = [bond["type1"], bond["type2"].sort()
+            bond_pair = sorted([bond["type1"], bond["type2"]])
             name = "-".join(bond_pair)
-            k, r0 = bond["k"], bond["r0"]
-            harmonic_bond.bond_coeff.set(name, k, r0)
+            k = bond["k"]
+            r0 = bond["r0"]
+            harmonic_bond.bond_coeff.set(name, k=k, r0=r0)
+
+        harmonic_angle = hoomd.md.angle.harmonic()
         for angle in self.angle_dicts:
             name = "-".join(
-                    angle["type1"], angle["type2"], angle["type3"]
+                    [angle["type1"], angle["type2"], angle["type3"]]
                 )
-            k, theta0 = angle["k"], angle["theta0"]
-            harmonic_angle.angle_coeff.set(
-                    name, k, theta0
-                )
+            k = angle["k"]
+            theta0 = angle["theta0"]
+            harmonic_angle.angle_coeff.set(name, k=k, t0=theta0)
+
         hoomd_objs = [
-                self.system,
+                init_snap,
                 hoomd_system,
-                self.nlist,
+                nlist,
                 table,
                 harmonic_bond,
                 harmonic_angle,
             ]
                 
         return hoomd_objs 
-
-        
 
     def quench(
         self,
@@ -171,11 +174,16 @@ class Simulation:
                     self.auto_scale,
                     nlist=self.nlist
                 )
+                init_x = objs[0].box.Lx
+                init_y = objs[0].box.Ly
+                init_z = objs[0].box.Lz
             elif self.cg_system is True:
-                objs = create_hoomd_sim_from_snapshot()
+                objs = self.create_hoomd_sim_from_snapshot()
+                init_x = objs[0].configuration.box[0]
+                init_y = objs[0].configuration.box[1]
+                init_z = objs[0].configuration.box[2]
 
             hoomd_system = objs[1]
-            init_snap = objs[0]
             _all = hoomd.group.all()
             hoomd.md.integrate.mode_standard(dt=self.dt)
 
@@ -197,9 +205,9 @@ class Simulation:
             )
 
             if use_walls:
-                wall_origin = (init_snap.box.Lx / 2, 0, 0)
+                wall_origin = (init_x / 2, 0, 0)
                 normal_vector = (-1, 0, 0)
-                wall_origin2 = (-init_snap.box.Lx / 2, 0, 0)
+                wall_origin2 = (-init_x / 2, 0, 0)
                 normal_vector2 = (1, 0, 0)
                 walls = wall.group(
                     wall.plane(
@@ -226,15 +234,15 @@ class Simulation:
                 integrator.randomize_velocities(seed=self.seed)
 
                 x_variant = hoomd.variant.linear_interp([
-                    (0, init_snap.box.Lx),
+                    (0, init_x),
                     (shrink_steps, self.target_box[0])
                 ])
                 y_variant = hoomd.variant.linear_interp([
-                    (0, init_snap.box.Ly),
+                    (0, init_y),
                     (shrink_steps, self.target_box[1])
                 ])
                 z_variant = hoomd.variant.linear_interp([
-                    (0, init_snap.box.Lz),
+                    (0, init_z),
                     (shrink_steps, self.target_box[2])
                 ])
                 box_updater = hoomd.update.box_resize(

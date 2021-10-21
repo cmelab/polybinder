@@ -454,8 +454,10 @@ class Initialize:
         for idx, mol in enumerate(cg_system.molecules):
             mol.sequence = self.system_parms.molecule_sequences[idx]
             mol.assign_types()
-        cg_snap = cg_system.coarse_grain_snap(use_monomers=True)
-        self.system = cg_snap
+        with gsd.hoomd.open("cg_system.gsd", "wb") as f:
+            cg_snap = cg_system.coarse_grain_snap(use_monomers=True)
+            f.append(cg_snap)
+        self.system = os.path.abspath("cg_system.gsd")
 
     def custom(self, file_path, mass=None):
         """Initializes a system from a file.
@@ -568,10 +570,10 @@ class Initialize:
                     self.system_parms.para_weight
                 )
                 mb_compounds.append(polymer)
-                if len(self.system_parms.molecule_sequences) == 0:
-                    self.system_parms.molecule_sequences.append(mol_sequence)
-                    self.system_parms.para += mol_sequence.count("P")
-                    self.system_parms.meta += mol_sequence.count("M")
+                #if len(self.system_parms.molecule_sequences) == 0:
+                self.system_parms.molecule_sequences.append(mol_sequence)
+                self.system_parms.para += mol_sequence.count("P")
+                self.system_parms.meta += mol_sequence.count("M")
             mass = n * sum(
                 [ele.element_from_symbol(p.name).mass
                 for p in polymer.particles()]
