@@ -27,6 +27,8 @@ class Simulation:
         gsd_write=1e4,
         log_write=1e3,
         seed=42,
+        bond_dict=None,
+        angle_dict=None
     ):
 
         self.r_cut = r_cut
@@ -41,10 +43,18 @@ class Simulation:
         self.gsd_write = gsd_write
         self.log_write = log_write
         self.seed = seed
+        self.bond_dict = bond_dict
+        self.angle_dict = angle_dict
+
         if isinstance(system.system, gsd.hoomd.snapshot):
             assert ref_units != None, (
                     "Autoscaling is not supported for coarse-grained systems."
                     "Provide the relevant reference units"
+                    )
+            assert all([self.bond_dict, self.angle_dict]), (
+                    "If using a coarse-grain system, pass in the bonding "
+                    "and angle information via the bond_dict and angle_dict "
+                    "parameters."
                     )
             self.cg_system = True
             self.ref_energy = ref_units["energy"]
@@ -90,19 +100,20 @@ class Simulation:
 
     def create_hoomd_sim_from_snapshot(self):
         hoomd_system = hoomd.init.read_snapshot(self.system)
-        nlist = self.nlist
-        table = hoomd.md.pair.table(width=101, nlist=nlist)
-        for pair in [i for i in combo(self.system.particles.types, r=2)]:
+        table = hoomd.md.pair.table(width=101, nlist=self.nlist)
+        for pair in [list(i) for i in combo(self.system.particles.types, r=2)]:
+            pair.sort()
             _pair = "-".join(pair)
             table_pot_file = f"{FF_DIR}/{_pair}.txt"
             table.set_from_file(
                 f"{pair[0]}", "{pair[1]}", filename='{table_pot_file}'
             )
-        
+        # Create bond and angle objects 
         harmonic_bond = hoomd.md.bond.harmonic()
         harmonic_angle = hoomd.md.angle.harmonic()
         for bond in self.bond_dicts:
-            name = "-".join(bond["type1"], bond["type2"])
+            bond_pair = [bond["type1"], bond["type2"].sort()
+            name = "-".join(bond_pair)
             k, r0 = bond["k"], bond["r0"]
             harmonic_bond.bond_coeff.set(name, k, r0)
         for angle in self.angle_dicts:
@@ -116,7 +127,7 @@ class Simulation:
         hoomd_objs = [
                 self.system,
                 hoomd_system,
-                nlist,
+                self.nlist,
                 table,
                 harmonic_bond,
                 harmonic_angle,
