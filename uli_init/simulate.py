@@ -182,6 +182,7 @@ class Simulation:
                 init_x = objs[0].configuration.box[0]
                 init_y = objs[0].configuration.box[1]
                 init_z = objs[0].configuration.box[2]
+                self.log_quantities.remove("pair_lj_energy")
 
             hoomd_system = objs[1]
             _all = hoomd.group.all()
