@@ -87,19 +87,6 @@ class Simulation:
             "angle_harmonic_energy",
         ]
 
-    def set_bonding_coefficients(self, bond_dicts, angle_dicts):
-        """
-        """
-        bond_objs = []
-        for b in bond_dicts:
-            bond_name = "f{b["type1"]}-{b["type2"]}"
-            k = b["k"]
-            r0 = b["r0"]
-            bond_objs.append(
-                    f"harmonic_bond.bond_coeff.set({bond_name},k={k}, r0={r0})"
-                )
-
-
 
     def create_hoomd_sim_from_snapshot(self):
         hoomd_system = hoomd.init.read_snapshot(self.system)
@@ -109,10 +96,9 @@ class Simulation:
             _pair = "-".join(pair)
             table_pot_file = f"{FF_DIR}/{_pair}.txt"
             table.set_from_file(
-                f"{_pair[0]}", "{_pair[1]}", filename='{table_pot_file}'
+                f"{pair[0]}", "{pair[1]}", filename='{table_pot_file}'
             )
         
-
         harmonic_bond = hoomd.md.bond.harmonic()
         harmonic_angle = hoomd.md.angle.harmonic()
         for bond in self.bond_dicts:
@@ -130,12 +116,13 @@ class Simulation:
         hoomd_objs = [
                 self.system,
                 hoomd_system,
-                nlist, table,
+                nlist,
+                table,
                 harmonic_bond,
                 harmonic_angle,
             ]
                 
-        return hoomd_obs 
+        return hoomd_objs 
 
         
 
@@ -173,12 +160,11 @@ class Simulation:
                     self.auto_scale,
                     nlist=self.nlist
                 )
-                hoomd_system = objs[1]
-                init_snap = objs[0]
             elif self.cg_system is True:
-                init_snap = self.system
-                hoomd_system = hoomd.init.read_snapshot(self.system)
+                objs = create_hoomd_sim_from_snapshot()
 
+            hoomd_system = objs[1]
+            init_snap = objs[0]
             _all = hoomd.group.all()
             hoomd.md.integrate.mode_standard(dt=self.dt)
 
@@ -268,7 +254,6 @@ class Simulation:
                 box_updater.disable()
                 momentum.disable()
 
-
             gsd_restart = hoomd.dump.gsd(
                 "restart.gsd",
                 period=self.gsd_write,
@@ -336,15 +321,19 @@ class Simulation:
         hoomd_args = f"--single-mpi --mode={self.mode}"
         sim = hoomd.context.initialize(hoomd_args)
         with sim:
-            objs, refs = create_hoomd_simulation(
-                self.system_pmd,
-                self.ref_distance,
-                self.ref_mass,
-                self.ref_energy,
-                self.r_cut,
-                self.auto_scale,
-                nlist=self.nlist
-            )
+            if self.cg_system is False:
+                objs, refs = create_hoomd_simulation(
+                    self.system_pmd,
+                    self.ref_distance,
+                    self.ref_mass,
+                    self.ref_energy,
+                    self.r_cut,
+                    self.auto_scale,
+                    nlist=self.nlist
+                )
+            elif self.cg_system is True:
+                objs = create_hoomd_sim_from_snapshot()
+
             hoomd_system = objs[1]
             init_snap = objs[0]
             _all = hoomd.group.all()
