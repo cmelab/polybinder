@@ -1,5 +1,5 @@
 import operator
-
+from itertools import combinations_with_replacement as combo
 import gsd
 import gsd.hoomd
 import hoomd
@@ -103,11 +103,14 @@ class Simulation:
 
     def create_hoomd_sim_from_snapshot(self):
         hoomd_system = hoomd.init.read_snapshot(self.system)
-        
         nlist = self.nlist
         table = hoomd.md.pair.table(width=101, nlist=nlist)
-        for pair in self.system.bonds.types:
-            table_pot_file = 
+        for pair in [i for i in combo(self.system.particles.types, r=2)]:
+            _pair = "-".join(pair)
+            table_pot_file = f"{FF_DIR}/{_pair}.txt"
+            table.set_from_file(
+                f"{_pair[0]}", "{_pair[1]}", filename='{table_pot_file}'
+            )
         
 
         harmonic_bond = hoomd.md.bond.harmonic()
