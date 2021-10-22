@@ -436,6 +436,8 @@ class Initialize:
         for p in self.system.particles():
             p.xyz /= ref_distance
             p.mass /= ref_mass
+        new_box = np.array(self.system.box.lengths) / ref_distance
+        self.system.box = mb.Box.from_lengths_angles(new_box, [90,90,90])
         # Save mbuild system to gsd file, and resort bond group
         atomistic_gsd = self.system.save("mbuild_gsd.gsd", overwrite=True)
         with gsd.hoomd.open("mbuild_gsd.gsd", "rb") as f:
