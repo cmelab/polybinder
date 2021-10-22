@@ -410,8 +410,9 @@ class Initialize:
         try:
             from paek_cg.coarse_grain import System
         except ImportError:
-            print("You first need to install paek_cg " +
-                    "before generating coarse grain systems."
+            raise ImportError(
+            ("You first need to install paek_cg "
+             "before generating coarse grain systems."
                     )
 
         if self.forcefield is not None:
