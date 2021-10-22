@@ -55,6 +55,16 @@ class Simulation:
     angle_dicts : dict, default None
         Dictionary of angle groups and parameters (k, theta0).
         Use when initializing coarse-grained simulations.
+    
+    Methods
+    -------
+    quench: Runs a hoomd simulation
+        Run a simulation at a single temperature in NVT or a single
+        temperature and pressure in NPT
+    anneal: Runs a hoomd simulation
+        Define a schedule of temperature and steps to follow over the
+        course of the simulation. Can be used in NVT or NPT at a single
+        pressure.
     """
     def __init__(
         self,
