@@ -199,7 +199,7 @@ class System:
         return mass_dict
 
 
-class Initialize:
+class Initializer:
     def __init__(
             self,
             system,
