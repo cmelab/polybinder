@@ -56,11 +56,11 @@ class Simulation:
                     "and angle information via the bond_dict and angle_dict "
                     "parameters."
                     )
+            self.system = system.system
             self.cg_system = True
             self.ref_energy = ref_units["energy"]
             self.ref_distance = ref_units["distance"]
             self.ref_mass = ref_units["mass"]
-            self.system = system.system
         elif isinstance(system.system, pmd.Structure):
             self.system = system.system
             self.cg_system = False
@@ -97,7 +97,6 @@ class Simulation:
             "angle_harmonic_energy",
         ]
 
-
     def create_hoomd_sim_from_snapshot(self):
         hoomd_system = hoomd.init.read_gsd(self.system)
         nlist = self.nlist()
@@ -105,8 +104,7 @@ class Simulation:
             init_snap = f[0]
         table = hoomd.md.pair.table(width=101, nlist=nlist)
         for pair in [list(i) for i in combo(init_snap.particles.types, r=2)]:
-            pair.sort()
-            _pair = "-".join(pair)
+            _pair = "-".join(sorted(pair))
             table_pot_file = f"{FF_DIR}/{_pair}.txt"
             table.set_from_file(
                 f"{pair[0]}", f"{pair[1]}", filename=f"{table_pot_file}"
@@ -137,7 +135,6 @@ class Simulation:
                 harmonic_bond,
                 harmonic_angle,
             ]
-                
         return hoomd_objs 
 
     def quench(
@@ -179,10 +176,10 @@ class Simulation:
                 init_z = objs[0].box.Lz
             elif self.cg_system is True:
                 objs = self.create_hoomd_sim_from_snapshot()
+                self.log_quantities.remove("pair_lj_energy")
                 init_x = objs[0].configuration.box[0]
                 init_y = objs[0].configuration.box[1]
                 init_z = objs[0].configuration.box[2]
-                self.log_quantities.remove("pair_lj_energy")
 
             hoomd_system = objs[1]
             _all = hoomd.group.all()
