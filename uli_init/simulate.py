@@ -12,17 +12,60 @@ from uli_init.library import COMPOUND_DIR, SYSTEM_DIR, FF_DIR
 
 
 class Simulation:
+    """The simulation context management class.
+
+    This class takes the output of the Initialization class
+    and sets up a hoomd-blue simulation.
+
+    Parameters
+    ----------
+    system : system.Initializer
+        The system created in uli_init.system
+    r_cut : float, default 2.5
+        Cutoff radius for potentials (in simulation distance units)
+    tau_kt : float, default 0.1
+        Thermostat coupling period (in simulation time units)
+    tau_p : float, default None
+        Barostat coupling period (in simulation time units)
+    nlist : str, default `cell`
+        Type of neighborlist to use. Options are "cell", "tree", and "stencil".
+        See https://hoomd-blue.readthedocs.io/en/stable/nlist.html and
+        https://hoomd-blue.readthedocs.io/en/stable/module-md-nlist.html
+    dt : float, default 0.0001
+        Size of simulation timestep (in simulation time units)
+    auto_scale : bool, default True
+        Set to true to use reduced simulation units.
+        distance, mass, and energy are scaled by the largest value
+        present in the system for each.
+    ref_values : dict, default None
+        Define the reference units for distance, mass, energy.
+        Set auto_scale to False to define your own reference values.
+    mode : str, default "gpu"
+        Mode flag passed to hoomd.context.initialize. Options are "cpu" and
+        "gpu".
+    gsd_write : int, default 1e4
+        Period to write simulation snapshots to gsd file.
+    log_write : int, default 1e3
+        Period to write simulation data to the log file.
+    seed : int, default 42
+        Seed passed to integrator when randomizing velocities.
+    bond_dicts : dict, default None
+        Dictionary of bond pairs and parameters (k, r0).
+        Use when initializing coarse-grained simulations.
+    angle_dicts : dict, default None
+        Dictionary of angle groups and parameters (k, theta0).
+        Use when initializing coarse-grained simulations.
+    """
     def __init__(
         self,
         system,
         r_cut=2.5,
-        e_factor=0.5,
         tau_kt=0.1,
         tau_p=None,
         nlist="cell",
         dt=0.0001,
         auto_scale=True,
-        ref_units=None,
+        ref_values=None,
         mode="gpu",
         gsd_write=1e4,
         log_write=1e3,
@@ -30,7 +73,6 @@ class Simulation:
         bond_dicts=None,
         angle_dicts=None
     ):
-
         self.r_cut = r_cut
         self.e_factor = e_factor
         self.tau_kt = tau_kt
@@ -38,7 +80,7 @@ class Simulation:
         self.nlist = getattr(hoomd.md.nlist, nlist.lower())
         self.dt = dt
         self.auto_scale = auto_scale
-        self.ref_units = ref_units
+        self.ref_values = ref_values
         self.mode = mode
         self.gsd_write = gsd_write
         self.log_write = log_write
@@ -47,7 +89,7 @@ class Simulation:
         self.angle_dicts = angle_dicts
 
         if isinstance(system.system, str):
-            assert ref_units != None, (
+            assert ref_values != None, (
                     "Autoscaling is not supported for coarse-grained systems."
                     "Provide the relevant reference units"
                     )
@@ -58,18 +100,18 @@ class Simulation:
                     )
             self.system = system.system
             self.cg_system = True
-            self.ref_energy = ref_units["energy"]
-            self.ref_distance = ref_units["distance"]
-            self.ref_mass = ref_units["mass"]
+            self.ref_energy = ref_values["energy"]
+            self.ref_distance = ref_values["distance"]
+            self.ref_mass = ref_values["mass"]
         elif isinstance(system.system, pmd.Structure):
             self.system = system.system
             self.cg_system = False
-            if ref_units and not auto_scale:
-                self.ref_energy = ref_units["energy"]
-                self.ref_distance = ref_units["distance"]
-                self.ref_mass = ref_units["mass"]
+            if ref_values and not auto_scale:
+                self.ref_energy = ref_values["energy"]
+                self.ref_distance = ref_values["distance"]
+                self.ref_mass = ref_values["mass"]
             # Pulled from mBuild hoomd_simulation.py
-            elif auto_scale and not ref_units:
+            elif auto_scale and not ref_values:
                 self.ref_mass = max(
                         [atom.mass for atom in self.system.atoms]
                         )
