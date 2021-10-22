@@ -433,12 +433,14 @@ class Initialize:
                 for p in [p for p in self.system.particles_by_name("H")]:
                     self.system.remove(p)
         # Scale the positions and mass of the atoms
+        print("Scaling particle positions, max, and box")
         for p in self.system.particles():
             p.xyz /= ref_distance
             p.mass /= ref_mass
         new_box = np.array(self.system.box.lengths) / ref_distance
         self.system.box = mb.Box.from_lengths_angles(new_box, [90,90,90])
         # Save mbuild system to gsd file, and resort bond group
+        print("Saving system to a GSD file")
         atomistic_gsd = self.system.save("mbuild_gsd.gsd", overwrite=True)
         with gsd.hoomd.open("mbuild_gsd.gsd", "rb") as f:
             snap = f[0]
@@ -447,7 +449,7 @@ class Initialize:
             snap.bonds.group = sorted_bond_array
         with gsd.hoomd.open("mbuild_gsd.gsd", "wb") as f:
             f.append(snap)       
-
+        print("Coarse-Graining the system")
         cg_system = System(atoms_per_monomer, "mbuild_gsd.gsd")
         if any([bead_mapping, segment_length]):
             raise ValueError(
@@ -457,6 +459,7 @@ class Initialize:
         for idx, mol in enumerate(cg_system.molecules):
             mol.sequence = self.system_parms.molecule_sequences[idx]
             mol.assign_types()
+        print("Saving the coarse-grained GSD file")
         with gsd.hoomd.open("cg_system.gsd", "wb") as f:
             cg_snap = cg_system.coarse_grain_snap(use_monomers=True)
             f.append(cg_snap)
