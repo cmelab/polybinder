@@ -411,14 +411,14 @@ class Initialize:
             from paek_cg.coarse_grain import System
         except ImportError:
             raise ImportError(
-            ("You first need to install paek_cg "
+            "You first need to install paek_cg "
              "before generating coarse grain systems."
                     )
 
         if self.forcefield is not None:
             raise ValueError(
                     "If you want to coarse grain, set forcefield=None"
-                    " when initializing the system"
+                    " when initializing the system."
                     )
         if self.system_parms.molecule == "PEEK":
             atoms_per_monomer = 36
@@ -434,8 +434,8 @@ class Initialize:
                     self.system.remove(p)
         # Scale the positions and mass of the atoms
         for p in self.system.particles():
-            p.xyz / ref_distance
-            p.mass / ref_mass
+            p.xyz /= ref_distance
+            p.mass /= ref_mass
         # Save mbuild system to gsd file, and resort bond group
         atomistic_gsd = self.system.save("mbuild_gsd.gsd", overwrite=True)
         with gsd.hoomd.open("mbuild_gsd.gsd", "rb") as f:
