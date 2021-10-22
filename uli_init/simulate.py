@@ -575,10 +575,24 @@ class Simulation:
             strain,
             n_steps,
             expand_period,
-            scale=False,
             x_fix=0.05
             ):
-        """
+        """Runs a simulation of a tensile test pulling along the x-axis.
+
+        Parameters:
+        -----------
+        strain : float
+            The distance to strain the volume along the x-axis
+            It is the percentage of the initial volume's x length.
+        n_steps : int
+            The number of simulation time steps to run.
+        expand_period : int
+            The number of steps ran between each box update.
+        x_fix : float, default = 0.05
+            The distance along the x-axis to fix particles in place.
+            Treated as a percentage of the initial  volume's x_length.
+            Since particles are fixed on each side, half of x_fix
+            is used for the distance.
         """
         hoomd_args = f"--single-mpi --mode={self.mode}"
         sim = hoomd.context.initialize(hoomd_args)
@@ -672,7 +686,7 @@ class Simulation:
                 [(0, init_snap.box.Lx), (n_steps, target_length)]
             )
             box_updater = hoomd.update.box_resize(
-                    Lx=x_variant, period=expand_period, scale_particles=scale
+                    Lx=x_variant, period=expand_period, scale_particles=False
                     )
             # Start simulation run
             step = 0
