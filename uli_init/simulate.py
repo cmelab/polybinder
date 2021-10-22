@@ -140,6 +140,14 @@ class Simulation:
         ]
 
     def create_hoomd_sim_from_snapshot(self):
+        """Creates needed hoomd objects.
+
+        Similar to the `create_hoomd_simulation` function
+        from mbuild, but designed to work when initializing
+        a system from a gsd file rather than a Parmed structure.
+        Created specifically for using table potentials with
+        coarse-grained systems.
+        """
         hoomd_system = hoomd.init.read_gsd(self.system)
         nlist = self.nlist()
         with gsd.hoomd.open(self.system, "rb") as f:
@@ -189,7 +197,29 @@ class Simulation:
         shrink_period=None,
         use_walls=True,
     ):
-        """"""
+        """Runs a NVT or NPT simulation at a single temperature
+        and pressure.
+
+        Call this funciton after initializing the Simulation class.
+
+        Parameters
+        ----------
+        n_steps : int
+            Number of timesteps to run the simulation.
+        kT : float, default None
+            The dimensionless temperature at which to run the simulation
+        pressure : float, default None
+            The dimensionless pressure at which to run the simulation
+        shrink_kT : float, default None
+            The dimensionless temperature to use during the shrink steps
+        shrink_steps : int, defualt None
+            The number of steps to run during the shrink process
+        shrink_period : int, default None
+            The period between box updates during shrinking
+        use_walls : bool, default True
+            Create LJ wall potentials along the x-axis of the simulation volume.
+            Not compatible with NPT simulations; pressure must be None
+        """
         if use_walls and pressure:
             raise ValueError(
                     "Wall potentials can only be used with the NVT ensemble."
