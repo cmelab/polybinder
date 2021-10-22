@@ -71,12 +71,12 @@ class Simulation:
             # Pulled from mBuild hoomd_simulation.py
             elif auto_scale and not ref_units:
                 self.ref_mass = max(
-                        [atom.mass for atom in self.system_pmd.atoms]
+                        [atom.mass for atom in self.system.atoms]
                         )
                 pair_coeffs = list(
                 set(
                     (atom.type, atom.epsilon, atom.sigma)
-                    for atom in self.system_pmd.atoms
+                    for atom in self.system.atoms
                 )
             )
             self.ref_energy = max(pair_coeffs, key=operator.itemgetter(1))[1]
@@ -163,7 +163,7 @@ class Simulation:
         with sim:
             if self.cg_system is False:
                 objs, refs = create_hoomd_simulation(
-                    self.system_pmd,
+                    self.system,
                     self.ref_distance,
                     self.ref_mass,
                     self.ref_energy,
