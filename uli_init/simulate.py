@@ -266,7 +266,6 @@ class Simulation:
             hoomd_system = objs[1]
             _all = hoomd.group.all()
             hoomd.md.integrate.mode_standard(dt=self.dt)
-
             hoomd.dump.gsd(
                 "sim_traj.gsd",
                 period=self.gsd_write,
@@ -422,7 +421,7 @@ class Simulation:
         with sim:
             if self.cg_system is False:
                 objs, refs = create_hoomd_simulation(
-                    self.system_pmd,
+                    self.system,
                     self.ref_distance,
                     self.ref_mass,
                     self.ref_energy,
@@ -430,14 +429,20 @@ class Simulation:
                     self.auto_scale,
                     nlist=self.nlist
                 )
+                init_x = objs[0].box.Lx
+                init_y = objs[0].box.Ly
+                init_z = objs[0].box.Lz
             elif self.cg_system is True:
-                objs = create_hoomd_sim_from_snapshot()
+                objs = self.create_hoomd_sim_from_snapshot()
+                self.log_quantities.remove("pair_lj_energy")
+                init_x = objs[0].configuration.box[0]
+                init_y = objs[0].configuration.box[1]
+                init_z = objs[0].configuration.box[2]
 
             hoomd_system = objs[1]
             init_snap = objs[0]
             _all = hoomd.group.all()
             hoomd.md.integrate.mode_standard(dt=self.dt)
-
             hoomd.dump.gsd(
                 "sim_traj.gsd",
                 period=self.gsd_write,
@@ -456,9 +461,9 @@ class Simulation:
             )
             # Set up wall LJ potentials
             if use_walls:
-                wall_origin = (init_snap.box.Lx / 2, 0, 0)
+                wall_origin = (init_x / 2, 0, 0)
                 normal_vector = (-1, 0, 0)
-                wall_origin2 = (-init_snap.box.Lx / 2, 0, 0)
+                wall_origin2 = (-init_x / 2, 0, 0)
                 normal_vector2 = (1, 0, 0)
                 walls = wall.group(
                     wall.plane(
@@ -486,15 +491,15 @@ class Simulation:
                 integrator.randomize_velocities(seed=self.seed)
 
                 x_variant = hoomd.variant.linear_interp([
-                    (0, init_snap.box.Lx),
+                    (0, init_x),
                     (shrink_steps, self.target_box[0])
                 ])
                 y_variant = hoomd.variant.linear_interp([
-                    (0, init_snap.box.Ly),
+                    (0, init_y),
                     (shrink_steps, self.target_box[1])
                 ])
                 z_variant = hoomd.variant.linear_interp([
-                    (0, init_snap.box.Lz),
+                    (0, init_z),
                     (shrink_steps, self.target_box[2])
                 ])
                 box_updater = hoomd.update.box_resize(
