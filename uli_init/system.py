@@ -13,6 +13,7 @@ import scipy.optimize
 from foyer import Forcefield
 from mbuild.lib.recipes import Polymer
 from mbuild.coordinate_transform import z_axis_transform
+from mbuild.formats.hoomd_snapshot import to_hoomdsnapshot
 from scipy.special import gamma
 
 from uli_init.library import COMPOUND_DIR, SYSTEM_DIR, FF_DIR
@@ -414,43 +415,35 @@ class Initialize:
             "You first need to install paek_cg "
              "before generating coarse grain systems."
                     )
-
         if self.forcefield is not None:
             raise ValueError(
                     "If you want to coarse grain, set forcefield=None"
                     " when initializing the system."
                     )
-        if self.system_parms.molecule == "PEEK":
-            atoms_per_monomer = 36
-            if self.remove_hydrogens:
-                atoms_per_monomer -= 14
-                for p in [p for p in self.system.particles_by_name("H")]:
-                    self.system.remove(p)
-        elif self.system_parms.molecule == "PEKK":
-            atoms_per_monomer=37
-            if self.remove_hydrogens:
-                atoms_per_monomer -= 14
-                for p in [p for p in self.system.particles_by_name("H")]:
-                    self.system.remove(p)
-        # Scale the positions and mass of the atoms
-        print("Scaling particle positions, max, and box")
-        for p in self.system.particles():
-            p.xyz /= ref_distance
-            p.mass /= ref_mass
-        new_box = np.array(self.system.box.lengths) / ref_distance
-        self.system.box = mb.Box.from_lengths_angles(new_box, [90,90,90])
-        # Save mbuild system to gsd file, and resort bond group
-        print("Saving system to a GSD file")
-        atomistic_gsd = self.system.save("mbuild_gsd.gsd", overwrite=True)
-        with gsd.hoomd.open("mbuild_gsd.gsd", "rb") as f:
+
+        pmd_system = self.system.to_parmed()
+        if self.remove_hydrogens:
+            pmd_system.strip([a.atomic_number == 1 for a in pmd_system.atoms])
+        mb.formats.gsdwriter.write_gsd(pmd_system, "atomistic_gsd.gsd", ref_distance, ref_mass)
+        # Order the bond group; required by CGing package
+        with gsd.hoomd.open("atomistic_gsd.gsd", "rb") as f:
             snap = f[0]
             bond_array = snap.bonds.group
             sorted_bond_array = bond_array[bond_array[:, 0].argsort()]
             snap.bonds.group = sorted_bond_array
-        with gsd.hoomd.open("mbuild_gsd.gsd", "wb") as f:
+        with gsd.hoomd.open("atomistic_gsd.gsd", "wb") as f:
             f.append(snap)       
-        print("Coarse-Graining the system")
-        cg_system = System(atoms_per_monomer, "mbuild_gsd.gsd")
+
+        if self.system_parms.molecule == "PEEK":
+            atoms_per_monomer = 36
+            if self.remove_hydrogens:
+                atoms_per_monomer -= 14
+        elif self.system_parms.molecule == "PEKK":
+            atoms_per_monomer = 37
+            if self.remove_hydrogens:
+                atoms_per_monomer -= 14
+
+        cg_system = System(atoms_per_monomer, "atomistic_gsd.gsd")
         if any([bead_mapping, segment_length]):
             raise ValueError(
                     "Only a mapping scheme of 1 monomer --> 1 bead "
@@ -459,7 +452,6 @@ class Initialize:
         for idx, mol in enumerate(cg_system.molecules):
             mol.sequence = self.system_parms.molecule_sequences[idx]
             mol.assign_types()
-        print("Saving the coarse-grained GSD file")
         with gsd.hoomd.open("cg_system.gsd", "wb") as f:
             cg_snap = cg_system.coarse_grain_snap(use_monomers=True)
             f.append(cg_snap)
