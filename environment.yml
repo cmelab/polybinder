@@ -6,7 +6,7 @@ dependencies:
   - foyer=0.9.4
   - gsd=2.4.0
   - hoomd=2.9.4
-  - mbuild=0.12.0
+  - mbuild=0.13.1
   - numpy=1.20.1
   - pip=21.0
   - pytest
