@@ -236,7 +236,6 @@ class Initializer:
         kwargs : dict, optional
             The kwargs for each of the system initialization functions.
             See the doc strings for each function for allowable args.
-
         """
         self.system_parms = system
         self.system_type = system_type
@@ -258,7 +257,6 @@ class Initializer:
                     "'pack'"
                     "'stack'"
                     "'crystal'"
-                    "'custom'."
                     f"You passed in {system_type}"
                 )
 
@@ -351,7 +349,7 @@ class Initializer:
             warn("Initializing crystalline systems may not work well "
                  "when generating random co-polymers "
                  "(e.g. overlapping particles). You may want to "
-                 "use the `monomer_sequence` as opposed to `para_weight'."
+                 "use `monomer_sequence` as opposed to `para_weight'."
                  )
         next_idx = 0
         crystal = mb.Compound()
@@ -459,9 +457,8 @@ class Initializer:
             y_constraint=None,
             z_constraint=None
             ):
-        """
-        Set the target volume of the system during an initial
-        shrink step is performed.
+        """Set the target volume of the system during
+        the initial shrink step.
         If no constraints are set, the target box is cubic.
         Setting constraints will hold certain box vectors
         constant and adjust others to match the target density.
@@ -488,9 +485,9 @@ class Initializer:
         return np.array([Lx, Ly, Lz])
 
     def _calculate_L(self, fixed_L=None):
-        """
-        Calculates the required box length(s) given the
+        """Calculates the required box length(s) given the
         mass of a sytem and the target density.
+
         Box edge length constraints can be set by set_target_box().
         If constraints are set, this will solve for the required
         lengths of the remaining non-constrained edges to match
@@ -508,12 +505,12 @@ class Initializer:
         return L
 
     def _generate_compounds(self):
-        """
-        Generates a list of mbuild.Compound() objects
+        """Generates a list of mbuild.Compound objects
         from the number and lengths given by the
         system parameters.
         This function also updates the mass of the system
-        as compounds are generated.
+        as compounds are generated and records the
+        monomer sequence of each molecule.
         """
         if self.system_parms.monomer_sequence is not None:
             sequence = self.system_parms.monomer_sequence
@@ -533,7 +530,6 @@ class Initializer:
                     self.system_parms.para_weight
                 )
                 mb_compounds.append(polymer)
-                #if len(self.system_parms.molecule_sequences) == 0:
                 self.system_parms.molecule_sequences.append(mol_sequence)
                 self.system_parms.para += mol_sequence.count("P")
                 self.system_parms.meta += mol_sequence.count("M")
@@ -545,6 +541,9 @@ class Initializer:
         return mb_compounds
 
     def _apply_ff(self, untyped_system):
+        """Use foyer to type the system and store forcefield parameters.
+        Returns a Parmed structure object.
+        """
         if self.forcefield == "gaff":
             ff_path = f"{FF_DIR}/gaff.xml"
             forcefield = foyer.Forcefield(forcefield_files=ff_path)
