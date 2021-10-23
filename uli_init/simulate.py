@@ -598,7 +598,7 @@ class Simulation:
         sim = hoomd.context.initialize(hoomd_args)
         with sim:
             objs, refs = create_hoomd_simulation(
-                    self.system_pmd,
+                    self.system,
                     self.ref_distance,
                     self.ref_mass,
                     self.ref_energy,
