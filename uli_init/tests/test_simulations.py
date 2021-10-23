@@ -162,9 +162,9 @@ class TestSimulate(BaseTest):
         simulation.quench(
             kT=2,
             n_steps=1e3,
-            shrink_kT=8,
+            shrink_kT=6,
             shrink_steps=1e3,
-            shrink_period=50,
+            shrink_period=5,
             use_walls=True,
         )
 
@@ -174,9 +174,9 @@ class TestSimulate(BaseTest):
             kT_init=4,
             kT_final=2,
             step_sequence=[1e3, 1e3],
-            shrink_kT=8,
+            shrink_kT=6,
             shrink_steps=1e3,
-            shrink_period=50,
+            shrink_period=5,
             use_walls=True,
         )
 
