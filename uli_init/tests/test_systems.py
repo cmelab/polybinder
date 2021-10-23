@@ -3,7 +3,7 @@ import pytest
 import random
 
 import uli_init
-from uli_init.system import System, Initialize
+from uli_init.system import System, Initializer
 from uli_init.library import SYSTEM_DIR
 from base_test import BaseTest
 
@@ -18,7 +18,7 @@ class TestSystems(BaseTest):
                         n_compounds=10,
                         polymer_lengths=5,
                         )
-            system = Initialize(
+            system = Initializer(
                     system_params, system_type="wrong"
                     )
 
@@ -30,7 +30,7 @@ class TestSystems(BaseTest):
                 n_compounds=[10],
                 polymer_lengths=[5],
                 )
-        system = Initialize(
+        system = Initializer(
                 system_parms, system_type="pack", expand_factor=10
                 )
 
@@ -43,7 +43,7 @@ class TestSystems(BaseTest):
                 n_compounds=[10],
                 polymer_lengths=[5],
                 )
-        system = Initialize(
+        system = Initializer(
                 system_parms, system_type="stack", separation=1.0
                 )
 
@@ -55,7 +55,7 @@ class TestSystems(BaseTest):
                 n_compounds=[8],
                 polymer_lengths=[5],
                 )
-        system = Initialize(
+        system = Initializer(
                 system_parms, system_type="crystal",
                 a = 1.5, b = 0.9, n=2
                 )
@@ -69,7 +69,7 @@ class TestSystems(BaseTest):
                 polymer_lengths=[5],
                 )
         with pytest.raises(ValueError):
-            system = Initialize(
+            system = Initializer(
                 system_parms, system_type="crystal",
                 a = 1.5, b = 0.9, n=2
                 )
@@ -110,7 +110,7 @@ class TestSystems(BaseTest):
                 polymer_lengths=[4],
                 density=.1,
                 )
-        system_even = Initialize(system_parms_even, "pack")
+        system_even = Initializer(system_parms_even, "pack")
 
         assert system_parms_even.para == system_parms_even.meta  == 2
         assert system_parms_even.molecule_sequences[0] == "PMPM"
@@ -122,7 +122,7 @@ class TestSystems(BaseTest):
                 polymer_lengths=[5],
                 density=.1,
                 )
-        system_odd = Initialize(
+        system_odd = Initializer(
                 system_parms, "pack"
                 )
         assert system_parms.para == 3
@@ -136,7 +136,7 @@ class TestSystems(BaseTest):
                 polymer_lengths=[4],
                 density=.1,
                 )
-        system_long_seq = Initialize(
+        system_long_seq = Initializer(
                 system_parms, "pack"
                 )
         assert system_parms.para == system_parms.meta == 2
@@ -162,7 +162,7 @@ class TestSystems(BaseTest):
                 polymer_lengths=[10],
                 density=0.1,
                 )
-        para_system = Initialize(para_monomers, "pack")
+        para_system = Initializer(para_monomers, "pack")
         assert para_monomers.molecule_sequences[0] == "P"*10
 
         random_monomers = System(
@@ -172,7 +172,7 @@ class TestSystems(BaseTest):
                 polymer_lengths=[20],
                 density=0.1,
                 )
-        random_system = Initialize(random_monomers, "pack", expand_factor=10)
+        random_system = Initializer(random_monomers, "pack", expand_factor=10)
         random.seed(24)
         sequence = uli_init.system.random_sequence(para_weight=0.40, length=20)
         sequence = "".join(sequence)
@@ -186,7 +186,7 @@ class TestSystems(BaseTest):
             n_compounds=[1],
             polymer_lengths=[2],
         )
-        simple_system = Initialize(
+        simple_system = Initializer(
                 system_parms, "pack", forcefield="gaff"
                 )
 
@@ -198,7 +198,7 @@ class TestSystems(BaseTest):
             n_compounds=[1],
             polymer_lengths=[2],
         )
-        system = Initialize(
+        system = Initializer(
                 system_parms, "pack", forcefield="gaff", remove_hydrogens=True
                 )
         post_remove_h = system.system
@@ -212,7 +212,7 @@ class TestSystems(BaseTest):
             n_compounds=[5, 4, 3, 2, 1],
             polymer_lengths=[2, 4, 5, 11, 22],
         )
-        system = Initialize(
+        system = Initializer(
                 system_parms, "pack"
                 )
 
@@ -226,7 +226,7 @@ class TestSystems(BaseTest):
             pdi=1.2,
             Mw=6.0,
         )
-        system = Initialize(system_parms, "pack")
+        system = Initializer(system_parms, "pack")
 
 
     def test_pdi_mn(self):
@@ -239,7 +239,7 @@ class TestSystems(BaseTest):
             pdi=1.2,
             Mn=5.0,
         )
-        system = Initialize(system_parms, "pack")
+        system = Initializer(system_parms, "pack")
 
 
     def test_mw_mn(self):
@@ -252,7 +252,7 @@ class TestSystems(BaseTest):
             Mn=5.0,
             Mw=6.0,
         )
-        system = Initialize(system_parms, "pack")
+        system = Initializer(system_parms, "pack")
 
 
     def test_pdi_mn_mw(self):
@@ -266,7 +266,7 @@ class TestSystems(BaseTest):
             Mw=6.0,
             Mn=5.0,
         )
-        system = Initialize(system_parms, "pack")
+        system = Initializer(system_parms, "pack")
 
 
     def test_too_few_pdi_vals(self):
