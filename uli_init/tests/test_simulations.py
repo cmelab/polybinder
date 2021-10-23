@@ -5,19 +5,6 @@ import pytest
 
 
 class TestSimulate(BaseTest):
-    def test_custom_system(self, peek_from_file):
-        simulation = simulate.Simulation(
-                peek_from_file,
-                mode="cpu"
-                )
-        simulation.quench(
-                kT=2,
-                n_steps=1e3,
-                shrink_kT=2,
-                shrink_steps=1e3,
-                shrink_period=20,
-                use_walls=False
-                )
 
     def test_bad_inputs(self, peek_system):
         simulation = simulate.Simulation(
@@ -177,7 +164,7 @@ class TestSimulate(BaseTest):
             n_steps=1e3,
             shrink_kT=8,
             shrink_steps=1e3,
-            shrink_period=20,
+            shrink_period=50,
             use_walls=True,
         )
 
@@ -189,7 +176,7 @@ class TestSimulate(BaseTest):
             step_sequence=[1e3, 1e3],
             shrink_kT=8,
             shrink_steps=1e3,
-            shrink_period=20,
+            shrink_period=50,
             use_walls=True,
         )
 

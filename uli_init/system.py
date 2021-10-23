@@ -228,7 +228,6 @@ class Initializer:
             'pack': Molecules randomly packed into a box.
             'stack': Polymer chains stacked into layers.
             'crystal': Polymer chains arranged by n x n unit cells.
-            'custom': Load a system from a file.
         forcefield : str, optional, default="gaff"
             The type of foyer compatible forcefield to use.
             As of now, only gaff is supported.
@@ -246,25 +245,22 @@ class Initializer:
         self.system_mass = 0
         self.target_box = None
 
-        if self.system_type == "custom":
-            system_init = self.custom(**kwargs)
+        self.mb_compounds = self._generate_compounds()
+        if self.system_type == "pack":
+            system_init = self.pack(**kwargs)
+        elif self.system_type == "stack":
+            system_init = self.stack(**kwargs)
+        elif self.system_type == "crystal":
+            system_init = self.crystal(**kwargs)
         else:
-            self.mb_compounds = self._generate_compounds()
-            if self.system_type == "pack":
-                system_init = self.pack(**kwargs)
-            elif self.system_type == "stack":
-                system_init = self.stack(**kwargs)
-            elif self.system_type == "crystal":
-                system_init = self.crystal(**kwargs)
-            else:
-                raise ValueError(
-                        "Valid system types are:"
-                        "'pack'"
-                        "'stack'"
-                        "'crystal'"
-                        "'custom'."
-                        f"You passed in {system_type}"
-                    )
+            raise ValueError(
+                    "Valid system types are:"
+                    "'pack'"
+                    "'stack'"
+                    "'crystal'"
+                    "'custom'."
+                    f"You passed in {system_type}"
+                )
 
         if self.target_box is None:
             warn("A target box has not been set for this system. "
@@ -456,37 +452,6 @@ class Initializer:
             cg_snap = cg_system.coarse_grain_snap(use_monomers=True)
             f.append(cg_snap)
         self.system = os.path.abspath("cg_system.gsd")
-
-    def custom(self, file_path, mass=None):
-        """Initializes a system from a file.
-        Check mbuild for allowable file types
-        
-        Parameters:
-        -----------
-        file_path : str, required
-            Path to the file to be loaded
-
-        mass : float, optional, default=None
-            Manually set the mass of your system.
-            If None, then it will attempt to determine the mass
-            via mBuild.
-        """
-        system = mb.load(file_path)
-        if mass == None:
-            try:
-                mass = sum(
-                    [ele.element_from_symbol(p.name).mass
-                    for p in system.particles()]
-                    )
-                print(f"Calculated a system mass of {mass}.")
-            except:
-                raise ValueError(
-                        "mBuild was not able to determine the mass "
-                        "of the system, use the mass parameter to "
-                        "manually define the system's mass"
-                        )
-        self.system_mass += mass
-        return system
 
     def set_target_box(
             self,

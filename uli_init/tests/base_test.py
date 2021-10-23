@@ -10,20 +10,6 @@ class BaseTest:
         tmpdir.chdir()
 
     @pytest.fixture()
-    def peek_from_file(self):
-        peek = os.path.join(SYSTEM_DIR, "test_peek.mol2")
-        system_parms = System(density=0.8)
-        system = Initializer(
-                system_parms,
-                "custom",
-                file_path=peek,
-                forcefield="gaff",
-                remove_hydrogens=True
-                )
-
-        return system
-
-    @pytest.fixture()
     def test_slab(self):
         slab = Interface(
             slabs=os.path.join(
@@ -39,8 +25,8 @@ class BaseTest:
         system_parms = System(
                 molecule="PEEK",
                 para_weight=0.50,
-                density=1.0,
-                n_compounds=[3],
+                density=0.8,
+                n_compounds=[10],
                 polymer_lengths=[3],
         )
         peek_sys = Initializer(
@@ -56,8 +42,8 @@ class BaseTest:
         system_parms = System(
                 molecule="PEKK",
                 para_weight=0.50,
-                density=1.2,
-                n_compounds=[3],
+                density=0.8,
+                n_compounds=[10],
                 polymer_lengths=[3],
         )
         pekk_sys = Initializer(
@@ -73,8 +59,8 @@ class BaseTest:
         system_parms = System(
                 molecule="PEEK",
                 para_weight=0.50,
-                density=1.2,
-                n_compounds=[3],
+                density=0.8,
+                n_compounds=[10],
                 polymer_lengths=[3],
         )
         peek_sys = Initializer(
@@ -90,8 +76,8 @@ class BaseTest:
         system_parms = System(
                 molecule="PEKK",
                 para_weight=0.50,
-                density=1.2,
-                n_compounds=[3],
+                density=0.8,
+                n_compounds=[10],
                 polymer_lengths=[3],
         )
         pekk_sys = Initializer(
@@ -100,5 +86,4 @@ class BaseTest:
                 forcefield="gaff",
                 remove_hydrogens=True
                 )
-        return pekk_sys
         return pekk_sys

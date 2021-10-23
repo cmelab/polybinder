@@ -84,7 +84,6 @@ class Simulation:
         angle_dicts=None
     ):
         self.r_cut = r_cut
-        self.e_factor = e_factor
         self.tau_kt = tau_kt
         self.tau_p = tau_p
         self.nlist = getattr(hoomd.md.nlist, nlist.lower())
@@ -263,6 +262,7 @@ class Simulation:
                 init_y = objs[0].configuration.box[1]
                 init_z = objs[0].configuration.box[2]
 
+            init_snap = objs[0]
             hoomd_system = objs[1]
             _all = hoomd.group.all()
             hoomd.md.integrate.mode_standard(dt=self.dt)
