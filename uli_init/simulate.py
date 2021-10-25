@@ -140,6 +140,12 @@ class Simulation:
         self.log_quantities = [
             "temperature",
             "pressure",
+            "pressure_xx",
+            "pressure_yy",
+            "pressure_zz",
+            "pressure_xy",
+            "pressure_xz",
+            "pressure_yz",
             "volume",
             "potential_energy",
             "kinetic_energy",
