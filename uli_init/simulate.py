@@ -210,7 +210,7 @@ class Simulation:
         shrink_kT=None,
         shrink_steps=None,
         shrink_period=None,
-        use_walls=True,
+        wall_axis=None,
     ):
         """Runs a NVT or NPT simulation at a single temperature
         and pressure.
@@ -231,11 +231,11 @@ class Simulation:
             The number of steps to run during the shrink process
         shrink_period : int, default None
             The period between box updates during shrinking
-        use_walls : bool, default True
-            Create LJ wall potentials along the x-axis of the simulation volume.
+        wall_axis : (1,3) array like, default None
+            Create LJ wall potentials along the specified axis of the simulation volume.
             Not compatible with NPT simulations; pressure must be None
         """
-        if use_walls and pressure:
+        if wall_axis and pressure:
             raise ValueError(
                     "Wall potentials can only be used with the NVT ensemble."
                     )
@@ -289,11 +289,13 @@ class Simulation:
                 phase=0,
             )
 
-            if use_walls:
-                wall_origin = (init_x / 2, 0, 0)
-                normal_vector = (-1, 0, 0)
-                wall_origin2 = (-init_x / 2, 0, 0)
-                normal_vector2 = (1, 0, 0)
+            if wall_axis is not None:
+                wall_origin = np.asarray(wall_axis) * np.array(
+                        [init_x/2, init_y/2, init_z/2]
+                        )
+                normal_vector = -np.asarray(wall_axis)
+                wall_origin2 = -wall_origin
+                normal_vector2 = -normal_vector
                 walls = wall.group(
                     wall.plane(
                         origin=wall_origin, normal=normal_vector, inside=True
@@ -339,19 +341,22 @@ class Simulation:
 
                 # Update wall origins during shrinking
                 momentum = hoomd.md.update.zero_momentum(period=shrink_steps)
-                if use_walls:
+                if wall_axis is not None:
                     step = 0
                     while step < shrink_steps:
                         hoomd.run_upto(step + shrink_period)
-                        current_box = hoomd_system.box
+                        current_box = np.array([
+                                hoomd_system.box.Lx,
+                                hoomd_system.box.Ly,
+                                hoomd_system.box.Lz
+                            ])
                         walls.del_plane([0, 1])
                         walls.add_plane(
-                                (current_box.Lx / 2, 0, 0), normal_vector
-                                )
+                                (current_box/2 * wall_axis), normal_vector
+                            )
                         walls.add_plane(
-                                (-current_box.Lx / 2, 0, 0),
-                                normal_vector2
-                                )
+                                (-current_box/2 * wall_axis), normal_vector2
+                            )
                         step += shrink_period
                 else:
                     hoomd.run_upto(shrink_steps)
