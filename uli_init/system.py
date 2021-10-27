@@ -86,6 +86,8 @@ class System:
             Used to generate random co-polymer sequences
         """
         self.molecule = molecule
+        self.n_compounds = n_compounds
+        self.polymer_lengths = polymer_lengths
         self.para_weight = para_weight
         self.monomer_sequence = monomer_sequence
         self.density = density
