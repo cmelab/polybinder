@@ -1,6 +1,5 @@
 import operator
 from itertools import combinations_with_replacement as combo
-import gsd
 import gsd.hoomd
 import hoomd
 import hoomd.md
@@ -121,9 +120,7 @@ class Simulation:
                 self.ref_mass = ref_values["mass"]
             # Pulled from mBuild hoomd_simulation.py
             elif auto_scale and not ref_values:
-                self.ref_mass = max(
-                        [atom.mass for atom in self.system.atoms]
-                        )
+                self.ref_mass = max([atom.mass for atom in self.system.atoms])
                 pair_coeffs = list(
                 set(
                     (atom.type, atom.epsilon, atom.sigma)
@@ -153,7 +150,6 @@ class Simulation:
             "bond_harmonic_energy",
             "angle_harmonic_energy",
         ]
-
 
 
     def quench(
@@ -261,26 +257,22 @@ class Simulation:
                         tau=self.tau_kt
                         )
                 integrator.randomize_velocities(seed=self.seed)
+                x_variant = hoomd.variant.linear_interp(
+                        [(0, init_x), (shrink_steps, self.target_box[0])]
+                    )
+                y_variant = hoomd.variant.linear_interp(
+                        [(0, init_y), (shrink_steps, self.target_box[1])]
+                    )
+                z_variant = hoomd.variant.linear_interp(
+                        [(0, init_z), (shrink_steps, self.target_box[2])]
+                    )
 
-                x_variant = hoomd.variant.linear_interp([
-                    (0, init_x),
-                    (shrink_steps, self.target_box[0])
-                ])
-                y_variant = hoomd.variant.linear_interp([
-                    (0, init_y),
-                    (shrink_steps, self.target_box[1])
-                ])
-                z_variant = hoomd.variant.linear_interp([
-                    (0, init_z),
-                    (shrink_steps, self.target_box[2])
-                ])
                 box_updater = hoomd.update.box_resize(
-                    Lx=x_variant,
+                    Lx=x_variant, 
                     Ly=y_variant,
                     Lz=z_variant,
                     period=shrink_period
                 )
-
                 # Update wall origins during shrinking
                 momentum = hoomd.md.update.zero_momentum(period=shrink_steps)
                 if wall_axis is not None:
@@ -431,19 +423,16 @@ class Simulation:
                         kT=shrink_kT
                         )
                 integrator.randomize_velocities(seed=self.seed)
+                x_variant = hoomd.variant.linear_interp(
+                        [(0, init_x), (shrink_steps, self.target_box[0])]
+                    )
+                y_variant = hoomd.variant.linear_interp(
+                        [(0, init_y), (shrink_steps, self.target_box[1])]
+                    )
+                z_variant = hoomd.variant.linear_interp(
+                        [(0, init_z), (shrink_steps, self.target_box[2])]
+                    )
 
-                x_variant = hoomd.variant.linear_interp([
-                    (0, init_x),
-                    (shrink_steps, self.target_box[0])
-                ])
-                y_variant = hoomd.variant.linear_interp([
-                    (0, init_y),
-                    (shrink_steps, self.target_box[1])
-                ])
-                z_variant = hoomd.variant.linear_interp([
-                    (0, init_z),
-                    (shrink_steps, self.target_box[2])
-                ])
                 box_updater = hoomd.update.box_resize(
                     Lx=x_variant,
                     Ly=y_variant,
@@ -593,22 +582,6 @@ class Simulation:
                     dynamic=["momentum"],
                     overwrite=False
                 )
-            hoomd.dump.gsd(
-                    "fixed_traj.gsd",
-                    period=self.gsd_write,
-                    group=_all_fixed,
-                    phase=0,
-                    dynamic=["momentum"],
-                    overwrite=False
-                )
-            hoomd.dump.gsd(
-                    "not_fixed_traj.gsd",
-                    period=self.gsd_write,
-                    group=_integrate,
-                    phase=0,
-                    dynamic=["momentum"],
-                    overwrite=False
-                )
             hoomd.analyze.log(
                     "sim_traj.log",
                     period=self.log_write,
@@ -711,6 +684,9 @@ class Simulation:
         return hoomd_objs 
 
     def _hoomd_walls(self, wall_axis, init_x, init_y, init_z):
+        """
+        Create hoomd LJ wall potentials
+        """
         wall_origin = np.asarray(wall_axis) * np.array(
                 [init_x/2, init_y/2, init_z/2]
                 )
