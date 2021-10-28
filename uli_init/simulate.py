@@ -202,6 +202,24 @@ class Simulation:
             ]
         return hoomd_objs 
 
+    def _hoomd_walls(self, wall_axis, init_x, init_y, init_z):
+        wall_origin = np.asarray(wall_axis) * np.array(
+                [init_x/2, init_y/2, init_z/2]
+                )
+        normal_vector = -np.asarray(wall_axis)
+        wall_origin2 = -wall_origin
+        normal_vector2 = -normal_vector
+        walls = wall.group(
+            wall.plane(
+                origin=wall_origin, normal=normal_vector, inside=True
+                ),
+            wall.plane(
+                origin=wall_origin2, normal=normal_vector2, inside=True
+                ),
+        )
+        wall_force = wall.lj(walls, r_cut=2.5)
+        return wall_force, walls, normal_vector
+
     def quench(
         self,
         n_steps,
@@ -290,21 +308,25 @@ class Simulation:
             )
 
             if wall_axis is not None:
-                wall_origin = np.asarray(wall_axis) * np.array(
-                        [init_x/2, init_y/2, init_z/2]
-                        )
-                normal_vector = -np.asarray(wall_axis)
-                wall_origin2 = -wall_origin
-                normal_vector2 = -normal_vector
-                walls = wall.group(
-                    wall.plane(
-                        origin=wall_origin, normal=normal_vector, inside=True
-                        ),
-                    wall.plane(
-                        origin=wall_origin2, normal=normal_vector2, inside=True
-                        ),
-                )
-                wall_force = wall.lj(walls, r_cut=2.5)
+
+                #wall_origin = np.asarray(wall_axis) * np.array(
+                #        [init_x/2, init_y/2, init_z/2]
+                #        )
+                #normal_vector = -np.asarray(wall_axis)
+                #wall_origin2 = -wall_origin
+                #normal_vector2 = -normal_vector
+                #walls = wall.group(
+                #    wall.plane(
+                #        origin=wall_origin, normal=normal_vector, inside=True
+                #        ),
+                #    wall.plane(
+                #        origin=wall_origin2, normal=normal_vector2, inside=True
+                #        ),
+                #)
+                #wall_force = wall.lj(walls, r_cut=2.5)
+                wall_force, walls, normal_vector = self._hoomd_walls(
+                        wall_axis, init_x, init_y, init_z
+                    )
                 wall_force.force_coeff.set(
                     init_snap.particles.types,
                     sigma=1.0,
@@ -355,7 +377,7 @@ class Simulation:
                                 (current_box/2 * wall_axis), normal_vector
                             )
                         walls.add_plane(
-                                (-current_box/2 * wall_axis), normal_vector2
+                                (-current_box/2 * wall_axis), -normal_vector
                             )
                         step += shrink_period
                 else:
@@ -407,7 +429,7 @@ class Simulation:
         pressure=None,
         step_sequence=None,
         schedule=None,
-        use_walls=True,
+        wall_axis=None,
         shrink_kT=None,
         shrink_steps=None,
         shrink_period=None,
