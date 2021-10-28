@@ -529,7 +529,7 @@ class Initializer:
                 self.system_parms.molecule_sequences.append(mol_sequence)
                 for i in range(n - 1):
                     _clone = mb.clone(polymer)
-                    mb.compounds.append(_clone)
+                    mb_compounds.append(_clone)
                     self.system_parms.molecule_sequences.append(mol_sequence)
                 self.system_parms.para += (mol_sequence.count("P") * n)
                 self.system_parms.meta += (mol_sequence.count("M") * n)
