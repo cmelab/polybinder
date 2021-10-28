@@ -154,53 +154,6 @@ class Simulation:
             "angle_harmonic_energy",
         ]
 
-    def create_hoomd_sim_from_snapshot(self):
-        """Creates needed hoomd objects.
-
-        Similar to the `create_hoomd_simulation` function
-        from mbuild, but designed to work when initializing
-        a system from a gsd file rather than a Parmed structure.
-        Created specifically for using table potentials with
-        coarse-grained systems.
-        """
-        hoomd_system = hoomd.init.read_gsd(self.system)
-        nlist = self.nlist()
-        with gsd.hoomd.open(self.system, "rb") as f:
-            init_snap = f[0]
-        table = hoomd.md.pair.table(width=101, nlist=nlist)
-        for pair in [list(i) for i in combo(init_snap.particles.types, r=2)]:
-            _pair = "-".join(sorted(pair))
-            table_pot_file = f"{FF_DIR}/{_pair}.txt"
-            table.set_from_file(
-                f"{pair[0]}", f"{pair[1]}", filename=f"{table_pot_file}"
-            )
-        # Create bond and angle objects 
-        harmonic_bond = hoomd.md.bond.harmonic()
-        for bond in self.bond_dicts:
-            bond_pair = sorted([bond["type1"], bond["type2"]])
-            name = "-".join(bond_pair)
-            k = bond["k"]
-            r0 = bond["r0"]
-            harmonic_bond.bond_coeff.set(name, k=k, r0=r0)
-
-        harmonic_angle = hoomd.md.angle.harmonic()
-        for angle in self.angle_dicts:
-            name = "-".join(
-                    [angle["type1"], angle["type2"], angle["type3"]]
-                )
-            k = angle["k"]
-            theta0 = angle["theta0"]
-            harmonic_angle.angle_coeff.set(name, k=k, t0=theta0)
-
-        hoomd_objs = [
-                init_snap,
-                hoomd_system,
-                nlist,
-                table,
-                harmonic_bond,
-                harmonic_angle,
-            ]
-        return hoomd_objs 
 
 
     def quench(
@@ -263,7 +216,7 @@ class Simulation:
                 init_y = objs[0].box.Ly
                 init_z = objs[0].box.Lz
             elif self.cg_system is True:
-                objs = self.create_hoomd_sim_from_snapshot()
+                objs = self._create_hoomd_sim_from_snapshot()
                 self.log_quantities.remove("pair_lj_energy")
                 init_x = objs[0].configuration.box[0]
                 init_y = objs[0].configuration.box[1]
@@ -433,7 +386,7 @@ class Simulation:
                 init_y = objs[0].box.Ly
                 init_z = objs[0].box.Lz
             elif self.cg_system is True:
-                objs = self.create_hoomd_sim_from_snapshot()
+                objs = self._create_hoomd_sim_from_snapshot()
                 self.log_quantities.remove("pair_lj_energy")
                 init_x = objs[0].configuration.box[0]
                 init_y = objs[0].configuration.box[1]
@@ -708,6 +661,54 @@ class Simulation:
                     pass
                 finally:
                     gsd_restart.write_restart()
+
+    def _create_hoomd_sim_from_snapshot(self):
+        """Creates needed hoomd objects.
+
+        Similar to the `create_hoomd_simulation` function
+        from mbuild, but designed to work when initializing
+        a system from a gsd file rather than a Parmed structure.
+        Created specifically for using table potentials with
+        coarse-grained systems.
+        """
+        hoomd_system = hoomd.init.read_gsd(self.system)
+        nlist = self.nlist()
+        with gsd.hoomd.open(self.system, "rb") as f:
+            init_snap = f[0]
+        table = hoomd.md.pair.table(width=101, nlist=nlist)
+        for pair in [list(i) for i in combo(init_snap.particles.types, r=2)]:
+            _pair = "-".join(sorted(pair))
+            table_pot_file = f"{FF_DIR}/{_pair}.txt"
+            table.set_from_file(
+                f"{pair[0]}", f"{pair[1]}", filename=f"{table_pot_file}"
+            )
+        # Create bond and angle objects 
+        harmonic_bond = hoomd.md.bond.harmonic()
+        for bond in self.bond_dicts:
+            bond_pair = sorted([bond["type1"], bond["type2"]])
+            name = "-".join(bond_pair)
+            k = bond["k"]
+            r0 = bond["r0"]
+            harmonic_bond.bond_coeff.set(name, k=k, r0=r0)
+
+        harmonic_angle = hoomd.md.angle.harmonic()
+        for angle in self.angle_dicts:
+            name = "-".join(
+                    [angle["type1"], angle["type2"], angle["type3"]]
+                )
+            k = angle["k"]
+            theta0 = angle["theta0"]
+            harmonic_angle.angle_coeff.set(name, k=k, t0=theta0)
+
+        hoomd_objs = [
+                init_snap,
+                hoomd_system,
+                nlist,
+                table,
+                harmonic_bond,
+                harmonic_angle,
+            ]
+        return hoomd_objs 
 
     def _hoomd_walls(self, wall_axis, init_x, init_y, init_z):
         wall_origin = np.asarray(wall_axis) * np.array(
