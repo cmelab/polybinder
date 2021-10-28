@@ -2,6 +2,7 @@ import os
 import pytest
 import random
 
+import numpy as np
 import uli_init
 from uli_init.system import System, Initializer
 from uli_init.library import SYSTEM_DIR
@@ -9,6 +10,31 @@ from base_test import BaseTest
 
 
 class TestSystems(BaseTest):
+    def test_set_box(self):
+        system_params = System(
+                    density=1.0,
+                    molecule="PEKK",
+                    para_weight=1.0,
+                    n_compounds=10,
+                    polymer_lengths=5
+                )
+        system = Initializer(
+                system_params, system_type="pack"
+            )
+        init_box = system.target_box
+        system.target_box = system.set_target_box(
+                x_constraint = init_box[0]/2
+            )
+        new_box = system.target_box
+
+        assert np.allclose(
+                np.prod(init_box), np.prod(new_box), atol=1e-3
+            )
+        assert np.allclose(new_box[1], new_box[2], atol=1e-3)
+        assert np.allclose(
+                new_box[1]**2,  2*(init_box[0]**2), atol=1e-3
+            )
+
     def test_bad_system_type(self):
         with pytest.raises(ValueError):
             system_params = System(
@@ -17,7 +43,7 @@ class TestSystems(BaseTest):
                         para_weight=0.50,
                         n_compounds=10,
                         polymer_lengths=5,
-                        )
+                    )
             system = Initializer(
                     system_params, system_type="wrong"
                     )
