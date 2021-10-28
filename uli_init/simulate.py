@@ -202,23 +202,6 @@ class Simulation:
             ]
         return hoomd_objs 
 
-    def _hoomd_walls(self, wall_axis, init_x, init_y, init_z):
-        wall_origin = np.asarray(wall_axis) * np.array(
-                [init_x/2, init_y/2, init_z/2]
-                )
-        normal_vector = -np.asarray(wall_axis)
-        wall_origin2 = -wall_origin
-        normal_vector2 = -normal_vector
-        walls = wall.group(
-            wall.plane(
-                origin=wall_origin, normal=normal_vector, inside=True
-                ),
-            wall.plane(
-                origin=wall_origin2, normal=normal_vector2, inside=True
-                ),
-        )
-        wall_force = wall.lj(walls, r_cut=2.5)
-        return wall_force, walls, normal_vector
 
     def quench(
         self,
@@ -308,22 +291,6 @@ class Simulation:
             )
 
             if wall_axis is not None:
-
-                #wall_origin = np.asarray(wall_axis) * np.array(
-                #        [init_x/2, init_y/2, init_z/2]
-                #        )
-                #normal_vector = -np.asarray(wall_axis)
-                #wall_origin2 = -wall_origin
-                #normal_vector2 = -normal_vector
-                #walls = wall.group(
-                #    wall.plane(
-                #        origin=wall_origin, normal=normal_vector, inside=True
-                #        ),
-                #    wall.plane(
-                #        origin=wall_origin2, normal=normal_vector2, inside=True
-                #        ),
-                #)
-                #wall_force = wall.lj(walls, r_cut=2.5)
                 wall_force, walls, normal_vector = self._hoomd_walls(
                         wall_axis, init_x, init_y, init_z
                     )
@@ -434,7 +401,7 @@ class Simulation:
         shrink_steps=None,
         shrink_period=None,
     ):
-        if use_walls and pressure:
+        if wall_axis and pressure:
             raise ValueError(
                     "Wall potentials can only be used with the NVT ensemble"
                     )
@@ -493,21 +460,10 @@ class Simulation:
                 phase=0,
             )
             # Set up wall LJ potentials
-            if use_walls:
-                wall_origin = (init_x / 2, 0, 0)
-                normal_vector = (-1, 0, 0)
-                wall_origin2 = (-init_x / 2, 0, 0)
-                normal_vector2 = (1, 0, 0)
-                walls = wall.group(
-                    wall.plane(
-                        origin=wall_origin, normal=normal_vector, inside=True
-                        ),
-                    wall.plane(
-                        origin=wall_origin2, normal=normal_vector2, inside=True
-                        )
-                )
-
-                wall_force = wall.lj(walls, r_cut=2.5)
+            if wall_axis is not None:
+                wall_force, walls, normal_vector = self._hoomd_walls(
+                        wall_axis, init_x, init_y, init_z
+                    )
                 wall_force.force_coeff.set(
                     init_snap.particles.types,
                     sigma=1.0,
@@ -542,18 +498,22 @@ class Simulation:
                     period=shrink_period
                 )
                 # Update walls due to shrink box changes
-                if use_walls:
+                if wall_axis is not None:
                     step = 0
                     while step < shrink_steps:
                         hoomd.run_upto(step + shrink_period)
-                        current_box = hoomd_system.box
+                        current_box = np.array([
+                                hoomd_system.box.Lx,
+                                hoomd_system.box.Ly,
+                                hoomd_system.box.Lz
+                            ])
                         walls.del_plane([0, 1])
                         walls.add_plane(
-                                (current_box.Lx / 2, 0, 0), normal_vector
-                                )
+                                (current_box/2 * wall_axis), normal_vector
+                            )
                         walls.add_plane(
-                                (-current_box.Lx / 2, 0, 0), normal_vector2
-                                )
+                                (-current_box/2 * wall_axis), -normal_vector
+                            )
                         step += shrink_period
                 else:
                     hoomd.run_upto(shrink_steps)
@@ -748,3 +708,21 @@ class Simulation:
                     pass
                 finally:
                     gsd_restart.write_restart()
+
+    def _hoomd_walls(self, wall_axis, init_x, init_y, init_z):
+        wall_origin = np.asarray(wall_axis) * np.array(
+                [init_x/2, init_y/2, init_z/2]
+                )
+        normal_vector = -np.asarray(wall_axis)
+        wall_origin2 = -wall_origin
+        normal_vector2 = -normal_vector
+        walls = wall.group(
+            wall.plane(
+                origin=wall_origin, normal=normal_vector, inside=True
+                ),
+            wall.plane(
+                origin=wall_origin2, normal=normal_vector2, inside=True
+                ),
+        )
+        wall_force = wall.lj(walls, r_cut=2.5)
+        return wall_force, walls, normal_vector
