@@ -268,7 +268,7 @@ class Initializer:
                  "See the `set_target_box()` function to set a non-cubic "
                  "target box."
                  )
-            self.target_box = self.set_target_box()
+            self.set_target_box()
 
         if self.forcefield:
             self.system = self._apply_ff(system_init)
@@ -285,7 +285,7 @@ class Initializer:
             How much to multiply each box edge length by
             before passing to PACKMOL to fill.
         """
-        self.target_box = self.set_target_box()
+        self.set_target_box()
         pack_box = self.target_box * expand_factor
         system = mb.packing.fill_box(
             compound=self.mb_compounds,
@@ -314,9 +314,7 @@ class Initializer:
             system.add(comp)
 
         bounding_box = system.get_boundingbox().lengths
-        self.target_box = self.set_target_box(
-                z_constraint=bounding_box[2]
-                )
+        self.set_target_box(z_constraint=bounding_box[2])
         return system
 
     def crystal(self, a, b, n, vector=[.5, .5, 0], z_adjust=1.0):
@@ -376,9 +374,7 @@ class Initializer:
 
         bounding_box = np.array(crystal.get_boundingbox().lengths)
         target_z = bounding_box[-1] * z_adjust
-        self.target_box = self.set_target_box(
-                z_constraint=target_z
-                )
+        self.set_target_box(z_constraint=target_z)
         crystal.box = mb.box.Box(bounding_box*1.05)
         crystal.translate_to(
                 (crystal.box.Lx / 2,
@@ -484,7 +480,7 @@ class Initializer:
             L = self._calculate_L(fixed_L = fixed_L)
             constraints[np.where(constraints==None)] = L
             Lx, Ly, Lz = constraints
-        return np.array([Lx, Ly, Lz])
+        self.target_box = np.array([Lx, Ly, Lz])
 
     def _calculate_L(self, fixed_L=None):
         """Calculates the required box length(s) given the

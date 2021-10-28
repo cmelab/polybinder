@@ -22,9 +22,7 @@ class TestSystems(BaseTest):
                 system_params, system_type="pack"
             )
         init_box = system.target_box
-        system.target_box = system.set_target_box(
-                x_constraint = init_box[0]/2
-            )
+        system.set_target_box(x_constraint = init_box[0]/2)
         new_box = system.target_box
 
         assert np.allclose(
