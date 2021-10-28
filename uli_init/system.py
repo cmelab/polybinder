@@ -393,12 +393,11 @@ class Initializer:
         """
         ref_distance : float, required
             The reference distance to scale particle positions by.
-            Enter the distance in units of nm as they are scaled
-            in the mBuild compound.
+            Enter the distance in units of angstrom as they are scaled
+            in after mbuild compound is converted to Parmed structure.
         ref_mass : float, required
             The reference mass to scale particle masses by.
-            Enter the mass in amu as they are scaled in the
-            mBuild compound.
+            Enter the mass in amu.
         """
         try:
             from paek_cg.coarse_grain import System
@@ -517,10 +516,9 @@ class Initializer:
         random.seed(self.system_parms.seed)
         mb_compounds = []
         for length, n in zip(
-                self.system_parms.polymer_lengths,
-                self.system_parms.n_compounds
-                ):
-            for i in range(n):
+                self.system_parms.polymer_lengths, self.system_parms.n_compounds
+            ):
+            if sequence != "random":
                 polymer, mol_sequence = build_molecule(
                     self.system_parms.molecule,
                     length,
@@ -529,8 +527,25 @@ class Initializer:
                 )
                 mb_compounds.append(polymer)
                 self.system_parms.molecule_sequences.append(mol_sequence)
-                self.system_parms.para += mol_sequence.count("P")
-                self.system_parms.meta += mol_sequence.count("M")
+                for i in range(n - 1):
+                    _clone = mb.clone(polymer)
+                    mb.compounds.append(_clone)
+                    self.system_parms.molecule_sequences.append(mol_sequence)
+                self.system_parms.para += (mol_sequence.count("P") * n)
+                self.system_parms.meta += (mol_sequence.count("M") * n)
+            
+            elif sequence == "random":
+                for i in range(n):
+                    polymer, mol_sequence = build_molecule(
+                        self.system_parms.molecule,
+                        length,
+                        sequence,
+                        self.system_parms.para_weight
+                    )
+                    mb_compounds.append(polymer)
+                    self.system_parms.molecule_sequences.append(mol_sequence)
+                    self.system_parms.para += mol_sequence.count("P")
+                    self.system_parms.meta += mol_sequence.count("M")
             mass = n * sum(
                 [ele.element_from_symbol(p.name).mass
                 for p in polymer.particles()]
