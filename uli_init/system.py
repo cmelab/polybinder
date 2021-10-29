@@ -411,8 +411,7 @@ class Initializer:
                     "If you want to coarse grain, set forcefield=None"
                     " when initializing the system."
                     )
-
-        pmd_system = self.system.to_parmed()
+        pmd_system = self.system.to_parmed(residues=[self.residues])
         if self.remove_hydrogens:
             pmd_system.strip([a.atomic_number == 1 for a in pmd_system.atoms])
         mb.formats.gsdwriter.write_gsd(pmd_system, "atomistic_gsd.gsd", ref_distance, ref_mass)
@@ -433,7 +432,6 @@ class Initializer:
             atoms_per_monomer = 37
             if self.remove_hydrogens:
                 atoms_per_monomer -= 14
-
         cg_system = System(atoms_per_monomer, "atomistic_gsd.gsd")
         if any([bead_mapping, segment_length]):
             raise ValueError(
@@ -515,6 +513,7 @@ class Initializer:
             sequence = "random"
         random.seed(self.system_parms.seed)
         mb_compounds = []
+        self.residues = []
         for length, n in zip(
                 self.system_parms.polymer_lengths, self.system_parms.n_compounds
             ):
@@ -525,7 +524,9 @@ class Initializer:
                     sequence,
                     self.system_parms.para_weight
                 )
+                polymer.name = f"{mol_sequence}_{length}mer"
                 mb_compounds.append(polymer)
+                self.residues.extend([polymer.name]*n)
                 self.system_parms.molecule_sequences.append(mol_sequence)
                 for i in range(n - 1):
                     _clone = mb.clone(polymer)
