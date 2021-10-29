@@ -10,7 +10,7 @@ dependencies:
   - pip=21.0
   - pytest
   - pytest-cov
-  - python=3.7
+  - python=3.9
   - scipy=1.6.0
   - signac=1.6.0
   - signac-flow=0.12.0
