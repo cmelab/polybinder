@@ -601,7 +601,8 @@ class Interface:
         self,
         slabs,
         ref_distance=None,
-        gap=0.1
+        gap=0.1,
+        weld_axis="x"
     ):
         self.system_type = "interface"
         self.ref_distance = ref_distance
@@ -612,20 +613,35 @@ class Interface:
         else:
             slab_files = slabs * 2
 
+        axis_dict = {
+                "x": np.array([1,0,0]),
+                "y": np.array([0,1,0]),
+                "z": np.array([0,0,1])
+            }
+        weld_axis = weld_axis.lower()
+        trans_axis = axis_dict[weld_axis]
+
         interface = mb.Compound()
         slab_1 = _gsd_to_mbuild(slab_files[0], self.ref_distance)
         slab_2 = _gsd_to_mbuild(slab_files[1], self.ref_distance)
         interface.add(new_child=slab_1, label="left")
         interface.add(new_child=slab_2, label="right")
-        x_len = interface.get_boundingbox().Lx
-        interface["left"].translate((-x_len - gap, 0, 0))
-        
+        #x_len = interface.get_boundingbox().Lx
+        _len = getattr(interface.get_boundingbox(), f"L{weld_axis}")
+        #interface["left"].translate((-x_len - gap, 0, 0))
+        #interface["left"].translate((-_len - gap, 0, 0))
+        interface["left"].translate(-trans_axis*(_len+gap))
         system_box = mb.box.Box.from_mins_maxs_angles(
                 mins=(0, 0, 0),
                 maxs = interface.get_boundingbox().lengths,
                 angles = (90, 90, 90)
             )
-        system_box._Lx += 2 * self.ref_distance * 1.1225
+        current_len = getattr(system_box, f"L{weld_axis}")
+        setattr(system_box,
+                f"_L{weld_axis}",
+                current_len + (2*self.ref_distance*1.1225)
+            )
+        #system_box._Lx += 2 * self.ref_distance * 1.1225
         interface.box = system_box
         # Center in the adjusted box
         interface.translate_to(

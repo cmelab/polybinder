@@ -12,11 +12,10 @@ class BaseTest:
     @pytest.fixture()
     def test_slab(self):
         slab = Interface(
-            slabs=os.path.join(
-                SYSTEM_DIR,
-                "test-slab.gsd"),
+            slabs=os.path.join(SYSTEM_DIR, "test-slab.gsd"),
             ref_distance=0.33997,
-            gap=0.1
+            gap=0.1,
+            weld_axis="x"
         )
         return slab
 
