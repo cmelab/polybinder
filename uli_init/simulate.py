@@ -545,7 +545,7 @@ class Simulation:
             hoomd_system = objs[1]
             init_snap = objs[0]
             tensile_axis = tensile_axis.lower()
-            init_length = getattr(init_snap.box, f"L_{tensile_axis}")
+            init_length = getattr(init_snap.box, f"L{tensile_axis}")
             fix_length = init_length * fix_ratio
             target_length = init_length * (1+strain)
             linear_variant = hoomd.variant.linear_interp(
@@ -652,7 +652,7 @@ class Simulation:
             while step < n_steps:
                 try:
                     hoomd.run_upto(step + expand_period)
-                    current_L = getattr(hoomd_system.box, f"L_{tensile_axis}")
+                    current_L = getattr(hoomd_system.box, f"L{tensile_axis}")
                     diff = current_L - last_L
                     for particle in fix_left:
                         particle.position -= (adjust_axis * (diff/2)) 
