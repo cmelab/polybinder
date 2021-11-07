@@ -510,7 +510,8 @@ class Simulation:
             strain,
             n_steps,
             expand_period,
-            x_fix=0.05
+            tensile_axis="x",
+            fix_ratio=0.05
             ):
         """Runs a simulation of a tensile test pulling along the x-axis.
 
@@ -523,7 +524,7 @@ class Simulation:
             The number of simulation time steps to run.
         expand_period : int
             The number of steps ran between each box update.
-        x_fix : float, default = 0.05
+        fix_ratio : float, default = 0.05
             The distance along the x-axis to fix particles in place.
             Treated as a percentage of the initial  volume's x_length.
             Since particles are fixed on each side, half of x_fix
@@ -543,19 +544,69 @@ class Simulation:
                 )
             hoomd_system = objs[1]
             init_snap = objs[0]
-            # Set up groups, based in fix length along X
-            fix_length = (init_snap.box.Lx / 2) * x_fix
-            fix_left = hoomd.group.cuboid( # Negative x side of box
-                    name="left",
-                    xmin=-init_snap.box.Lx / 2,
-                    xmax=(-init_snap.box.Lx / 2)  + fix_length
+            tensile_axis = tensile_axis.lower()
+            init_length = getattr(init_snap.box, f"L_{tensile_axis}")
+            fix_length = init_length * fix_ratio
+            target_length = init_length * (1+strain)
+            linear_variant = hoomd.variant.linear_interp(
+                    [(0, init_length), (n_steps, target_length)]
                 )
-            # Positive x side of box
-            fix_right = hoomd.group.cuboid(
-                    name="right",
-                    xmin=(init_snap.box.Lx / 2) - fix_length,
-                    xmax=init_snap.box.Lx / 2
-                )
+            axis_dict = {
+                "x": np.array([1,0,0]),
+                "y": np.array([0,1,0]),
+                "z": np.array([0,0,1])
+            }
+            adjust_axis = axis_dict[tensile_axis]
+
+            if tensile_axis.lower() == "x":
+                fix_left = hoomd.group.cuboid( # Negative x side of box
+                        name="left",
+                        xmin=-init_snap.box.Lx / 2,
+                        xmax=(-init_snap.box.Lx / 2)  + fix_length
+                    )
+                fix_right = hoomd.group.cuboid(
+                        name="right",
+                        xmin=(init_snap.box.Lx / 2) - fix_length,
+                        xmax=init_snap.box.Lx / 2
+                    )
+                box_updater = hoomd.update.box_resize(
+                        Lx=linear_variant,
+                        period=expand_period,
+                        scale_particles=False
+                    )
+            elif tensile_axis.lower() == "y":
+                fix_left = hoomd.group.cuboid( # Negative x side of box
+                        name="left",
+                        ymin=-init_snap.box.Ly / 2,
+                        ymax=(-init_snap.box.Ly / 2)  + fix_length
+                    )
+                fix_right = hoomd.group.cuboid(
+                        name="right",
+                        ymin=(init_snap.box.Ly / 2) - fix_length,
+                        ymax=init_snap.box.Ly / 2
+                    )
+                box_updater = hoomd.update.box_resize(
+                        Ly=linear_variant,
+                        period=expand_period,
+                        scale_particles=False
+                    )
+            elif tensile_axis.lower() == "z":
+                fix_left = hoomd.group.cuboid( # Negative x side of box
+                        name="left",
+                        ymin=-init_snap.box.Lz / 2,
+                        ymax=(-init_snap.box.Lz / 2)  + fix_length
+                    )
+                fix_right = hoomd.group.cuboid(
+                        name="right",
+                        ymin=(init_snap.box.Lz / 2) - fix_length,
+                        ymax=init_snap.box.Lz / 2
+                    )
+                box_updater = hoomd.update.box_resize(
+                        Lz=linear_variant,
+                        period=expand_period,
+                        scale_particles=False
+                    )
+
             _all_fixed = hoomd.group.union(
                     name="fixed", a=fix_left, b=fix_right
                 )
@@ -563,11 +614,6 @@ class Simulation:
             _integrate = hoomd.group.difference(
                     name="integrate", a=_all, b=_all_fixed
                     )
-            assert(
-                len([p for p in _integrate]) == (len([p for p in _all]) -
-                    len([p for p in _all_fixed])
-                    )
-                )
             hoomd.md.integrate.mode_standard(dt=self.dt)
             integrator = hoomd.md.integrate.nve(
                     group=_integrate, limit=None, zero_force=False
@@ -599,37 +645,34 @@ class Simulation:
                     dynamic=["momentum"]
                 )
             
-            # Set up volume expansion
-            target_length = init_snap.box.Lx*(1 + strain)
-            x_variant = hoomd.variant.linear_interp(
-                [(0, init_snap.box.Lx), (n_steps, target_length)]
-            )
-            box_updater = hoomd.update.box_resize(
-                    Lx=x_variant, period=expand_period, scale_particles=False
-                    )
             # Start simulation run
+            adjust_axis = axis_dict[tensile_axis]
             step = 0
-            last_Lx = init_snap.box.Lx
+            last_L = init_length 
             while step < n_steps:
                 try:
                     hoomd.run_upto(step + expand_period)
-                    current_box = hoomd_system.box
-                    diff = current_box.Lx - last_Lx
+                    current_L = getattr(hoomd_system.box, f"L_{tensile_axis}")
+                    diff = current_L - last_L
                     for particle in fix_left:
-                        particle.position = (
-                                    particle.position[0] - (diff / 2),
-                                    particle.position[1],
-                                    particle.position[2]
-                                )
+                        particle.position -= (adjust_axis * (diff/2)) 
                     for particle in fix_right:
-                        particle.position = (
-                                    particle.position[0] + (diff / 2),
-                                    particle.position[1],
-                                    particle.position[2]
-                                )
+                        particle.position += (adjust_axis * (diff/2))
+                    #for particle in fix_left:
+                    #    particle.position = (
+                    #                particle.position[0] - (diff / 2),
+                    #                particle.position[1],
+                    #                particle.position[2]
+                    #            )
+                    #for particle in fix_right:
+                    #    particle.position = (
+                    #                particle.position[0] + (diff / 2),
+                    #                particle.position[1],
+                    #                particle.position[2]
+                    #            )
 
                     step += expand_period
-                    last_Lx = current_box.Lx
+                    last_L = current_L 
                 except hoomd.WalltimeLimitReached:
                     pass
                 finally:

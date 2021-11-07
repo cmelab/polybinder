@@ -575,7 +575,8 @@ class FusedInterface:
     def __init__(
             self,
             gsd_file,
-            ref_distance
+            ref_distance,
+            tensile_axis
             ):
         self.gsd_file = gsd_file
         self.ref_distance = ref_distance
@@ -585,6 +586,11 @@ class FusedInterface:
                 mins=(0,0,0),
                 maxs=system.get_boundingbox().lengths,
                 angles = (90, 90, 90)
+            )
+        current_len = getattr(system.box, f"L{tensile_axis}")
+        setattr(system.box,
+                f"_L{tensile_axis}",
+                current_len + (2*self.ref_distance*1.1225)
             )
         system.translate_to(
                 [system.box.Lx / 2,
