@@ -655,24 +655,9 @@ class Simulation:
                     current_L = getattr(hoomd_system.box, f"L{tensile_axis}")
                     diff = current_L - last_L
                     for particle in fix_left:
-                        print(particle.position)
                         particle.position -= (adjust_axis * (diff/2))
-                        print(particle.position)
                     for particle in fix_right:
                         particle.position += (adjust_axis * (diff/2))
-                    #for particle in fix_left:
-                    #    particle.position = (
-                    #                particle.position[0] - (diff / 2),
-                    #                particle.position[1],
-                    #                particle.position[2]
-                    #            )
-                    #for particle in fix_right:
-                    #    particle.position = (
-                    #                particle.position[0] + (diff / 2),
-                    #                particle.position[1],
-                    #                particle.position[2]
-                    #            )
-
                     step += expand_period
                     last_L = current_L 
                 except hoomd.WalltimeLimitReached:

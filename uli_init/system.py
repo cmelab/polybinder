@@ -587,11 +587,11 @@ class FusedInterface:
                 maxs=system.get_boundingbox().lengths,
                 angles = (90, 90, 90)
             )
-        current_len = getattr(system.box, f"L{tensile_axis}")
-        setattr(system.box,
-                f"_L{tensile_axis}",
-                current_len + (2*self.ref_distance*1.1225)
-            )
+#        current_len = getattr(system.box, f"L{tensile_axis}")
+#        setattr(system.box,
+#                f"_L{tensile_axis}",
+#                current_len + (2*self.ref_distance*1.1225)
+#            )
         system.translate_to(
                 [system.box.Lx / 2,
                 system.box.Ly / 2,
