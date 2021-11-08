@@ -558,7 +558,7 @@ class Simulation:
             }
             adjust_axis = axis_dict[tensile_axis]
 
-            if tensile_axis.lower() == "x":
+            if tensile_axis == "x":
                 fix_left = hoomd.group.cuboid( # Negative x side of box
                         name="left",
                         xmin=-init_snap.box.Lx / 2,
@@ -574,7 +574,7 @@ class Simulation:
                         period=expand_period,
                         scale_particles=False
                     )
-            elif tensile_axis.lower() == "y":
+            elif tensile_axis == "y":
                 fix_left = hoomd.group.cuboid( # Negative x side of box
                         name="left",
                         ymin=-init_snap.box.Ly / 2,
@@ -590,11 +590,11 @@ class Simulation:
                         period=expand_period,
                         scale_particles=False
                     )
-            elif tensile_axis.lower() == "z":
+            elif tensile_axis == "z":
                 fix_left = hoomd.group.cuboid( # Negative x side of box
                         name="left",
-                        ymin=-init_snap.box.Lz / 2,
-                        ymax=(-init_snap.box.Lz / 2)  + fix_length
+                        zmin=-init_snap.box.Lz / 2,
+                        zmax=(-init_snap.box.Lz / 2)  + fix_length
                     )
                 fix_right = hoomd.group.cuboid(
                         name="right",
@@ -655,7 +655,9 @@ class Simulation:
                     current_L = getattr(hoomd_system.box, f"L{tensile_axis}")
                     diff = current_L - last_L
                     for particle in fix_left:
-                        particle.position -= (adjust_axis * (diff/2)) 
+                        print(particle.position)
+                        particle.position -= (adjust_axis * (diff/2))
+                        print(particle.position)
                     for particle in fix_right:
                         particle.position += (adjust_axis * (diff/2))
                     #for particle in fix_left:
