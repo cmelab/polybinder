@@ -598,8 +598,8 @@ class Simulation:
                     )
                 fix_right = hoomd.group.cuboid(
                         name="right",
-                        ymin=(init_snap.box.Lz / 2) - fix_length,
-                        ymax=init_snap.box.Lz / 2
+                        zmin=(init_snap.box.Lz / 2) - fix_length,
+                        zmax=init_snap.box.Lz / 2
                     )
                 box_updater = hoomd.update.box_resize(
                         Lz=linear_variant,
