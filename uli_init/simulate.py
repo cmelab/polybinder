@@ -161,6 +161,7 @@ class Simulation:
         shrink_steps=None,
         shrink_period=None,
         wall_axis=None,
+        **kwargs
     ):
         """Runs a NVT or NPT simulation at a single temperature
         and pressure.
@@ -212,7 +213,7 @@ class Simulation:
                 init_y = objs[0].box.Ly
                 init_z = objs[0].box.Lz
             elif self.cg_system is True:
-                objs = self._create_hoomd_sim_from_snapshot()
+                objs = self._create_hoomd_sim_from_snapshot(**kwargs)
                 self.log_quantities.remove("pair_lj_energy")
                 init_x = objs[0].configuration.box[0]
                 init_y = objs[0].configuration.box[1]
