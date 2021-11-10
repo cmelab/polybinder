@@ -693,7 +693,7 @@ class Simulation:
                 )
         elif morse_pot != False and table_pot == False:
             pair_pot = hoomd.md.pair.morse(
-                    r_cut = morse+pot[0], nlist=self.nlist()
+                    r_cut = morse_pot[0], nlist=self.nlist()
                 )
             for pair in [list(i) for i in combo(init_snap.particles.types, r=2)]:
                 pair_pot.pair_coeff.set(
@@ -724,7 +724,7 @@ class Simulation:
         hoomd_objs = [
                 init_snap,
                 hoomd_system,
-                nlist,
+                self.nlist(),
                 pair_pot,
                 harmonic_bond,
                 harmonic_angle,
