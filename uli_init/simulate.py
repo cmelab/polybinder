@@ -599,8 +599,8 @@ class Simulation:
                     )
                 fix_right = hoomd.group.cuboid(
                         name="right",
-                        ymin=(init_snap.box.Lz / 2) - fix_length,
-                        ymax=init_snap.box.Lz / 2
+                        zmin=(init_snap.box.Lz / 2) - fix_length,
+                        zmax=init_snap.box.Lz / 2
                     )
                 box_updater = hoomd.update.box_resize(
                         Lz=linear_variant,
@@ -666,7 +666,7 @@ class Simulation:
                 finally:
                     gsd_restart.write_restart()
 
-    def _create_hoomd_sim_from_snapshot(self):
+    def _create_hoomd_sim_from_snapshot(self, table_pot = False, morse_pot = False):
         """Creates needed hoomd objects.
 
         Similar to the `create_hoomd_simulation` function
@@ -674,18 +674,35 @@ class Simulation:
         a system from a gsd file rather than a Parmed structure.
         Created specifically for using table potentials with
         coarse-grained systems.
+
+        Parameters:
+        -----------
+        morse_pot : False, or list of parameters
+            [r_cut, D0, alpha, r0]
         """
         hoomd_system = hoomd.init.read_gsd(self.system)
-        nlist = self.nlist()
         with gsd.hoomd.open(self.system, "rb") as f:
             init_snap = f[0]
-        table = hoomd.md.pair.table(width=101, nlist=nlist)
-        for pair in [list(i) for i in combo(init_snap.particles.types, r=2)]:
-            _pair = "-".join(sorted(pair))
-            table_pot_file = f"{FF_DIR}/{_pair}.txt"
-            table.set_from_file(
-                f"{pair[0]}", f"{pair[1]}", filename=f"{table_pot_file}"
-            )
+        if table_pot != False and morse_pot == False:
+            pair_pot = hoomd.md.pair.table(width=101, nlist=self.nlist())
+            for pair in [list(i) for i in combo(init_snap.particles.types, r=2)]:
+                _pair = "-".join(sorted(pair))
+                table_pot_file = f"{FF_DIR}/{_pair}.txt"
+                pair_pot.set_from_file(
+                    f"{pair[0]}", f"{pair[1]}", filename=f"{table_pot_file}"
+                )
+        elif morse_pot != False and table_pot == False:
+            pair_pot = hoomd.md.pair.morse(
+                    r_cut = morse+pot[0], nlist=self.nlist()
+                )
+            for pair in [list(i) for i in combo(init_snap.particles.types, r=2)]:
+                pair_pot.pair_coeff.set(
+                        pair[0],
+                        pair[1],
+                        D0=morse_pot[1],
+                        alpha=morse_pot[2],
+                        r0=morse_pot[3]
+                    )
         # Create bond and angle objects 
         harmonic_bond = hoomd.md.bond.harmonic()
         for bond in self.bond_dicts:
@@ -708,7 +725,7 @@ class Simulation:
                 init_snap,
                 hoomd_system,
                 nlist,
-                table,
+                pair_pot,
                 harmonic_bond,
                 harmonic_angle,
             ]
