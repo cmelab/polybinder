@@ -399,13 +399,8 @@ class Initializer:
             The reference mass to scale particle masses by.
             Enter the mass in amu.
         """
-        try:
-            from paek_cg.coarse_grain import System
-        except ImportError:
-            raise ImportError(
-            "You first need to install paek_cg "
-             "before generating coarse grain systems."
-                    )
+        from paek_cg.coarse_grain import System
+
         if self.forcefield is not None:
             raise ValueError(
                     "If you want to coarse grain, set forcefield=None"
