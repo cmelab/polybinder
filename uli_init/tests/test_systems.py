@@ -117,6 +117,40 @@ class TestSystems(BaseTest):
                 a = 1.5, b = 0.9, n=2
                 )
 
+    def test_coarse_grain(self):
+        system_parms = System(
+                molecule="PEEK",
+                para_weight=0.50,
+                density=0.7,
+                n_compounds=[10],
+                polymer_lengths=[5],
+                )
+        system = Initializer(
+                system_parms,
+                system_type="pack",
+                expand_factor=10,
+                remove_hydrogens=True,
+                forcefield=None
+                )
+        system.coarse_grain_system(ref_distance=3.39, ref_mass=15.99)
+
+    def test_coarse_grain_with_ff(self):
+        system_parms = System(
+                molecule="PEEK",
+                para_weight=0.50,
+                density=0.7,
+                n_compounds=[10],
+                polymer_lengths=[5],
+                )
+        system = Initializer(
+                system_parms,
+                system_type="pack",
+                expand_factor=10,
+                remove_hydrogens=True,
+                forcefield="gaff"
+                )
+        with pytest.raises(ValueError):
+            system.coarse_grain_system(ref_distance=3.39, ref_mass=15.99)
 
     def test_build_peek(self):
         for i in range(5):

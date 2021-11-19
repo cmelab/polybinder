@@ -45,6 +45,12 @@ class TestSimulate(BaseTest):
                 shrink_period=None,
                 wall_axis=[1, 0 , 0],
             )
+        with pytest.raises(ValueError):
+            sim = simulate.Simulation(
+                    system="path-to-file.gsd",
+                    auto_scale=True,
+                    ref_values=None
+                )
 
     def test_quench_no_shrink(self, peek_system):
         simulation = simulate.Simulation(
