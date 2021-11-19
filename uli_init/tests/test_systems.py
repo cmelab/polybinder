@@ -33,6 +33,19 @@ class TestSystems(BaseTest):
                 new_box[1]**2,  2*(init_box[0]**2), atol=1e-3
             )
 
+    def test_compounds_lengths(self):
+        with pytest.raises(ValueError):
+            system_params = System(
+                        density=0.7,
+                        molecule="PEEK",
+                        para_weight=0.50,
+                        n_compounds=10,
+                        polymer_lengths=[5, 5],
+                    )
+            system = Initializer(
+                    system_params, system_type="wrong"
+                    )
+
     def test_bad_system_type(self):
         with pytest.raises(ValueError):
             system_params = System(
@@ -312,6 +325,19 @@ class TestSystems(BaseTest):
                 para_weight=0.60,
                 density=0.1,
                 n_compounds=3,
+                sample_pdi=True,
+                pdi=1.2,
+                Mn=5.0,
+                Mw=8.0,
+            )
+
+    def test_n_compounds_pdi(self):
+        with pytest.raises(TypeError):
+            system_parms = System(
+                molecule="PEEK",
+                para_weight=0.60,
+                density=0.1,
+                n_compounds=[3, 3],
                 sample_pdi=True,
                 pdi=1.2,
                 Mn=5.0,
