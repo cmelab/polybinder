@@ -414,7 +414,9 @@ class Initializer:
         pmd_system = self.system.to_parmed(residues=[self.residues])
         if self.remove_hydrogens:
             pmd_system.strip([a.atomic_number == 1 for a in pmd_system.atoms])
-        mb.formats.gsdwriter.write_gsd(pmd_system, "atomistic_gsd.gsd", ref_distance, ref_mass)
+        mb.formats.gsdwriter.write_gsd(
+                pmd_system, "atomistic_gsd.gsd", ref_distance, ref_mass
+            )
         # Order the bond group; required by CGing package
         with gsd.hoomd.open("atomistic_gsd.gsd", "rb") as f:
             snap = f[0]
