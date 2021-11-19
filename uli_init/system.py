@@ -433,6 +433,7 @@ class Initializer:
             if self.remove_hydrogens:
                 atoms_per_monomer -= 14
         cg_system = System(atoms_per_monomer, "atomistic_gsd.gsd")
+        #TODO: Allow to pass in segments or bead mapping
         if any([bead_mapping, segment_length]):
             raise ValueError(
                     "Only a mapping scheme of 1 monomer --> 1 bead "
@@ -571,7 +572,7 @@ class Initializer:
                     )
         return typed_system
 
-class FusedInterface:
+class Fused:
     def __init__(
             self,
             gsd_file,
@@ -597,10 +598,30 @@ class FusedInterface:
         self.system = forcefield.apply(system)
     
 class Interface:
+    """
+    Initialize an interface system between one or two "slabs" that were created
+    previously. Initializing a system via this class requires that the 
+    previous systems were ran using wall potentials to create two flat surfaces.
+    
+    Parameters
+    ----------
+    slabs : str, or list of str
+        Path to the .gsd files to be used in creating an interface
+    ref_distance : float
+        The reference distance used to convert from simulation
+        distance units to mBuild units (nanometers)
+    gap : float
+        The size of the gap between interfaces in nanometers.
+    weld_axis : str
+        Set the axis to translate the slabs along.
+        This should be the same axis used when setting the wall potentials
+        for the single slab simulations.
+        "x", "y" or "z"
+    """
     def __init__(
         self,
         slabs,
-        ref_distance=None,
+        ref_distance,
         gap=0.1,
         weld_axis="x"
     ):
@@ -619,6 +640,10 @@ class Interface:
                 "z": np.array([0,0,1])
             }
         weld_axis = weld_axis.lower()
+        assert weld_axis in ["x", "y", "z"], (
+                "Choose the axis of the interface. " 
+                "Valid choices are 'x', 'y', 'z'"
+                )
         trans_axis = axis_dict[weld_axis]
 
         interface = mb.Compound()
@@ -626,10 +651,7 @@ class Interface:
         slab_2 = _gsd_to_mbuild(slab_files[1], self.ref_distance)
         interface.add(new_child=slab_1, label="left")
         interface.add(new_child=slab_2, label="right")
-        #x_len = interface.get_boundingbox().Lx
         _len = getattr(interface.get_boundingbox(), f"L{weld_axis}")
-        #interface["left"].translate((-x_len - gap, 0, 0))
-        #interface["left"].translate((-_len - gap, 0, 0))
         interface["left"].translate(-trans_axis*(_len+gap))
         system_box = mb.box.Box.from_mins_maxs_angles(
                 mins=(0, 0, 0),
@@ -649,11 +671,10 @@ class Interface:
                 interface.box.Ly / 2,
                 interface.box.Lz / 2,]
             )
-
+       
         ff_path = f"{FF_DIR}/gaff-nosmarts.xml"
         forcefield = foyer.Forcefield(forcefield_files=ff_path)
         self.system = forcefield.apply(interface)
-
 
 def _add_bonds(compound, bonds):
     particle_dict = {}
