@@ -4,12 +4,18 @@ import random
 
 import numpy as np
 import uli_init
-from uli_init.system import System, Initializer
+from uli_init.system import System, Initializer, Interface, Fused
 from uli_init.library import SYSTEM_DIR
 from base_test import BaseTest
 
 
 class TestSystems(BaseTest):
+    def test_fused(self):
+        interface = Fused(
+                gsd_file=os.path.join(SYSTEM_DIR, "test-slab.gsd"),
+                ref_distance=0.33997
+                )
+
     def test_set_box(self):
         system_params = System(
                     density=1.0,
