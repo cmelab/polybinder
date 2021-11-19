@@ -16,6 +16,14 @@ class TestSystems(BaseTest):
                 ref_distance=0.33997
                 )
 
+    def test_interface_2_files(self):
+        interface = Interface(
+                slabs=[os.path.join(SYSTEM_DIR, "test-slab.gsd"), 
+                    os.path.join(SYSTEM_DIR, "test-slab.gsd")
+                    ],
+                ref_distance=0.33997
+                )
+
     def test_set_box(self):
         system_params = System(
                     density=1.0,
