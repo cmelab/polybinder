@@ -10,12 +10,32 @@ class BaseTest:
         tmpdir.chdir()
 
     @pytest.fixture()
-    def test_slab(self):
+    def test_slab_x(self):
         slab = Interface(
-            slabs=os.path.join(SYSTEM_DIR, "test-slab.gsd"),
+            slabs=os.path.join(SYSTEM_DIR, "test_slab_xwall.gsd"),
             ref_distance=0.33997,
             gap=0.1,
             weld_axis="x"
+        )
+        return slab
+
+    @pytest.fixture()
+    def test_slab_y(self):
+        slab = Interface(
+            slabs=os.path.join(SYSTEM_DIR, "test_slab_ywall.gsd"),
+            ref_distance=0.33997,
+            gap=0.1,
+            weld_axis="y"
+        )
+        return slab
+
+    @pytest.fixture()
+    def test_slab_z(self):
+        slab = Interface(
+            slabs=os.path.join(SYSTEM_DIR, "test_slab_zwall.gsd"),
+            ref_distance=0.33997,
+            gap=0.1,
+            weld_axis="z"
         )
         return slab
 

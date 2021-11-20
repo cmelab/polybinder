@@ -11,18 +11,36 @@ from base_test import BaseTest
 
 class TestSystems(BaseTest):
     def test_fused(self):
-        interface = Fused(
-                gsd_file=os.path.join(SYSTEM_DIR, "test-slab.gsd"),
+        fused = Fused(
+                gsd_file=os.path.join(SYSTEM_DIR, "test_slab_xwall.gsd"),
                 ref_distance=0.33997
-                )
+            )
 
     def test_interface_2_files(self):
         interface = Interface(
-                slabs=[os.path.join(SYSTEM_DIR, "test-slab.gsd"), 
-                    os.path.join(SYSTEM_DIR, "test-slab.gsd")
+                slabs=[os.path.join(SYSTEM_DIR, "test_slab_xwall.gsd"), 
+                    os.path.join(SYSTEM_DIR, "test_slab_xwall.gsd")
                     ],
                 ref_distance=0.33997
-                )
+            )
+
+    def test_interface_y(self):
+        interface = Interface(
+                slabs=[os.path.join(SYSTEM_DIR, "test_slab_ywall.gsd"), 
+                    os.path.join(SYSTEM_DIR, "test_slab_ywall.gsd")
+                    ],
+                ref_distance=0.33997,
+                weld_axis="y"
+            )
+
+    def test_interface_z(self):
+        interface = Interface(
+                slabs=[os.path.join(SYSTEM_DIR, "test_slab_zwall.gsd"), 
+                    os.path.join(SYSTEM_DIR, "test_slab_zwall.gsd")
+                    ],
+                ref_distance=0.33997,
+                weld_axis="z"
+            )
 
     def test_set_box(self):
         system_params = System(
