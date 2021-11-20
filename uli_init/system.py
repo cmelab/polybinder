@@ -673,16 +673,6 @@ class Interface:
         forcefield = foyer.Forcefield(forcefield_files=ff_path)
         self.system = forcefield.apply(interface)
 
-def _add_bonds(compound, bonds):
-    particle_dict = {}
-    for idx, particle in enumerate(compound.particles()):
-        particle_dict[idx] = particle
-
-    for (i, j) in bonds:
-        atom1 = particle_dict[i]
-        atom2 = particle_dict[j]
-        compound.add_bond(particle_pair=[atom1, atom2])
-
 def _gsd_to_mbuild(gsd_file, ref_distance):
     element_mapping = {
         "oh": "O",
@@ -704,7 +694,15 @@ def _gsd_to_mbuild(gsd_file, ref_distance):
         comp.add(child)
 
     bonds = [(i, j) for (i, j) in snap.bonds.group]
-    _add_bonds(compound=comp, bonds=bonds)
+
+    particle_dict = {}
+    for idx, particle in enumerate(comp.particles()):
+        particle_dict[idx] = particle
+
+    for (i, j) in bonds:
+        atom1 = particle_dict[i]
+        atom2 = particle_dict[j]
+        comp.add_bond(particle_pair=[atom1, atom2])
     return comp
 
 def build_molecule(molecule, length, sequence, para_weight, smiles=False):
