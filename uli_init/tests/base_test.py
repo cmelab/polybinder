@@ -42,22 +42,22 @@ class BaseTest:
     @pytest.fixture
     def cg_system(self):
         system_parms = System(
-                molecule="PEEK",
-                para_weight=0.50,
-                density=0.8,
+                molecule="PEKK",
+                para_weight=1.0,
+                density=0.08,
                 n_compounds=[10],
                 polymer_lengths=[3],
         )
-        peek_sys = Initializer(
+        pekk_sys = Initializer(
                 system_parms,
                 system_type="pack",
                 forcefield=None,
                 remove_hydrogens=True
                 )
-        peek_sys.coarse_grain_system(
+        pekk_sys.coarse_grain_system(
                 ref_distance=3.39, ref_mass=15.99
             )
-        return peek_sys
+        return pekk_sys
 
     @pytest.fixture
     def peek_system(self):
