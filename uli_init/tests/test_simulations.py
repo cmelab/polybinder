@@ -6,7 +6,7 @@ import pytest
 
 class TestSimulate(BaseTest):
 
-    def test_bad_inputs(self, peek_system):
+    def test_bad_inputs(self, peek_system, cg_system):
         simulation = simulate.Simulation(
                 peek_system,
                 tau_p=0.1,
@@ -45,9 +45,9 @@ class TestSimulate(BaseTest):
                 shrink_period=None,
                 wall_axis=[1, 0 , 0],
             )
-        with pytest.raises(ValueError):
+        with pytest.raises(AssertionError):
             sim = simulate.Simulation(
-                    system="path-to-file.gsd",
+                    system=cg_system,
                     auto_scale=True,
                     ref_values=None
                 )
