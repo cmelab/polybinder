@@ -95,7 +95,7 @@ class TestSimulate(BaseTest):
             shrink_period=1,
         )
 
-    def test_quench(self, peek_system):
+    def test_quench_nvt(self, peek_system):
         simulation = simulate.Simulation(peek_system, dt=0.0001, mode="cpu")
         simulation.quench(
             kT=2,
@@ -122,7 +122,7 @@ class TestSimulate(BaseTest):
             shrink_period=1,
         )
 
-    def test_anneal(self, pekk_system):
+    def test_anneal_nvt(self, pekk_system):
         simulation = simulate.Simulation(pekk_system, dt=0.0001, mode="cpu")
         simulation.anneal(
             kT_init=4,
@@ -176,6 +176,7 @@ class TestSimulate(BaseTest):
             shrink_period=5,
             wall_axis=[1,0,0],
         )
+
     def test_walls_y_quench(self, peek_system_noH):
         simulation = simulate.Simulation(peek_system_noH, dt=0.001, mode="cpu")
         simulation.quench(
@@ -198,6 +199,7 @@ class TestSimulate(BaseTest):
             shrink_period=5,
             wall_axis=[0,1,0],
         )
+
     def test_walls_z_quench(self, peek_system_noH):
         simulation = simulate.Simulation(peek_system_noH, dt=0.001, mode="cpu")
         simulation.quench(
@@ -221,14 +223,14 @@ class TestSimulate(BaseTest):
             wall_axis=[0,0,1],
         )
 
-    def test_slabs_quench(self, test_slab_x):
+    def test_weld_quench(self, test_slab_x):
         simulation = simulate.Simulation(test_slab_x, dt=0.0001, mode="cpu")
         simulation.quench(kT=2, n_steps=1e3, wall_axis=[1,0,0])
 
-    def test_slabs_anneal(self, test_slab_x):
-        simulation = simulate.Simulation(test_slab_x, dt=0.0001, mode="cpu")
+    def test_weld_anneal(self, test_slab_y):
+        simulation = simulate.Simulation(test_slab_y, dt=0.0001, mode="cpu")
         simulation.anneal(
-            kT_init=4, kT_final=2, step_sequence=[1e3, 1e3, 1e3], wall_axis=[1,0,0]
+            kT_init=4, kT_final=2, step_sequence=[1e3, 1e3, 1e3], wall_axis=[0,1,0]
         )
 
     def test_tensile_x(self, test_slab_x):
@@ -254,4 +256,3 @@ class TestSimulate(BaseTest):
                 n_steps=1e3,
                 expand_period=10
             )
-
