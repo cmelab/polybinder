@@ -223,22 +223,22 @@ class TestSimulate(BaseTest):
             wall_axis=[0,0,1],
         )
 
-    def test_weld_quench(self, test_slab_x):
-        simulation = simulate.Simulation(test_slab_x, dt=0.0001, mode="cpu")
+    def test_weld_quench(self, test_interface_x):
+        simulation = simulate.Simulation(test_interface_x, dt=0.0001, mode="cpu")
         simulation.quench(kT=2, n_steps=1e3, wall_axis=[1,0,0])
 
-    def test_weld_anneal(self, test_slab_y):
-        simulation = simulate.Simulation(test_slab_y, dt=0.0001, mode="cpu")
+    def test_weld_anneal(self, test_interface_y):
+        simulation = simulate.Simulation(test_interface_y, dt=0.0001, mode="cpu")
         simulation.anneal(
             kT_init=4, kT_final=2, step_sequence=[1e3, 1e3, 1e3], wall_axis=[0,1,0]
         )
 
-    def test_tensile_x(self, test_slab_x):
-        simulation = simulate.Simulation(test_slab_x, dt=0.00001, mode="cpu")
+    def test_tensile_x(self, test_interface_x):
+        simulation = simulate.Simulation(test_interface_x, dt=0.00001, mode="cpu")
         simulation.tensile(kT=2.0, strain=0.25, n_steps=1e3, expand_period=10)
 
-    def test_tensile_y(self, test_slab_y):
-        simulation = simulate.Simulation(test_slab_y, dt=0.00001, mode="cpu")
+    def test_tensile_y(self, test_interface_y):
+        simulation = simulate.Simulation(test_interface_y, dt=0.00001, mode="cpu")
         simulation.tensile(
                 kT=2.0,
                 tensile_axis="y",
@@ -247,8 +247,8 @@ class TestSimulate(BaseTest):
                 expand_period=10
             )
 
-    def test_tensile_z(self, test_slab_z):
-        simulation = simulate.Simulation(test_slab_z, dt=0.00001, mode="cpu")
+    def test_tensile_z(self, test_interface_z):
+        simulation = simulate.Simulation(test_interface_z, dt=0.00001, mode="cpu")
         simulation.tensile(
                 kT=2.0,
                 tensile_axis="z",
