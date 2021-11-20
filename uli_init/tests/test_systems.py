@@ -3,6 +3,7 @@ import pytest
 import random
 
 import numpy as np
+import gsd.hoomd
 import uli_init
 from uli_init.system import System, Initializer, Interface, Fused
 from uli_init.library import SYSTEM_DIR
@@ -409,3 +410,15 @@ class TestSystems(BaseTest):
                 Mn=5.0,
                 Mw=8.0,
             )
+
+    def test_gsd_to_mbuild(self):
+        gsd_file = os.path.join(SYSTEM_DIR, "test_slab_xwall.gsd")
+        mb_comp = uli_init.system._gsd_to_mbuild(
+                gsd_file=gsd_file, ref_distance=3.39
+            )
+        mb_pos = [i.xyz for i in mb_comp.particles()]
+        with gsd.hoomd.open(gsd_file) as traj:
+            for i, j in zip(mb_pos, traj[-1].particles.position):
+                j = j*3.39
+                assert i.all() == j.all()
+
