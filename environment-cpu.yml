@@ -19,4 +19,4 @@ dependencies:
   - pip:
       - git+https://github.com/cmelab/cmeutils.git@master
       - git+https://github.com/chrisjonesBSU/paek_cg.git@main
-      - git+https://github.com/cmelab/uli-init.git@0.3.0
+      - git+https://github.com/cmelab/uli-init.git@0.3.1
