@@ -2,65 +2,186 @@ import os
 import pytest
 import random
 
-from uli_init import simulate, system
+import numpy as np
+import gsd.hoomd
+import uli_init
+from uli_init.system import System, Initializer, Interface, Fused
 from uli_init.library import SYSTEM_DIR
 from base_test import BaseTest
 
 
 class TestSystems(BaseTest):
-    def test_custom_bad_params(self):
-        file_path = os.path.join(
-                SYSTEM_DIR,
-                "test_peek.mol2"
-                )
-        with pytest.warns(UserWarning):
-            custom_sys = system.System(
-                    system_type = "custom",
-                    density=0.7,
-                    molecule="PEEK",
-                    para_weight=0.50,
+    def test_fused(self):
+        fused = Fused(
+                gsd_file=os.path.join(SYSTEM_DIR, "test_slab_xwall.gsd"),
+                ref_distance=0.33997
+            )
+
+    def test_interface_2_files(self):
+        interface = Interface(
+                slabs=[os.path.join(SYSTEM_DIR, "test_slab_xwall.gsd"), 
+                    os.path.join(SYSTEM_DIR, "test_slab_xwall.gsd")
+                    ],
+                ref_distance=0.33997
+            )
+
+    def test_interface_y(self):
+        interface = Interface(
+                slabs=[os.path.join(SYSTEM_DIR, "test_slab_ywall.gsd"), 
+                    os.path.join(SYSTEM_DIR, "test_slab_ywall.gsd")
+                    ],
+                ref_distance=0.33997,
+                weld_axis="y"
+            )
+
+    def test_interface_z(self):
+        interface = Interface(
+                slabs=[os.path.join(SYSTEM_DIR, "test_slab_zwall.gsd"), 
+                    os.path.join(SYSTEM_DIR, "test_slab_zwall.gsd")
+                    ],
+                ref_distance=0.33997,
+                weld_axis="z"
+            )
+
+    def test_set_box(self):
+        system_params = System(
+                    density=1.0,
+                    molecule="PEKK",
+                    para_weight=1.0,
                     n_compounds=10,
-                    polymer_lengths=5,
-                    file_path=file_path
-                    )
-            ignore_args = [
-                    custom_sys.molecule,
-                    custom_sys.para_weight,
-                    custom_sys.polymer_lengths,
-                    custom_sys.n_compounds
-                    ]
-            assert not any(ignore_args)
+                    polymer_lengths=5
+                )
+        system = Initializer(
+                system_params, system_type="pack"
+            )
+        init_box = system.target_box
+        system.set_target_box(x_constraint = init_box[0]/2)
+        new_box = system.target_box
 
-    def bad_system_type(self):
+        assert np.allclose(
+                np.prod(init_box), np.prod(new_box), atol=1e-3
+            )
+        assert np.allclose(new_box[1], new_box[2], atol=1e-3)
+        assert np.allclose(
+                new_box[1]**2,  2*(init_box[0]**2), atol=1e-3
+            )
+
+    def test_compounds_lengths(self):
         with pytest.raises(ValueError):
-            stacked_system = system.System(
-                    molecule="PEEK",
-                    para_weight=0.50,
-                    density=0.7,
-                    n_compounds=[10],
-                    polymer_lengths=[5],
-                    system_type="wrong",
-                    forcefield="gaff",
-                    remove_hydrogens=False,
-                    expand_factor=4
+            system_params = System(
+                        density=0.7,
+                        molecule="PEEK",
+                        para_weight=0.50,
+                        n_compounds=10,
+                        polymer_lengths=[5, 5],
+                    )
+            system = Initializer(
+                    system_params, system_type="wrong"
                     )
 
-    def test_stack(self):
-        stacked_system = system.System(
+    def test_bad_system_type(self):
+        with pytest.raises(ValueError):
+            system_params = System(
+                        density=0.7,
+                        molecule="PEEK",
+                        para_weight=0.50,
+                        n_compounds=10,
+                        polymer_lengths=5,
+                    )
+            system = Initializer(
+                    system_params, system_type="wrong"
+                    )
+
+    def test_pack(self):
+        system_parms = System(
                 molecule="PEEK",
                 para_weight=0.50,
                 density=0.7,
                 n_compounds=[10],
                 polymer_lengths=[5],
-                system_type="stack",
-                forcefield="gaff",
-                remove_hydrogens=False,
-                expand_factor=4
                 )
+        system = Initializer(
+                system_parms, system_type="pack", expand_factor=10
+                )
+
+
+    def test_stack(self):
+        system_parms = System(
+                molecule="PEEK",
+                para_weight=0.50,
+                density=0.7,
+                n_compounds=[10],
+                polymer_lengths=[5],
+                )
+        system = Initializer(
+                system_parms, system_type="stack", separation=1.0
+                )
+
+    def test_crystal(self):
+        system_parms = System(
+                molecule="PEEK",
+                para_weight=1.0,
+                density=0.7,
+                n_compounds=[8],
+                polymer_lengths=[5],
+                )
+        system = Initializer(
+                system_parms, system_type="crystal",
+                a = 1.5, b = 0.9, n=2
+                )
+
+    def test_crystal_bad_n(self):
+        system_parms = System(
+                molecule="PEEK",
+                para_weight=1.0,
+                density=0.7,
+                n_compounds=[12],
+                polymer_lengths=[5],
+                )
+        with pytest.raises(ValueError):
+            system = Initializer(
+                system_parms, system_type="crystal",
+                a = 1.5, b = 0.9, n=2
+                )
+
+    def test_coarse_grain(self):
+        system_parms = System(
+                molecule="PEEK",
+                para_weight=0.50,
+                density=0.7,
+                n_compounds=[10],
+                polymer_lengths=[5],
+                )
+        system = Initializer(
+                system_parms,
+                system_type="pack",
+                expand_factor=10,
+                remove_hydrogens=True,
+                forcefield=None
+                )
+        system.coarse_grain_system(ref_distance=3.39, ref_mass=15.99)
+
+    def test_coarse_grain_with_ff(self):
+        system_parms = System(
+                molecule="PEEK",
+                para_weight=0.50,
+                density=0.7,
+                n_compounds=[10],
+                polymer_lengths=[5],
+                )
+        system = Initializer(
+                system_parms,
+                system_type="pack",
+                expand_factor=10,
+                remove_hydrogens=True,
+                forcefield="gaff"
+                )
+        with pytest.raises(ValueError):
+            system.coarse_grain_system(ref_distance=3.39, ref_mass=15.99)
 
     def test_build_peek(self):
         for i in range(5):
-            compound = system.build_molecule(
+            compound = uli_init.system.build_molecule(
                     "PEEK", i + 1,
                     sequence = "random",
                     para_weight=0.50
@@ -68,7 +189,7 @@ class TestSystems(BaseTest):
 
     def test_build_pekk(self):
         for i in range(5):
-            compound = system.build_molecule(
+            compound = uli_init.system.build_molecule(
                     "PEKK", 
                     i + 1,
                     sequence="random",
@@ -77,147 +198,130 @@ class TestSystems(BaseTest):
 
     def test_monomer_sequence(self):
         with pytest.warns(UserWarning):
-            system_even = system.System(
+            system_parms = System(
                     molecule="PEEK",
                     monomer_sequence="PM",
                     para_weight=0.5,
                     n_compounds = [1],
                     polymer_lengths=[4],
                     density=.1,
-                    system_type="pack",
-                    remove_hydrogens=True
                     )
 
-        system_even = system.System(
+        system_parms_even = System(
                 molecule="PEEK",
                 monomer_sequence="PM",
                 n_compounds = [1],
                 polymer_lengths=[4],
                 density=.1,
-                system_type="pack",
-                remove_hydrogens=True
                 )
-        assert system_even.para == system_even.meta  == 2
-        assert system_even.molecule_sequences[0] == "PMPM"
+        system_even = Initializer(system_parms_even, "pack")
 
-        system_odd = system.System(
+        assert system_parms_even.para == system_parms_even.meta  == 2
+        assert system_parms_even.molecule_sequences[0] == "PMPM"
+
+        system_parms = System(
                 molecule="PEEK",
                 monomer_sequence="PM",
                 n_compounds = [1],
                 polymer_lengths=[5],
                 density=.1,
-                system_type="pack",
-                remove_hydrogens=True
                 )
-        assert system_odd.para == 3
-        assert system_odd.meta == 2
-        assert system_odd.molecule_sequences[0] == "PMPMP"
+        system_odd = Initializer(
+                system_parms, "pack"
+                )
+        assert system_parms.para == 3
+        assert system_parms.meta == 2
+        assert system_parms.molecule_sequences[0] == "PMPMP"
 
-        system_large_seq = system.System(
+        system_parms = System(
                 molecule="PEEK",
                 monomer_sequence="PMPMPMPMPM",
                 n_compounds = [1],
                 polymer_lengths=[4],
                 density=.1,
-                system_type="pack",
-                remove_hydrogens=True
                 )
-        assert system_large_seq.para == system_large_seq.meta == 2
-        assert system_large_seq.molecule_sequences[0] == "PMPM"
+        system_long_seq = Initializer(
+                system_parms, "pack"
+                )
+        assert system_parms.para == system_parms.meta == 2
+        assert system_parms.molecule_sequences[0] == "PMPM"
 
     def test_para_weight(self):
-        all_para = system.random_sequence(para_weight=1, length=10)
-        all_meta = system.random_sequence(para_weight=0, length=10)
+        all_para = uli_init.system.random_sequence(para_weight=1, length=10)
+        all_meta = uli_init.system.random_sequence(para_weight=0, length=10)
         assert all_para.count("P") == 10
         assert all_meta.count("M") == 10
         random.seed(24)
-        mix_sequence = system.random_sequence(para_weight=0.50, length=10)
+        mix_sequence = uli_init.system.random_sequence(para_weight=0.50, length=10)
         assert mix_sequence.count("P") == 4
         random.seed()
-        mix_sequence = system.random_sequence(para_weight=0.70, length=100)
+        mix_sequence = uli_init.system.random_sequence(para_weight=0.70, length=100)
         assert 100 - mix_sequence.count("P") == mix_sequence.count("M")
     
     def test_weighted_sequence(self):
-        para_system = system.System(
+        para_monomers = System(
                 molecule="PEEK",
                 para_weight = 1.0,
                 n_compounds = [1],
                 polymer_lengths=[10],
                 density=0.1,
-                system_type="pack"
                 )
-        assert para_system.molecule_sequences[0] == "P"*10
+        para_system = Initializer(para_monomers, "pack")
+        assert para_monomers.molecule_sequences[0] == "P"*10
 
-        random_system = system.System(
+        random_monomers = System(
                 molecule="PEEK",
                 para_weight = 0.40,
                 n_compounds = [1],
                 polymer_lengths=[20],
                 density=0.1,
-                system_type="pack"
                 )
+        random_system = Initializer(random_monomers, "pack", expand_factor=10)
         random.seed(24)
-        sequence = system.random_sequence(para_weight=0.40, length=20)
+        sequence = uli_init.system.random_sequence(para_weight=0.40, length=20)
         sequence = "".join(sequence)
-        assert random_system.molecule_sequences[0] == sequence
+        assert random_monomers.molecule_sequences[0] == sequence
 
     def test_load_forcefiled(self):
-        simple_system = system.System(
+        system_parms = System(
             molecule="PEEK",
             para_weight=0.60,
             density=.1,
             n_compounds=[1],
             polymer_lengths=[2],
-            system_type="pack",
-            forcefield="gaff",
-            assert_dihedrals=False,
-            remove_hydrogens=False,
         )
+        simple_system = Initializer(
+                system_parms, "pack", forcefield="gaff"
+                )
 
     def test_remove_hydrogens(self):
-        simple_system = system.System(
+        system_parms = System(
             molecule="PEEK",
             para_weight=0.60,
             density=.1,
             n_compounds=[1],
             polymer_lengths=[2],
-            system_type="pack",
-            forcefield="gaff",
-            assert_dihedrals=False,
-            remove_hydrogens=True,
         )
-        post_remove_h = simple_system.system
+        system = Initializer(
+                system_parms, "pack", forcefield="gaff", remove_hydrogens=True
+                )
+        post_remove_h = system.system
         assert sum([int(item.type == "H") for item in post_remove_h.atoms]) == 0
 
-    def test_dihedrals(self):
-        simple_system = system.System(
-            molecule="PEEK",
-            para_weight=0.60,
-            density=.1,
-            n_compounds=[1],
-            polymer_lengths=[2],
-            forcefield="gaff",
-            system_type="pack",
-            assert_dihedrals=True,
-            remove_hydrogens=False,
-        )
-
     def test_multiple_compounds(self):
-        simple_system = system.System(
+        system_parms = System(
             molecule="PEEK",
             para_weight=0.60,
             density=.1,
             n_compounds=[5, 4, 3, 2, 1],
             polymer_lengths=[2, 4, 5, 11, 22],
-            forcefield=None,
-            system_type="pack",
-            assert_dihedrals=False,
-            remove_hydrogens=False,
-            expand_factor = 7
         )
+        system = Initializer(
+                system_parms, "pack"
+                )
 
     def test_pdi_mw(self):
-        simple_system = system.System(
+        system_parms = System(
             molecule="PEEK",
             para_weight=0.60,
             density=0.1,
@@ -225,15 +329,12 @@ class TestSystems(BaseTest):
             sample_pdi=True,
             pdi=1.2,
             Mw=6.0,
-            system_type="pack",
-            forcefield=None,
-            assert_dihedrals=False,
-            remove_hydrogens=False,
-            expand_factor = 7
         )
+        system = Initializer(system_parms, "pack")
+
 
     def test_pdi_mn(self):
-        simple_system = system.System(
+        system_parms = System(
             molecule="PEEK",
             para_weight=0.60,
             density=0.1,
@@ -241,15 +342,12 @@ class TestSystems(BaseTest):
             sample_pdi=True,
             pdi=1.2,
             Mn=5.0,
-            system_type="pack",
-            forcefield=None,
-            assert_dihedrals=False,
-            remove_hydrogens=False,
-            expand_factor = 7
         )
+        system = Initializer(system_parms, "pack")
+
 
     def test_mw_mn(self):
-        simple_system = system.System(
+        system_parms = System(
             molecule="PEEK",
             para_weight=0.60,
             density=0.1,
@@ -257,48 +355,39 @@ class TestSystems(BaseTest):
             sample_pdi=True,
             Mn=5.0,
             Mw=6.0,
-            system_type="pack",
-            forcefield=None,
-            assert_dihedrals=False,
-            remove_hydrogens=False,
-            expand_factor = 7
         )
+        system = Initializer(system_parms, "pack")
+
 
     def test_pdi_mn_mw(self):
-        simple_system = system.System(
+        system_parms = System(
             molecule="PEEK",
             para_weight=0.60,
             density=0.1,
             n_compounds=3,
             sample_pdi=True,
-            system_type="pack",
             pdi=1.2,
             Mw=6.0,
             Mn=5.0,
-            forcefield=None,
-            assert_dihedrals=False,
-            remove_hydrogens=False,
-            expand_factor = 7
         )
+        system = Initializer(system_parms, "pack")
+
 
     def test_too_few_pdi_vals(self):
         with pytest.raises(AssertionError):
-            simple_system = system.System(
+            system_parms = System(
                 molecule="PEEK",
                 para_weight=0.60,
                 density=0.1,
                 n_compounds=3,
                 sample_pdi=True,
                 pdi=1.2,
-                forcefield=None,
-                system_type="pack",
-                assert_dihedrals=False,
-                remove_hydrogens=False,
             )
+
 
     def test_incorrect_pdi_vals(self):
         with pytest.raises(AssertionError):
-            simple_system = system.System(
+            system_parms = System(
                 molecule="PEEK",
                 para_weight=0.60,
                 density=0.1,
@@ -307,25 +396,29 @@ class TestSystems(BaseTest):
                 pdi=1.2,
                 Mn=5.0,
                 Mw=8.0,
-                system_type="pack",
-                forcefield=None,
-                assert_dihedrals=False,
-                remove_hydrogens=False,
             )
 
-    def test_gauss_dist(self):
-        random.seed(42)
-        simple_system = system.System(
-            molecule="PEEK",
-            para_weight=0.60,
-            density=0.1,
-            n_compounds=3,
-            sample_pdi=True,
-            pdi=1.001,
-            Mn=5.0,
-            system_type="pack",
-            forcefield=None,
-            assert_dihedrals=False,
-            remove_hydrogens=False,
-            mass_dist_type="gaussian",
-        )
+    def test_n_compounds_pdi(self):
+        with pytest.raises(TypeError):
+            system_parms = System(
+                molecule="PEEK",
+                para_weight=0.60,
+                density=0.1,
+                n_compounds=[3, 3],
+                sample_pdi=True,
+                pdi=1.2,
+                Mn=5.0,
+                Mw=8.0,
+            )
+
+    def test_gsd_to_mbuild(self):
+        gsd_file = os.path.join(SYSTEM_DIR, "test_slab_xwall.gsd")
+        mb_comp = uli_init.system._gsd_to_mbuild(
+                gsd_file=gsd_file, ref_distance=3.39
+            )
+        mb_pos = [i.xyz for i in mb_comp.particles()]
+        with gsd.hoomd.open(gsd_file) as traj:
+            for i, j in zip(mb_pos, traj[-1].particles.position):
+                j = j*3.39
+                assert i.all() == j.all()
+

@@ -5,21 +5,8 @@ import pytest
 
 
 class TestSimulate(BaseTest):
-    def test_custom_system(self, peek_from_file):
-        simulation = simulate.Simulation(
-                peek_from_file,
-                mode="cpu"
-                )
-        simulation.quench(
-                kT=2,
-                n_steps=1e3,
-                shrink_kT=2,
-                shrink_steps=1e3,
-                shrink_period=20,
-                walls=False
-                )
 
-    def test_bad_inputs(self, peek_system):
+    def test_bad_inputs(self, peek_system, cg_system):
         simulation = simulate.Simulation(
                 peek_system,
                 tau_p=0.1,
@@ -34,7 +21,6 @@ class TestSimulate(BaseTest):
                 shrink_kT=5,
                 shrink_steps=None,
                 shrink_period=None,
-                walls=True,
             )
         # Pressure and walls quench
         with pytest.raises(ValueError):
@@ -45,7 +31,7 @@ class TestSimulate(BaseTest):
                 shrink_kT=None,
                 shrink_steps=None,
                 shrink_period=None,
-                walls=True,
+                wall_axis=[1, 0, 0],
             )
         # Pressure and walls anneal
         with pytest.raises(ValueError):
@@ -57,8 +43,14 @@ class TestSimulate(BaseTest):
                 shrink_kT=None,
                 shrink_steps=None,
                 shrink_period=None,
-                walls=True,
+                wall_axis=[1, 0 , 0],
             )
+        with pytest.raises(AssertionError):
+            sim = simulate.Simulation(
+                    system=cg_system,
+                    auto_scale=True,
+                    ref_values=None
+                )
 
     def test_quench_no_shrink(self, peek_system):
         simulation = simulate.Simulation(
@@ -74,7 +66,6 @@ class TestSimulate(BaseTest):
             shrink_kT=None,
             shrink_steps=None,
             shrink_period=None,
-            walls=False,
         )
 
     def test_anneal_no_shrink(self, peek_system):
@@ -86,7 +77,6 @@ class TestSimulate(BaseTest):
             shrink_kT=None,
             shrink_steps=None,
             shrink_period=None,
-            walls=False,
         )
 
     def test_quench_npt(self, peek_system):
@@ -103,10 +93,9 @@ class TestSimulate(BaseTest):
             shrink_kT=8,
             shrink_steps=1e3,
             shrink_period=1,
-            walls=False,
         )
 
-    def test_quench(self, peek_system):
+    def test_quench_nvt(self, peek_system):
         simulation = simulate.Simulation(peek_system, dt=0.0001, mode="cpu")
         simulation.quench(
             kT=2,
@@ -114,7 +103,6 @@ class TestSimulate(BaseTest):
             shrink_kT=8,
             shrink_steps=1e3,
             shrink_period=1,
-            walls=False,
         )
 
     def test_anneal_npt(self, pekk_system):
@@ -132,10 +120,9 @@ class TestSimulate(BaseTest):
             shrink_kT=8,
             shrink_steps=1e3,
             shrink_period=1,
-            walls=False,
         )
 
-    def test_anneal(self, pekk_system):
+    def test_anneal_nvt(self, pekk_system):
         simulation = simulate.Simulation(pekk_system, dt=0.0001, mode="cpu")
         simulation.anneal(
             kT_init=4,
@@ -144,7 +131,6 @@ class TestSimulate(BaseTest):
             shrink_kT=8,
             shrink_steps=1e3,
             shrink_period=1,
-            walls=False,
         )
 
     def test_quench_noH(self, pekk_system_noH):
@@ -155,7 +141,6 @@ class TestSimulate(BaseTest):
             shrink_kT=8,
             shrink_steps=1e3,
             shrink_period=1,
-            walls=False,
         )
 
     def test_anneal_noH(self, peek_system_noH):
@@ -167,38 +152,130 @@ class TestSimulate(BaseTest):
             shrink_kT=8,
             shrink_steps=1e3,
             shrink_period=1,
-            walls=False,
         )
 
-    def test_walls_quench(self, peek_system_noH):
+    def test_walls_x_quench(self, peek_system_noH):
         simulation = simulate.Simulation(peek_system_noH, dt=0.001, mode="cpu")
         simulation.quench(
             kT=2,
-            n_steps=1e3,
-            shrink_kT=8,
+            n_steps=1e2,
+            shrink_kT=6,
             shrink_steps=1e3,
-            shrink_period=20,
-            walls=True,
+            shrink_period=5,
+            wall_axis=[1,0,0],
         )
 
-    def test_walls_anneal(self, peek_system_noH):
+    def test_walls_x_anneal(self, peek_system_noH):
         simulation = simulate.Simulation(peek_system_noH, dt=0.001, mode="cpu")
         simulation.anneal(
             kT_init=4,
             kT_final=2,
-            step_sequence=[1e3, 1e3],
-            shrink_kT=8,
+            step_sequence=[1e2, 1e2],
+            shrink_kT=6,
             shrink_steps=1e3,
-            shrink_period=20,
-            walls=True,
+            shrink_period=5,
+            wall_axis=[1,0,0],
         )
 
-    def test_slabs_quench(self, test_slab):
-        simulation = simulate.Simulation(test_slab, dt=0.0001, mode="cpu")
-        simulation.quench(kT=2, n_steps=1e3, walls=True)
+    def test_walls_y_quench(self, peek_system_noH):
+        simulation = simulate.Simulation(peek_system_noH, dt=0.001, mode="cpu")
+        simulation.quench(
+            kT=2,
+            n_steps=1e2,
+            shrink_kT=6,
+            shrink_steps=1e3,
+            shrink_period=5,
+            wall_axis=[0,1,0],
+        )
 
-    def test_slabs_anneal(self, test_slab):
-        simulation = simulate.Simulation(test_slab, dt=0.0001, mode="cpu")
+    def test_walls_y_anneal(self, peek_system_noH):
+        simulation = simulate.Simulation(peek_system_noH, dt=0.001, mode="cpu")
         simulation.anneal(
-            kT_init=4, kT_final=2, step_sequence=[1e3, 1e3, 1e3], walls=True
+            kT_init=4,
+            kT_final=2,
+            step_sequence=[1e2, 1e2],
+            shrink_kT=6,
+            shrink_steps=1e3,
+            shrink_period=5,
+            wall_axis=[0,1,0],
         )
+
+    def test_walls_z_quench(self, peek_system_noH):
+        simulation = simulate.Simulation(peek_system_noH, dt=0.001, mode="cpu")
+        simulation.quench(
+            kT=2,
+            n_steps=1e2,
+            shrink_kT=6,
+            shrink_steps=1e3,
+            shrink_period=5,
+            wall_axis=[0,0,1],
+        )
+
+    def test_walls_z_anneal(self, peek_system_noH):
+        simulation = simulate.Simulation(peek_system_noH, dt=0.001, mode="cpu")
+        simulation.anneal(
+            kT_init=4,
+            kT_final=2,
+            step_sequence=[1e2, 1e2],
+            shrink_kT=6,
+            shrink_steps=1e3,
+            shrink_period=5,
+            wall_axis=[0,0,1],
+        )
+
+    def test_weld_quench(self, test_interface_x):
+        simulation = simulate.Simulation(test_interface_x, dt=0.0001, mode="cpu")
+        simulation.quench(kT=2, n_steps=1e3, wall_axis=[1,0,0])
+
+    def test_weld_anneal(self, test_interface_y):
+        simulation = simulate.Simulation(test_interface_y, dt=0.0001, mode="cpu")
+        simulation.anneal(
+            kT_init=4, kT_final=2, step_sequence=[1e3, 1e3, 1e3], wall_axis=[0,1,0]
+        )
+
+    def test_tensile_x(self, test_interface_x):
+        simulation = simulate.Simulation(test_interface_x, dt=0.00001, mode="cpu")
+        simulation.tensile(kT=2.0, strain=0.25, n_steps=1e3, expand_period=10)
+
+    def test_tensile_y(self, test_interface_y):
+        simulation = simulate.Simulation(test_interface_y, dt=0.00001, mode="cpu")
+        simulation.tensile(
+                kT=2.0,
+                tensile_axis="y",
+                strain=0.25,
+                n_steps=1e3,
+                expand_period=10
+            )
+
+    def test_tensile_z(self, test_interface_z):
+        simulation = simulate.Simulation(test_interface_z, dt=0.00001, mode="cpu")
+        simulation.tensile(
+                kT=2.0,
+                tensile_axis="z",
+                strain=0.25,
+                n_steps=1e3,
+                expand_period=10
+            )
+    
+    def test_cg_sim(self, cg_system):
+        simulation = simulate.Simulation(
+                cg_system,
+                r_cut=2.5,
+                ref_values = {"distance": 3.3997, "energy": 0.21, "mass": 15.99},
+                bond_dicts = [{"type1": "P", "type2": "P", "k": 5, "r0": 3.95}],
+                angle_dicts = [
+                    {"type1":"P",
+                     "type2":"P",
+                     "type3":"P",
+                     "k":1,
+                     "theta0":2.35}
+                    ]
+                )
+        simulation.quench(
+                kT=3.5,
+                n_steps=1e3,
+                shrink_kT=3.5,
+                shrink_steps=1e3,
+                shrink_period=10,
+                table_pot=True
+            )
