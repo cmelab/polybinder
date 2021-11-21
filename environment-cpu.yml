@@ -4,6 +4,7 @@ channels:
   - conda-forge
 dependencies:
   - foyer=0.9.4
+  - freud=2.7.0
   - gsd=2.4.0
   - hoomd=2.9.6
   - mbuild=0.13.1
@@ -16,5 +17,6 @@ dependencies:
   - signac=1.6.0
   - signac-flow=0.12.0
   - pip:
+      - git+https://github.com/cmelab/cmeutils.git@master
+      - git+https://github.com/chrisjonesBSU/paek_cg.git@main
       - git+https://github.com/cmelab/uli-init.git@0.3.0
-      - git+https://github.com/chrisjonesBSU/paek_cg
