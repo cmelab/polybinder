@@ -11,7 +11,7 @@ COPY setup.py ./uli/
 
 RUN ls -la ./uli
 
-RUN python -m pip install -e ./uli
+RUN python -m pip install ./uli
 
 RUN pytest
 
