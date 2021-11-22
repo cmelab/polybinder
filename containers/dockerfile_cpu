@@ -10,7 +10,7 @@ SHELL ["/bin/bash", "--login", "-c"]
 COPY environment.yml ./
 
 # Install in base environment
-RUN conda env update -n base -f environment.yml && \
+RUN conda env update -n base -f environment-cpu.yml && \
     conda clean --all --yes -f 
 
 # Install curl for Codecov
