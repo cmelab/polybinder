@@ -7,7 +7,7 @@ WORKDIR /opt/app
 SHELL ["/bin/bash", "--login", "-c"]
 
 # Create the environment
-COPY environment.yml ./
+COPY environment-cpu.yml ./
 
 # Install in base environment
 RUN conda env update -n base -f environment-cpu.yml && \
