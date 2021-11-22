@@ -19,8 +19,9 @@ cd uli-init
 ### 2. Set up and activate environment: ###  
 #### a. Using HOOMD-blue from conda:
 ```
-conda env create -f environment.yml  
+conda env create -f environment-cpu.yml  
 conda activate uli-init
+python -m pip install .
 ```  
 
 ## Containers
