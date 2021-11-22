@@ -4,7 +4,12 @@ FROM cmelab/gpuhoomdconda:latest
 COPY environment-nohoomd.yml ./
 
 # Install in base environment
-RUN conda env update -n base -f environment-nohoomd.yml && \
+RUN conda install -y -n base -c conda-forge git && \
+	conda env update -n base -f environment-nohoomd.yml && \
     conda clean --all --yes -f 
 
-RUN python -m pip install .
+COPY uli_init/ ./uli/uli_init/
+
+COPY setup.py ./uli/
+
+RUN python -m pip install ./uli

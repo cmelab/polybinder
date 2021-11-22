@@ -12,6 +12,7 @@ on:
 
 jobs:
   build_gpu:
+    # prevent build from running on forks
     if: github.repository_owner == 'cmelab'
     runs-on: ubuntu-latest
 
