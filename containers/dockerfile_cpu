@@ -6,7 +6,9 @@ RUN micromamba install -y -n base -f /tmp/env.yml && \
 
 RUN mkdir uli
 
-COPY uli_init setup.py uli
+COPY uli_init/ /uli/uli_init/
+
+COPY setup.py /uli/
 
 RUN ls -la ./uli
 
