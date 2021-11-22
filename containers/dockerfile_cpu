@@ -6,4 +6,6 @@ RUN micromamba install -y -n base -f /tmp/env.yml && \
 
 RUN python -m pip install .
 
+RUN pytest
+
 USER root
