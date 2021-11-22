@@ -95,8 +95,8 @@ setup(
     #     'console_scripts': ['mycli=mymodule:cli'],
     # },
     package_data={"uli_init": [
-        "library/compounds/*.json",
-        "library/forcefields/*.xml",
+        "library/compounds/*",
+        "library/forcefields/*",
         "library/systems/*"
         ]},
     install_requires=REQUIRED,
