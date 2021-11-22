@@ -4,9 +4,13 @@ COPY --chown=micromamba:micromamba environment-cpu.yml /tmp/env.yml
 RUN micromamba install -y -n base -f /tmp/env.yml && \
     micromamba clean --all --yes
 
-COPY -r uli_init setup.py .
+RUN mkdir uli
 
-RUN python -m pip install .
+COPY uli_init setup.py uli
+
+RUN ls -la ./uli
+
+RUN python -m pip install ./uli
 
 RUN pytest
 
