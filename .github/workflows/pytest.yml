@@ -5,17 +5,15 @@ on:
     # Action will run when any changes to these paths are pushed or pr'ed to master
     branches: [ master ]
     paths:
-      - 'uli_init/*'
-      - 'uli_init/tests/*'
-      - 'environment-cpu.yml'
-      - '.github/workflows/pytest.yml'
+      - uli_init/**
+      - environment-cpu.yml
+      - .github/workflows/pytest.yml
   pull_request:
     branches: [ master ]
     paths:
-      - 'uli_init/*'
-      - 'uli_init/tests/*'
-      - 'environment-cpu.yml'
-      - '.github/workflows/pytest.yml'
+      - uli_init/**
+      - environment-cpu.yml
+      - .github/workflows/pytest.yml
   # Allows workflow to be manually triggered
   workflow_dispatch:
 
