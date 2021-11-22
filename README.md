@@ -1,3 +1,4 @@
+TEST
 [![pytest](https://github.com/cmelab/uli-init/actions/workflows/pytest.yml/badge.svg)](https://github.com/cmelab/uli-init/actions/workflows/pytest.yml)
 [![build_cpu](https://github.com/cmelab/uli-init/actions/workflows/build_cpu.yml/badge.svg)](https://github.com/cmelab/uli-init/actions/workflows/build_cpu.yml)
 [![build_gpu](https://github.com/cmelab/uli-init/actions/workflows/build_gpu.yml/badge.svg)](https://github.com/cmelab/uli-init/actions/workflows/build_gpu.yml)
