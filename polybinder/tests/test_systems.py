@@ -4,9 +4,9 @@ import random
 
 import numpy as np
 import gsd.hoomd
-import uli_init
-from uli_init.system import System, Initializer, Interface, Fused
-from uli_init.library import SYSTEM_DIR
+import polybinder 
+from polybinder.system import System, Initializer, Interface, Fused
+from polybinder.library import SYSTEM_DIR
 from base_test import BaseTest
 
 
@@ -181,7 +181,7 @@ class TestSystems(BaseTest):
 
     def test_build_peek(self):
         for i in range(5):
-            compound = uli_init.system.build_molecule(
+            compound = polybinder.system.build_molecule(
                     "PEEK", i + 1,
                     sequence = "random",
                     para_weight=0.50
@@ -189,7 +189,7 @@ class TestSystems(BaseTest):
 
     def test_build_pekk(self):
         for i in range(5):
-            compound = uli_init.system.build_molecule(
+            compound = polybinder.system.build_molecule(
                     "PEKK", 
                     i + 1,
                     sequence="random",
@@ -247,15 +247,15 @@ class TestSystems(BaseTest):
         assert system_parms.molecule_sequences[0] == "PMPM"
 
     def test_para_weight(self):
-        all_para = uli_init.system.random_sequence(para_weight=1, length=10)
-        all_meta = uli_init.system.random_sequence(para_weight=0, length=10)
+        all_para = polybinder.system.random_sequence(para_weight=1, length=10)
+        all_meta = polybinder.system.random_sequence(para_weight=0, length=10)
         assert all_para.count("P") == 10
         assert all_meta.count("M") == 10
         random.seed(24)
-        mix_sequence = uli_init.system.random_sequence(para_weight=0.50, length=10)
+        mix_sequence = polybinder.system.random_sequence(para_weight=0.50, length=10)
         assert mix_sequence.count("P") == 4
         random.seed()
-        mix_sequence = uli_init.system.random_sequence(para_weight=0.70, length=100)
+        mix_sequence = polybinder.system.random_sequence(para_weight=0.70, length=100)
         assert 100 - mix_sequence.count("P") == mix_sequence.count("M")
     
     def test_weighted_sequence(self):
@@ -278,7 +278,7 @@ class TestSystems(BaseTest):
                 )
         random_system = Initializer(random_monomers, "pack", expand_factor=10)
         random.seed(24)
-        sequence = uli_init.system.random_sequence(para_weight=0.40, length=20)
+        sequence = polybinder.system.random_sequence(para_weight=0.40, length=20)
         sequence = "".join(sequence)
         assert random_monomers.molecule_sequences[0] == sequence
 
@@ -413,7 +413,7 @@ class TestSystems(BaseTest):
 
     def test_gsd_to_mbuild(self):
         gsd_file = os.path.join(SYSTEM_DIR, "test_slab_xwall.gsd")
-        mb_comp = uli_init.system._gsd_to_mbuild(
+        mb_comp = polybinder.system._gsd_to_mbuild(
                 gsd_file=gsd_file, ref_distance=3.39
             )
         mb_pos = [i.xyz for i in mb_comp.particles()]

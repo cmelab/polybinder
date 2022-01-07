@@ -15,9 +15,9 @@ from shutil import rmtree
 from setuptools import find_packages, setup, Command
 
 # Package meta-data.
-NAME = 'uli_init'
+NAME = 'polybinder'
 DESCRIPTION = 'Thermoplastic simulation package'
-URL = 'https://github.com/cmelab/uli-init'
+URL = 'https://github.com/cmelab/polybinder'
 EMAIL = 'chrisjones4@u.boisestate.edu'
 AUTHOR = 'CME Lab'
 REQUIRES_PYTHON = '>=3.7.0'
@@ -94,7 +94,7 @@ setup(
     # entry_points={
     #     'console_scripts': ['mycli=mymodule:cli'],
     # },
-    package_data={"uli_init": [
+    package_data={"polybinder": [
         "library/compounds/*",
         "library/forcefields/*",
         "library/systems/*"

@@ -39,7 +39,7 @@ jobs:
           context: .
           file: ./containers/dockerfile_cpu
           push: true
-          tags: cmelab/uliinit_cpu:latest
+          tags: cmelab/polybinder_cpu:latest
       -
         name: Image digest
         run: echo ${{ steps.docker_build.outputs.digest }}

@@ -1,4 +1,4 @@
-from uli_init.utils import base_units
+from polybinder.utils import base_units
 
 def reduce_from_kelvin(T_SI, ref_energy, precision=2):
     units = base_units.base_units()

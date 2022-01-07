@@ -8,8 +8,8 @@ RUN conda install -y -n base -c conda-forge git && \
 	conda env update -n base -f environment-nohoomd.yml && \
     conda clean --all --yes -f 
 
-COPY uli_init/ ./uli/uli_init/
+COPY polybinder/ ./polybinder/polybinder/
 
-COPY setup.py ./uli/
+COPY setup.py ./polybinder/
 
-RUN python -m pip install ./uli
+RUN python -m pip install ./polybinder

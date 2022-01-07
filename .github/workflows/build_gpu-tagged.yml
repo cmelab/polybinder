@@ -23,7 +23,7 @@ jobs:
         run: echo "TAG=${GITHUB_REF##*/}" >> $GITHUB_ENV
       -
         name: Check tag
-        run: echo ${{ format('cmelab/uliinit_gpu:{0}', env.TAG) }}
+        run: echo ${{ format('cmelab/polybinder_gpu:{0}', env.TAG) }}
       -
         name: Set up QEMU
         uses: docker/setup-qemu-action@v1
@@ -43,7 +43,7 @@ jobs:
           context: .
           file: ./containers/dockerfile_gpu
           push: true
-          tags: ${{ format('cmelab/uliinit_gpu:{0}', env.TAG) }}
+          tags: ${{ format('cmelab/polybinder_gpu:{0}', env.TAG) }}
       -
         name: Image digest
         run: echo ${{ steps.docker_build.outputs.digest }}

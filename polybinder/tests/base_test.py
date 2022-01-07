@@ -1,8 +1,8 @@
 import os
 
 import pytest
-from uli_init.system import System, Initializer, Interface
-from uli_init.library import COMPOUND_DIR, SYSTEM_DIR
+from polybinder.system import System, Initializer, Interface
+from polybinder.library import COMPOUND_DIR, SYSTEM_DIR
 
 class BaseTest:
     @pytest.fixture(autouse=True)

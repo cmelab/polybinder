@@ -6,13 +6,13 @@ RUN micromamba install -y -n base -c conda-forge git && \
     micromamba install -y -n base -f /tmp/env.yml && \
     micromamba clean --all --yes
 
-COPY uli_init/ ./uli/uli_init/
+COPY polybinder/ ./polybinder/polybinder/
 
-COPY setup.py ./uli/
+COPY setup.py ./polybinder/
 
-RUN ls -la ./uli
+RUN ls -la ./polybinder
 
-RUN python -m pip install ./uli
+RUN python -m pip install ./polybinder
 
 RUN pytest -vx
 
