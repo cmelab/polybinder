@@ -25,7 +25,7 @@ python -m pip install .
 ```  
 
 ## Containers
-Uli-Init containers with HOOMD compiled to work on cpu and gpu are availiable: `polybinder_cpu` and `polybinder_gpu`. 
+PolyBinder containers with HOOMD compiled to work on cpu and gpu are availiable: `polybinder_cpu` and `polybinder_gpu`. 
 
 To use PolyBinder in a prebuilt container (using Singularity), run:
 ```
@@ -35,7 +35,7 @@ singularity exec polybinder_cpu_latest.sif bash
 Or using Docker, run:
 ```
 docker pull cmelab/polybinder_cpu:latest
-docker run -it cmelab/uniinit_cpu:latest
+docker run -it cmelab/polybinder_cpu:latest
 ```
 
 ## Basic Usage
