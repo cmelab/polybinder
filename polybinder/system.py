@@ -429,7 +429,10 @@ class Initializer:
             atoms_per_monomer = 37
             if self.remove_hydrogens:
                 atoms_per_monomer -= 14
-        cg_system = System(atoms_per_monomer, "atomistic_gsd.gsd")
+        cg_system = System(
+                atoms_per_monomer=atoms_per_monomer,
+                gsd_file="atomistic_gsd.gsd"
+            )
         #TODO: Allow to pass in segments or bead mapping
         if any([bead_mapping, segment_length]):
             raise ValueError(
