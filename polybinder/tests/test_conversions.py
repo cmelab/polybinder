@@ -1,4 +1,4 @@
-from uli_init.utils import base_units, unit_conversions
+from polybinder.utils import base_units, unit_conversions
 
 def test_kelvin_from_reduced():
     kT = 4

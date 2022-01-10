@@ -39,7 +39,7 @@ jobs:
           context: .
           file: ./containers/dockerfile_gpu
           push: true
-          tags: cmelab/uliinit_gpu:latest
+          tags: cmelab/polybinder_gpu:latest
       -
         name: Image digest
         run: echo ${{ steps.docker_build.outputs.digest }}

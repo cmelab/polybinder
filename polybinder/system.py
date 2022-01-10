@@ -16,8 +16,8 @@ from mbuild.coordinate_transform import z_axis_transform
 from mbuild.formats.hoomd_snapshot import to_hoomdsnapshot
 from scipy.special import gamma
 
-from uli_init.library import COMPOUND_DIR, SYSTEM_DIR, FF_DIR
-from uli_init.utils import base_units
+from polybinder.library import COMPOUND_DIR, SYSTEM_DIR, FF_DIR
+from polybinder.utils import base_units
 
 units = base_units.base_units()
 
@@ -221,7 +221,7 @@ class Initializer:
 
         Parameters:
         ----------
-        system : uli_init.system.System, required
+        system : polybinder.system.System, required
             Contains the parameters for system generation
         system_type : str, required
             The type of system initialization scheme to use for

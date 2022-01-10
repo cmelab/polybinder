@@ -7,7 +7,7 @@ import numpy as np
 import parmed as pmd
 from hoomd.md import wall
 from mbuild.formats.hoomd_simulation import create_hoomd_simulation
-from uli_init.library import COMPOUND_DIR, SYSTEM_DIR, FF_DIR
+from polybinder.library import COMPOUND_DIR, SYSTEM_DIR, FF_DIR
 
 
 class Simulation:
@@ -19,7 +19,7 @@ class Simulation:
     Parameters
     ----------
     system : system.Initializer
-        The system created in uli_init.system
+        The system created in polybinder.system
     r_cut : float, default 2.5
         Cutoff radius for potentials (in simulation distance units)
     tau_kt : float, default 0.1

@@ -1,4 +1,4 @@
-name: uli-init
+name: polybinder 
 channels:
   - jaimergp/label/unsupported-cudatoolkit-shim
   - conda-forge
