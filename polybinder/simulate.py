@@ -666,7 +666,7 @@ class Simulation:
                 finally:
                     gsd_restart.write_restart()
 
-    def _create_hoomd_sim_from_snapshot(self, table_pot = False, morse_pot = False):
+    def _create_hoomd_sim_from_snapshot(self, table_pot = True, morse_pot = False):
         """Creates needed hoomd objects.
 
         Similar to the `create_hoomd_simulation` function
