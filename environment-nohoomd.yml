@@ -17,4 +17,4 @@ dependencies:
   - signac-flow=0.12.0
   - pip:
       - git+https://github.com/cmelab/cmeutils.git@master
-      - git+https://github.com/chrisjonesBSU/paek_cg.git@main
+      - git+https://github.com/chrisjonesBSU/polybinderCG.git@main
