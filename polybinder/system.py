@@ -389,7 +389,7 @@ class Initializer:
             ref_mass,
             bead_mapping=None,
             segment_length=None
-            ):
+    ):
         """
         ref_distance : float, required
             The reference distance to scale particle positions by.
