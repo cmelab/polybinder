@@ -666,7 +666,9 @@ class Simulation:
                 finally:
                     gsd_restart.write_restart()
 
-    def _create_hoomd_sim_from_snapshot(self, table_pot = True, morse_pot = False):
+    def _create_hoomd_sim_from_snapshot(
+            self, table_pot=True, table_pot_width=97, morse_pot=False
+    ):
         """Creates needed hoomd objects.
 
         Similar to the `create_hoomd_simulation` function
@@ -679,12 +681,15 @@ class Simulation:
         -----------
         morse_pot : False, or list of parameters
             [r_cut, D0, alpha, r0]
+
         """
         hoomd_system = hoomd.init.read_gsd(self.system)
         with gsd.hoomd.open(self.system, "rb") as f:
             init_snap = f[0]
         if table_pot != False and morse_pot == False:
-            pair_pot = hoomd.md.pair.table(width=101, nlist=self.nlist())
+            pair_pot = hoomd.md.pair.table(
+                    width=table_pot_width, nlist=self.nlist()
+            )
             for pair in [list(i) for i in combo(init_snap.particles.types, r=2)]:
                 _pair = "-".join(sorted(pair))
                 table_pot_file = f"{FF_DIR}/{_pair}.txt"
