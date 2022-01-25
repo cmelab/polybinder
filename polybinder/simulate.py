@@ -127,8 +127,8 @@ class Simulation:
                     for atom in self.system.atoms
                 )
             )
-            self.ref_energy = max(pair_coeffs, key=operator.itemgetter(1))[1]
-            self.ref_distance = max(pair_coeffs, key=operator.itemgetter(2))[2]
+                self.ref_energy = max(pair_coeffs, key=operator.itemgetter(1))[1]
+                self.ref_distance = max(pair_coeffs, key=operator.itemgetter(2))[2]
 
         if system.system_type != "interface":
             # Conv from nm (mBuild) to ang (parmed) and set to reduced length 
