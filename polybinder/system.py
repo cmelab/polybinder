@@ -399,13 +399,18 @@ class Initializer:
             The reference mass to scale particle masses by.
             Enter the mass in amu.
         """
-        from paek_cg.coarse_grain import System
+        try:
+            from polybinderCG.coarse_grain import System
+        except ImportError:
+            print(
+                "polybinderCG must be installed to use coarse-graining features"
+            )
 
         if self.forcefield is not None:
             raise ValueError(
                     "If you want to coarse grain, set forcefield=None"
                     " when initializing the system."
-                    )
+            )
         pmd_system = self.system.to_parmed(residues=[self.residues])
         if self.remove_hydrogens:
             pmd_system.strip([a.atomic_number == 1 for a in pmd_system.atoms])
@@ -420,30 +425,56 @@ class Initializer:
             snap.bonds.group = sorted_bond_array
         with gsd.hoomd.open("atomistic_gsd.gsd", "wb") as f:
             f.append(snap)       
+        if bead_mapping is None:
+            if self.system_parms.molecule == "PEEK":
+                atoms_per_monomer = 36
+                if self.remove_hydrogens:
+                    atoms_per_monomer -= 14
+            elif self.system_parms.molecule == "PEKK":
+                atoms_per_monomer = 37
+                if self.remove_hydrogens:
+                    atoms_per_monomer -= 14
+            cg_system = System(
+                    atoms_per_monomer=atoms_per_monomer,
+                    gsd_file="atomistic_gsd.gsd"
+                )
+            for idx, mol in enumerate(cg_system.molecules):
+                mol.sequence = self.system_parms.molecule_sequences[idx]
+                mol.assign_types()
 
-        if self.system_parms.molecule == "PEEK":
-            atoms_per_monomer = 36
-            if self.remove_hydrogens:
-                atoms_per_monomer -= 14
-        elif self.system_parms.molecule == "PEKK":
-            atoms_per_monomer = 37
-            if self.remove_hydrogens:
-                atoms_per_monomer -= 14
-        cg_system = System(
-                atoms_per_monomer=atoms_per_monomer,
-                gsd_file="atomistic_gsd.gsd"
+            use_monomers = True
+            use_segments = False
+            use_components = False
+
+        elif bead_mapping:
+            cg_system = System(
+                    compound=self.system_parms.molecule,
+                    gsd_file="atomistic_gsd.gsd"
             )
-        #TODO: Allow to pass in segments or bead mapping
-        if any([bead_mapping, segment_length]):
-            raise ValueError(
-                    "Only a mapping scheme of 1 monomer --> 1 bead "
-                    "is currently supported"
+            try:
+                for mon in cg_system.monomers():
+                    mon.generate_components(bead_mapping)
+            except KeyError:
+                    raise ValueError(
+                            f"The index mapping scheme {bead_mapping} for "
+                            "{self.system_parms.molecule} is not found in " 
+                            "polybinderCG."
                     )
-        for idx, mol in enumerate(cg_system.molecules):
-            mol.sequence = self.system_parms.molecule_sequences[idx]
-            mol.assign_types()
+            use_monomers = False
+            use_segments = False
+            use_components = True
+
+        if segment_length is not None:
+            raise ValueError(
+                    "Coarse-graining using segments is not yet supported"
+                    )
+
         with gsd.hoomd.open("cg_system.gsd", "wb") as f:
-            cg_snap = cg_system.coarse_grain_snap(use_monomers=True)
+            cg_snap = cg_system.coarse_grain_snap(
+                    use_monomers=use_monomers,
+                    use_segments=use_segments,
+                    use_components=use_components
+            )
             f.append(cg_snap)
         self.system = os.path.abspath("cg_system.gsd")
 
