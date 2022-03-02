@@ -47,7 +47,6 @@ class Simulation:
         tf_nlist_check_period = 100,
         tf_batch_size = None
     ):
-
         self.system_pmd = system.system  # Parmed structure
         self.r_cut = r_cut
         self.e_factor = e_factor
@@ -138,6 +137,7 @@ class Simulation:
                 self.auto_scale,
                 nlist=self.nlist
             )
+            hoomd_nlist = objs[2]
             hoomd_system = objs[1]
             init_snap = objs[0]
 
@@ -151,6 +151,19 @@ class Simulation:
                 aa_group, cg_group = self.tfcompute.enable_mapped_nlist(
                     hoomd_system,
                     self.mapping_func)
+                test_cg_snapshot = hoomd_system.take_snapshot(bonds=True)
+                #TODO: looks like setting the snap positions wasn't enough. Need to call htf.tf2hoomd before model setup?
+                print('\n\nBEFORE')
+                print(f'test_cg_snap positions: {test_cg_snapshot.particles.position}')
+                print(f'cg_group: {cg_group}, {dir(cg_group)}')
+                hoomd.run(0)
+                print('\n\nAFTER')
+                print(f'test_cg_snap positions: {test_cg_snapshot.particles.position}')
+                print(f'cg_group: {cg_group}, {dir(cg_group)}')
+                #mb.formats.gsdwriter.write_gsd(test_snapshot, 'test_snapshot.gsd')
+                hoomd.dump.gsd('test_cg_snap.gsd', period=None, group=cg_group)
+                hoomd.dump.gsd('test_aa_snap.gsd', period=None, group=aa_group)
+                hoomd.dump.gsd('test_full_system_snap.gsd', period=None, group=hoomd.group.all())
                 # grab the LJ interactions from mbuild
                 lj = objs[3]
                 # get the cg bead type
@@ -297,14 +310,14 @@ class Simulation:
                             kT=kT)
             integrator.randomize_velocities(seed=self.seed)
             if self.tf_model is not None:
-                self.nlist = hoomd.md.nlist.cell(check_period=self.tf_nlist_check_period)
                 self.tfcompute.attach(
-                    self.nlist,
+                    hoomd_nlist,
                     train=True,
                     r_cut=self.r_cut,
                     save_output_period=self.tf_nlist_check_period,
                     batch_size=self.tf_batch_size
                     )
+                
             try:
                 hoomd.run(n_steps)
             except hoomd.WalltimeLimitReached:

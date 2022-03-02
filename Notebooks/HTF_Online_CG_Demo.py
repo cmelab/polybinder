@@ -7,7 +7,6 @@ import hoomd.md
 import hoomd.htf as htf
 import numpy as np
 import gsd
-import os
 from uli_init.simulate import Simulation
 from uli_init.system import System
 
@@ -22,7 +21,7 @@ def get_mol_mapping_idx(filename):
     context.sorter.disable()
     if not os.path.exists(f'{filename}-mapping.npy'):
         molecule_mapping_index = htf.find_molecules(system)
-        np.save(f'{filename}-mapping.npy', np.array(molecule_mapping_index))
+        np.save(f'{filename}-mapping.npy', molecule_mapping_index)
     # if it does, load from it instead    
     else:
         molecule_mapping_index = np.load(f'{filename}-mapping.npy')
@@ -282,7 +281,6 @@ model = TrajModel(nneighbor_cutoff=nneighbor_cutoff,
                  cg_num=12, # beads per molecule, not total
                  adjacency_matrix=adjacency_matrix,
                  CG_NN=nneighbor_cutoff,
-                 cg_mapping=cg_mapping,
                  output_forces=False,
                  r_cut=set_rcut,
                  check_nlist=False)
@@ -328,6 +326,7 @@ def center_of_mass_no_box(positions, mapping, name='center-of-mass'):
     xmin, xmax = min(positions[:, 0]), max(positions[:, 0])
     ymin, ymax = min(positions[:, 1]), max(positions[:, 1])
     zmin, zmax = min(positions[:, 2]), max(positions[:, 2])
+    print(f'\n\nBOX: [ [{xmin}, {ymin}, {zmin}], [{xmax}, {ymax}, {zmax}] ]')
     box_dim = [xmax - xmin, ymax - ymin, zmax - zmin]
     theta = positions / box_dim * 2 * np.pi
     xi = tf.math.cos(theta)
@@ -337,30 +336,38 @@ def center_of_mass_no_box(positions, mapping, name='center-of-mass'):
     thetamean = tf.math.atan2(zetamean, ximean)
     return tf.identity(thetamean / np.pi / 2 * box_dim, name=name)
 
-def get_cg_positions(aa_positions):
-    mapped_positions_raw = center_of_mass_no_box(
+def get_cg_positions(aa_positions, box_dims):
+    mapped_positions_raw = htf.center_of_mass(
         positions=aa_positions,
-        mapping=cg_mapping
+        mapping=cg_mapping,
+        box_size=tf.cast(box_dims, tf.float32)
     )
-    return tf.concat([mapped_positions_raw, tf.ones((mapped_positions_raw.shape[0], 1), dtype=mapped_positions_raw.dtype)], axis=-1, name='cg-pos-input')
+    print(f'\n\nIN get_cg_positions mapped_positions_raw is {mapped_positions_raw}\n\n')
+    cg_pos_input = tf.concat([mapped_positions_raw, tf.ones((mapped_positions_raw.shape[0], 1), dtype=mapped_positions_raw.dtype)], axis=-1, name='cg-pos-input')
+    print(f'RETURNING {cg_pos_input}')
+    np.save('aa_positions.npy', aa_positions)
+    np.save('cg_positions_mapped.npy', mapped_positions_raw)
+    return cg_pos_input
 
-sim = Simulation(sim_system, gsd_write=1e4, mode='gpu', dt=0.0001, r_cut=set_rcut,
-                 tf_model=model, mapping_func=get_cg_positions, tf_batch_size=512)
+sim = Simulation(sim_system, gsd_write=1, mode='gpu', dt=0.005, r_cut=set_rcut,
+                 tf_model=model, mapping_func=get_cg_positions, tf_batch_size=4)
 
-sim.quench(kT=1., n_steps=5e5, shrink_steps=1e5, shrink_kT=1., shrink_period=1e4)
+#sim = Simulation(sim_system, gsd_write=1e4, mode='gpu', dt=0.0001, r_cut=set_rcut)
+
+sim.quench(kT=1., n_steps=5e5, shrink_steps=1e3, shrink_kT=1., shrink_period=1e4)
 
 
-outputs = sim.tfcompute.outputs
-cg_positions = outputs[0]
-np.save('cg_positions.npy', cg_positions)
-cg_energy = outputs[1]
-np.save('cg_energy.npy', cg_energy)
-lj_energy_params = outputs[2]
-np.save('cg_lj_params.npy', lj_energy_params)
-bond_energy_params = outputs[3]
-np.save('cg_bond_params.npy', bond_energy_params)
-angle_energy_params = outputs[4]
-np.save('cg_angle_params.npy', angle_energy_params)
-dihedral_energy_params = outputs[5]
-np.save('cg_dihedral_params.npy', dihedral_energy_params)
+#outputs = sim.tfcompute.outputs
+#cg_positions = outputs[0]
+#np.save('cg_positions.npy', cg_positions)
+#cg_energy = outputs[1]
+#np.save('cg_energy.npy', cg_energy)
+#lj_energy_params = outputs[2]
+#np.save('cg_lj_params.npy', lj_energy_params)
+#bond_energy_params = outputs[3]
+#np.save('cg_bond_params.npy', bond_energy_params)
+#angle_energy_params = outputs[4]
+#np.save('cg_angle_params.npy', angle_energy_params)
+#dihedral_energy_params = outputs[5]
+#np.save('cg_dihedral_params.npy', dihedral_energy_params)
 
