@@ -38,7 +38,7 @@ class System:
         seed=24,
     ):
         """
-        This class handles the system parameters such as number 
+        This class handles the system parameters such as number
         and type of molecules, length of the polymers, the monomer
         sequence of the polymers, density, and polydispersity.
 
@@ -70,7 +70,7 @@ class System:
         monomer_sequence : str, optional
             Manually defines the co-polymer sequence.
             Example:
-            monomer_sequence = "PM" sets an alternative para-meta 
+            monomer_sequence = "PM" sets an alternative para-meta
             co-polymer sequence.
         sample_pdi : bool, optional
             If True, the lengths of the polymers will be determined
@@ -112,7 +112,7 @@ class System:
                     Mn,
                     Mw,
                     )
-        elif not sample_pdi and n_compounds != None: 
+        elif not sample_pdi and n_compounds != None:
             if not isinstance(n_compounds, list):
                 self.n_compounds = [n_compounds]
             else:
@@ -150,7 +150,7 @@ class System:
         if pdi_arg_sum == 3:
             # special case, make sure that pdi = Mw / Mn
             assert (
-                abs(pdi - (Mw / Mn)) < 1e-7 
+                abs(pdi - (Mw / Mn)) < 1e-7
             ), "PDI value does not match Mn and Mw values."
         else:
             if Mn is None:
@@ -300,21 +300,28 @@ class Initializer:
     def stack(self, separation=0.7):
         """This method organizes the polymer chains in a single layer.
         This approach may be useful for simulating a small number of
-        chains to see the chain-specific dynamics
+        chains at a low density to see the chain-specific behavior.
 
         Parameters:
         -----------
         separation : float, required, default=0.7
             The distances (nm) between individually stacked chains.
+
         """
+        self.set_target_box()
         system = mb.Compound()
         for idx, comp in enumerate(self.mb_compounds):
             z_axis_transform(comp)
             comp.translate(np.array([separation,0,0])*idx)
             system.add(comp)
 
-        bounding_box = system.get_boundingbox().lengths
-        self.set_target_box(z_constraint=bounding_box[2])
+        system.box = mb.box.Box(self.target_box)
+        # Center the chains in the box
+        system.translate_to((
+            system.box.Lx / 2,
+            system.box.Ly / 2,
+            system.box.Lz / 2
+        ))
         return system
 
     def crystal(self, a, b, n, vector=[.5, .5, 0], z_adjust=1.0):
@@ -329,7 +336,7 @@ class Initializer:
             Sets the distance between repeat units in the b direction
         n : int, required
             The number of times to repeat a unit cell in both of
-            the a and b direction. 
+            the a and b direction.
         vector : np.array, optional, default = [.5, .5, 0]
             The vector to translate the 2nd molecule by
         z_adjust : float, optional, default = 1.0
@@ -347,10 +354,10 @@ class Initializer:
                     )
         if self.system_parms.para_weight not in [None, 1.0, 0.0]:
             warn("Initializing crystalline systems may not work well "
-                 "when generating random co-polymers "
+                 "when usingg random co-polymers "
                  "(e.g. overlapping particles). You may want to "
                  "use `monomer_sequence` as opposed to `para_weight'."
-                 )
+            )
         next_idx = 0
         crystal = mb.Compound()
         for i in range(n):
@@ -376,6 +383,7 @@ class Initializer:
         target_z = bounding_box[-1] * z_adjust
         self.set_target_box(z_constraint=target_z)
         crystal.box = mb.box.Box(bounding_box*1.05)
+        # Center in the box
         crystal.translate_to(
                 (crystal.box.Lx / 2,
                 crystal.box.Ly / 2,
@@ -424,7 +432,7 @@ class Initializer:
             sorted_bond_array = bond_array[bond_array[:, 0].argsort()]
             snap.bonds.group = sorted_bond_array
         with gsd.hoomd.open("atomistic_gsd.gsd", "wb") as f:
-            f.append(snap)       
+            f.append(snap)
         if bead_mapping is None:
             if self.system_parms.molecule == "PEEK":
                 atoms_per_monomer = 36
@@ -457,7 +465,7 @@ class Initializer:
             except KeyError:
                     raise ValueError(
                             f"The index mapping scheme {bead_mapping} for "
-                            "{self.system_parms.molecule} is not found in " 
+                            "{self.system_parms.molecule} is not found in "
                             "polybinderCG."
                     )
             use_monomers = False
@@ -499,7 +507,7 @@ class Initializer:
         z_constraint : float, optional, default=None
             Fixes the box length along the z axis
         """
-        if not any([x_constraint, y_constraint, z_constraint]): 
+        if not any([x_constraint, y_constraint, z_constraint]):
             Lx = Ly = Lz = self._calculate_L()
         else:
             constraints = np.array([x_constraint, y_constraint, z_constraint])
@@ -522,11 +530,11 @@ class Initializer:
         """
         M = self.system_mass * units["amu_to_g"]  # grams
         vol = (M / self.system_parms.density) # cm^3
-        if fixed_L is None: 
+        if fixed_L is None:
             L = vol**(1/3)
         else:
-            L = vol / np.prod(fixed_L) 
-            if len(fixed_L) == 1: # L is cm^2 
+            L = vol / np.prod(fixed_L)
+            if len(fixed_L) == 1: # L is cm^2
                 L = L**(1/2)
         L *= units["cm_to_nm"]  # convert cm to nm
         return L
@@ -566,7 +574,7 @@ class Initializer:
                     self.system_parms.molecule_sequences.append(mol_sequence)
                 self.system_parms.para += (mol_sequence.count("P") * n)
                 self.system_parms.meta += (mol_sequence.count("M") * n)
-            
+
             elif sequence == "random":
                 for i in range(n):
                     polymer, mol_sequence = build_molecule(
@@ -627,13 +635,13 @@ class Fused:
         ff_path = f"{FF_DIR}/gaff-nosmarts.xml"
         forcefield = foyer.Forcefield(forcefield_files=ff_path)
         self.system = forcefield.apply(system)
-    
+
 class Interface:
     """
     Initialize an interface system between one or two "slabs" that were created
-    previously. Initializing a system via this class requires that the 
+    previously. Initializing a system via this class requires that the
     previous systems were ran using wall potentials to create two flat surfaces.
-    
+
     Parameters
     ----------
     slabs : str, or list of str
@@ -672,7 +680,7 @@ class Interface:
             }
         weld_axis = weld_axis.lower()
         assert weld_axis in ["x", "y", "z"], (
-                "Choose the axis of the interface. " 
+                "Choose the axis of the interface. "
                 "Valid choices are 'x', 'y', 'z'"
                 )
         trans_axis = axis_dict[weld_axis]
@@ -702,7 +710,7 @@ class Interface:
                 interface.box.Ly / 2,
                 interface.box.Lz / 2,]
             )
-       
+
         ff_path = f"{FF_DIR}/gaff-nosmarts.xml"
         forcefield = foyer.Forcefield(forcefield_files=ff_path)
         self.system = forcefield.apply(interface)
@@ -744,7 +752,7 @@ def build_molecule(molecule, length, sequence, para_weight, smiles=False):
     `build_molecule` uses SMILES strings to build up a polymer from monomers.
     The configuration of each monomer is determined by para_weight and the
     random_sequence() function.
-    
+
     Parameters
     ----------
     molecule : str
@@ -811,7 +819,7 @@ def build_molecule(molecule, length, sequence, para_weight, smiles=False):
             print("No file is available for this compound")
 
     if len(set(monomer_sequence)) == 2: # Copolymer
-        compound.add_monomer(meta, 
+        compound.add_monomer(meta,
                 mol_dict["meta_bond_indices"],
                 mol_dict["bond_distance"],
                 mol_dict["bond_orientation"],
