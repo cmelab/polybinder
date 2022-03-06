@@ -162,8 +162,7 @@ class System:
         self.Mn = Mn
         self.Mw = Mw
         self.pdi = pdi
-        # this returns a numpy.random callable set up with
-        # recovered parameters
+        # this returns a numpy.random callable set up with recovered params
         mass_distribution_dict = self._recover_mass_dist()
         mass_sampler = mass_distribution_dict["sampler"]
         mass_distribution = mass_distribution_dict["functional_form"]
@@ -208,7 +207,8 @@ class Initializer:
             system_type,
             forcefield="gaff",
             remove_hydrogens=False,
-            **kwargs):
+            **kwargs
+    ):
         """
         Given a set of system parameters, this class handles
         the system initialzation steps.
@@ -260,14 +260,14 @@ class Initializer:
                     "'stack'"
                     "'crystal'"
                     f"You passed in {system_type}"
-                )
+            )
 
         if self.target_box is None:
             warn("A target box has not been set for this system. "
                  "The default cubic volume (Lx=Ly=Lz) will be used. "
                  "See the `set_target_box()` function to set a non-cubic "
                  "target box."
-                 )
+            )
             self.set_target_box()
 
         if self.forcefield:
@@ -284,6 +284,7 @@ class Initializer:
         expand_factor : int, required, default = 7
             How much to multiply each box edge length by
             before passing to PACKMOL to fill.
+
         """
         self.set_target_box()
         pack_box = self.target_box * expand_factor
@@ -345,13 +346,14 @@ class Initializer:
             `set_target_box`. z_adjust can be used to adjust the target
             length of the simulation volume in the z direction. It is
             used as a multiplier of the bounding box z length.
+
         """
         if len(self.mb_compounds) != n*n*2:
             raise ValueError(
                     "The crystal is built as n x n unit cells "
                     "with each unit cell containing 2 molecules. "
                     "The number of molecules should equal 2*n*n"
-                    )
+            )
         if self.system_parms.para_weight not in [None, 1.0, 0.0]:
             warn("Initializing crystalline systems may not work well "
                  "when usingg random co-polymers "
@@ -406,6 +408,7 @@ class Initializer:
         ref_mass : float, required
             The reference mass to scale particle masses by.
             Enter the mass in amu.
+
         """
         try:
             from polybinderCG.coarse_grain import System
@@ -424,7 +427,7 @@ class Initializer:
             pmd_system.strip([a.atomic_number == 1 for a in pmd_system.atoms])
         mb.formats.gsdwriter.write_gsd(
                 pmd_system, "atomistic_gsd.gsd", ref_distance, ref_mass
-            )
+        )
         # Order the bond group; required by CGing package
         with gsd.hoomd.open("atomistic_gsd.gsd", "rb") as f:
             snap = f[0]
@@ -443,9 +446,9 @@ class Initializer:
                 if self.remove_hydrogens:
                     atoms_per_monomer -= 14
             cg_system = System(
-                    atoms_per_monomer=atoms_per_monomer,
-                    gsd_file="atomistic_gsd.gsd"
-                )
+                            atoms_per_monomer=atoms_per_monomer,
+                            gsd_file="atomistic_gsd.gsd"
+                        )
             for idx, mol in enumerate(cg_system.molecules):
                 mol.sequence = self.system_parms.molecule_sequences[idx]
                 mol.assign_types()
@@ -491,7 +494,7 @@ class Initializer:
             x_constraint=None,
             y_constraint=None,
             z_constraint=None
-            ):
+    ):
         """Set the target volume of the system during
         the initial shrink step.
         If no constraints are set, the target box is cubic.
@@ -616,7 +619,7 @@ class Fused:
             self,
             gsd_file,
             ref_distance,
-            ):
+    ):
         self.gsd_file = gsd_file
         self.ref_distance = ref_distance
         self.system_type = "interface"
@@ -637,9 +640,8 @@ class Fused:
         self.system = forcefield.apply(system)
 
 class Interface:
-    """
-    Initialize an interface system between one or two "slabs" that were created
-    previously. Initializing a system via this class requires that the
+    """Initialize an interface system between one or two "slabs" that were
+    created previously. Initializing a system via this class requires that the
     previous systems were ran using wall potentials to create two flat surfaces.
 
     Parameters
@@ -656,6 +658,7 @@ class Interface:
         This should be the same axis used when setting the wall potentials
         for the single slab simulations.
         "x", "y" or "z"
+
     """
     def __init__(
         self,
@@ -677,11 +680,11 @@ class Interface:
                 "x": np.array([1,0,0]),
                 "y": np.array([0,1,0]),
                 "z": np.array([0,0,1])
-            }
+        }
         weld_axis = weld_axis.lower()
         assert weld_axis in ["x", "y", "z"], (
-                "Choose the axis of the interface. "
-                "Valid choices are 'x', 'y', 'z'"
+                    "Choose the axis of the interface. "
+                    "Valid choices are 'x', 'y', 'z'"
                 )
         trans_axis = axis_dict[weld_axis]
 
@@ -747,9 +750,9 @@ def _gsd_to_mbuild(gsd_file, ref_distance):
         comp.add_bond(particle_pair=[atom1, atom2])
     return comp
 
+
 def build_molecule(molecule, length, sequence, para_weight, smiles=False):
-    """
-    `build_molecule` uses SMILES strings to build up a polymer from monomers.
+    """`build_molecule` uses SMILES strings to build up a polymer from monomers.
     The configuration of each monomer is determined by para_weight and the
     random_sequence() function.
 
@@ -795,6 +798,7 @@ def build_molecule(molecule, length, sequence, para_weight, smiles=False):
         An instance of the single polymer created
     sequence : list
         List of the configuration sequence of the finished compound
+
     """
     f = open(f"{COMPOUND_DIR}/{molecule}.json")
     mol_dict = json.load(f)
@@ -819,18 +823,20 @@ def build_molecule(molecule, length, sequence, para_weight, smiles=False):
             print("No file is available for this compound")
 
     if len(set(monomer_sequence)) == 2: # Copolymer
-        compound.add_monomer(meta,
+        compound.add_monomer(
+                meta,
                 mol_dict["meta_bond_indices"],
                 mol_dict["bond_distance"],
                 mol_dict["bond_orientation"],
                 replace=True
-            )
-        compound.add_monomer(para,
+        )
+        compound.add_monomer(
+                para,
                 mol_dict["para_bond_indices"],
                 mol_dict["bond_distance"],
                 mol_dict["bond_orientation"],
                 replace=True
-            )
+        )
     else:
         if monomer_sequence[0] == "P": # Only para
             compound.add_monomer(para,
@@ -838,21 +844,21 @@ def build_molecule(molecule, length, sequence, para_weight, smiles=False):
                     mol_dict["bond_distance"],
                     mol_dict["bond_orientation"],
                     replace=True
-                )
+            )
         elif monomer_sequence[0] == "M": # Only meta
             compound.add_monomer(meta,
                     mol_dict["meta_bond_indices"],
                     mol_dict["bond_distance"],
                     mol_dict["bond_orientation"],
                     replace=True
-                )
+            )
 
     compound.build(n=1, sequence=monomer_sequence, add_hydrogens=True)
     return compound, monomer_sequence
 
+
 def random_sequence(para_weight, length):
-    """
-    random_sequence returns a list containing a random sequence of strings
+    """Creates a list containing a random sequence of strings
     'P' and 'M'.
     This is used by build_molecule() to create a polymers chains.
 
@@ -864,6 +870,7 @@ def random_sequence(para_weight, length):
     length : int
         The number of elements in the random sequence.
         Defined in build_molecule()
+
     """
     meta_weight = 1 - para_weight
     options = ["P", "M"]

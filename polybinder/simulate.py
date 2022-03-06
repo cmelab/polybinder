@@ -1,12 +1,14 @@
 import operator
 from itertools import combinations_with_replacement as combo
+
 import gsd.hoomd
 import hoomd
 import hoomd.md
-import numpy as np
-import parmed as pmd
 from hoomd.md import wall
 from mbuild.formats.hoomd_simulation import create_hoomd_simulation
+import numpy as np
+import parmed as pmd
+
 from polybinder.library import COMPOUND_DIR, SYSTEM_DIR, FF_DIR
 
 
@@ -64,6 +66,7 @@ class Simulation:
         Define a schedule of temperature and steps to follow over the
         course of the simulation. Can be used in NVT or NPT at a single
         pressure.
+
     """
     def __init__(
         self,
@@ -98,13 +101,13 @@ class Simulation:
 
         if isinstance(system.system, str):
             assert ref_values != None, (
-                    "Autoscaling is not supported for coarse-grained systems."
-                    "Provide the relevant reference units"
+                        "Autoscaling is not supported for coarse-grain sims."
+                        "Provide the relevant reference units"
                     )
             assert all([self.bond_dicts, self.angle_dicts]), (
-                    "If using a coarse-grain system, pass in the bonding "
-                    "and angle information via the bond_dict and angle_dict "
-                    "parameters."
+                        "If using a coarse-grain system, pass in the bonding "
+                        "and angle information via the bond_dict and angle_dict "
+                        "parameters."
                     )
             self.system = system.system
             self.cg_system = True
@@ -151,7 +154,6 @@ class Simulation:
             "angle_harmonic_energy",
         ]
 
-
     def quench(
         self,
         n_steps,
@@ -163,7 +165,7 @@ class Simulation:
         wall_axis=None,
         **kwargs
     ):
-        """Runs a NVT or NPT simulation at a single temperature
+        """Runs an NVT or NPT simulation at a single temperature
         and pressure.
 
         Call this funciton after initializing the Simulation class.
@@ -185,6 +187,7 @@ class Simulation:
         wall_axis : (1,3) array like, default None
             Create LJ wall potentials along the specified axis of the simulation volume.
             Not compatible with NPT simulations; pressure must be None
+
         """
         if wall_axis and pressure:
             raise ValueError(
@@ -192,9 +195,9 @@ class Simulation:
                     )
         if [shrink_kT, shrink_steps, shrink_period].count(None) %3 != 0:
             raise ValueError(
-            "If shrinking, all of  shrink_kT, shrink_steps and "
-            "shrink_periopd need to be given."
-        )
+                "If shrinking, all of  shrink_kT, shrink_steps and "
+                "shrink_periopd need to be given."
+            )
 
         hoomd_args = f"--single-mpi --mode={self.mode}"
         sim = hoomd.context.initialize(hoomd_args)
@@ -243,7 +246,7 @@ class Simulation:
             if wall_axis is not None:
                 wall_force, walls, normal_vector = self._hoomd_walls(
                         wall_axis, init_x, init_y, init_z
-                    )
+                )
                 wall_force.force_coeff.set(
                     init_snap.particles.types,
                     sigma=1.0,
@@ -260,13 +263,13 @@ class Simulation:
                 integrator.randomize_velocities(seed=self.seed)
                 x_variant = hoomd.variant.linear_interp(
                         [(0, init_x), (shrink_steps, self.target_box[0])]
-                    )
+                )
                 y_variant = hoomd.variant.linear_interp(
                         [(0, init_y), (shrink_steps, self.target_box[1])]
-                    )
+                )
                 z_variant = hoomd.variant.linear_interp(
                         [(0, init_z), (shrink_steps, self.target_box[2])]
-                    )
+                )
 
                 box_updater = hoomd.update.box_resize(
                     Lx=x_variant, 
@@ -284,17 +287,18 @@ class Simulation:
                                 hoomd_system.box.Lx,
                                 hoomd_system.box.Ly,
                                 hoomd_system.box.Lz
-                            ])
+                        ])
                         walls.del_plane([0, 1])
                         walls.add_plane(
                                 (current_box/2 * wall_axis), normal_vector
-                            )
+                        )
                         walls.add_plane(
                                 (-current_box/2 * wall_axis), -normal_vector
-                            )
+                        )
                         step += shrink_period
                 else:
                     hoomd.run_upto(shrink_steps)
+
                 box_updater.disable()
                 momentum.disable()
 
@@ -349,13 +353,13 @@ class Simulation:
     ):
         if wall_axis and pressure:
             raise ValueError(
-                    "Wall potentials can only be used with the NVT ensemble"
-                    )
+                "Wall potentials can only be used with the NVT ensemble"
+            )
         if [shrink_kT, shrink_steps, shrink_period].count(None) %3 != 0:
             raise ValueError(
-                    "If shrinking, then all of shirnk_kT, shrink_steps "
-                    "and shrink_period need to be given"
-                    )
+                "If shrinking, then all of shirnk_kT, shrink_steps "
+                "and shrink_period need to be given"
+            )
         if not schedule:
             temps = np.linspace(kT_init, kT_final, len(step_sequence))
             temps = [np.round(t, 1) for t in temps]
@@ -409,7 +413,7 @@ class Simulation:
             if wall_axis is not None:
                 wall_force, walls, normal_vector = self._hoomd_walls(
                         wall_axis, init_x, init_y, init_z
-                    )
+                )
                 wall_force.force_coeff.set(
                     init_snap.particles.types,
                     sigma=1.0,
@@ -422,17 +426,17 @@ class Simulation:
                         group=_all,
                         tau=self.tau_kt,
                         kT=shrink_kT
-                        )
+                )
                 integrator.randomize_velocities(seed=self.seed)
                 x_variant = hoomd.variant.linear_interp(
                         [(0, init_x), (shrink_steps, self.target_box[0])]
-                    )
+                )
                 y_variant = hoomd.variant.linear_interp(
                         [(0, init_y), (shrink_steps, self.target_box[1])]
-                    )
+                )
                 z_variant = hoomd.variant.linear_interp(
                         [(0, init_z), (shrink_steps, self.target_box[2])]
-                    )
+                )
 
                 box_updater = hoomd.update.box_resize(
                     Lx=x_variant,
@@ -449,14 +453,14 @@ class Simulation:
                                 hoomd_system.box.Lx,
                                 hoomd_system.box.Ly,
                                 hoomd_system.box.Lz
-                            ])
+                        ])
                         walls.del_plane([0, 1])
                         walls.add_plane(
                                 (current_box/2 * wall_axis), normal_vector
-                            )
+                        )
                         walls.add_plane(
                                 (-current_box/2 * wall_axis), -normal_vector
-                            )
+                        )
                         step += shrink_period
                 else:
                     hoomd.run_upto(shrink_steps)
@@ -482,7 +486,7 @@ class Simulation:
                         tauP=self.tau_p,
                         P=pressure,
                         kT=1
-                        )
+                )
             elif not pressure:
                 try:
                     integrator
@@ -491,7 +495,7 @@ class Simulation:
                             group=_all,
                             tau=self.tau_kt,
                             kT=1
-                            )
+                    )
 
             for kT in schedule: 
                 n_steps = schedule[kT]
@@ -513,7 +517,7 @@ class Simulation:
             expand_period,
             tensile_axis="x",
             fix_ratio=0.05
-            ):
+    ):
         """Runs a simulation of a tensile test pulling along the x-axis.
 
         Parameters:
@@ -530,6 +534,7 @@ class Simulation:
             Treated as a percentage of the initial  volume's x_length.
             Since particles are fixed on each side, half of x_fix
             is used for the distance.
+
         """
         hoomd_args = f"--single-mpi --mode={self.mode}"
         sim = hoomd.context.initialize(hoomd_args)
@@ -542,7 +547,7 @@ class Simulation:
                     self.r_cut,
                     self.auto_scale,
                     nlist=self.nlist
-                )
+            )
             hoomd_system = objs[1]
             init_snap = objs[0]
             tensile_axis = tensile_axis.lower()
@@ -551,7 +556,7 @@ class Simulation:
             target_length = init_length * (1+strain)
             linear_variant = hoomd.variant.linear_interp(
                     [(0, init_length), (n_steps, target_length)]
-                )
+            )
             axis_dict = {
                 "x": np.array([1,0,0]),
                 "y": np.array([0,1,0]),
@@ -564,61 +569,61 @@ class Simulation:
                         name="left",
                         xmin=-init_snap.box.Lx / 2,
                         xmax=(-init_snap.box.Lx / 2)  + fix_length
-                    )
+                )
                 fix_right = hoomd.group.cuboid(
                         name="right",
                         xmin=(init_snap.box.Lx / 2) - fix_length,
                         xmax=init_snap.box.Lx / 2
-                    )
+                )
                 box_updater = hoomd.update.box_resize(
                         Lx=linear_variant,
                         period=expand_period,
                         scale_particles=False
-                    )
+                )
             elif tensile_axis == "y":
                 fix_left = hoomd.group.cuboid( # Negative x side of box
                         name="left",
                         ymin=-init_snap.box.Ly / 2,
                         ymax=(-init_snap.box.Ly / 2)  + fix_length
-                    )
+                )
                 fix_right = hoomd.group.cuboid(
                         name="right",
                         ymin=(init_snap.box.Ly / 2) - fix_length,
                         ymax=init_snap.box.Ly / 2
-                    )
+                )
                 box_updater = hoomd.update.box_resize(
                         Ly=linear_variant,
                         period=expand_period,
                         scale_particles=False
-                    )
+                )
             elif tensile_axis == "z":
                 fix_left = hoomd.group.cuboid( # Negative x side of box
                         name="left",
                         zmin=-init_snap.box.Lz / 2,
                         zmax=(-init_snap.box.Lz / 2)  + fix_length
-                    )
+                )
                 fix_right = hoomd.group.cuboid(
                         name="right",
                         zmin=(init_snap.box.Lz / 2) - fix_length,
                         zmax=init_snap.box.Lz / 2
-                    )
+                )
                 box_updater = hoomd.update.box_resize(
                         Lz=linear_variant,
                         period=expand_period,
                         scale_particles=False
-                    )
+                )
 
             _all_fixed = hoomd.group.union(
                     name="fixed", a=fix_left, b=fix_right
-                )
+            )
             _all = hoomd.group.all()
             _integrate = hoomd.group.difference(
                     name="integrate", a=_all, b=_all_fixed
-                    )
+            )
             hoomd.md.integrate.mode_standard(dt=self.dt)
             integrator = hoomd.md.integrate.nve(
                     group=_integrate, limit=None, zero_force=False
-                    )
+            )
             integrator.randomize_velocities(kT, seed=self.seed)
 
             hoomd.dump.gsd(
@@ -628,7 +633,7 @@ class Simulation:
                     phase=0,
                     dynamic=["momentum"],
                     overwrite=False
-                )
+            )
             hoomd.analyze.log(
                     "sim_traj.log",
                     period=self.log_write,
@@ -636,7 +641,7 @@ class Simulation:
                     header_prefix="#",
                     overwrite=True,
                     phase=0
-                )
+            )
             gsd_restart = hoomd.dump.gsd(
                     "restart.gsd",
                     period=self.gsd_write,
@@ -644,7 +649,7 @@ class Simulation:
                     truncate=True,
                     phase=0,
                     dynamic=["momentum"]
-                )
+            )
             
             # Start simulation run
             adjust_axis = axis_dict[tensile_axis]
@@ -667,7 +672,7 @@ class Simulation:
                     gsd_restart.write_restart()
 
     def _create_hoomd_sim_from_snapshot(
-            self, table_pot=True, table_pot_width=97, morse_pot=False
+            self, table_pot=True, table_pot_width=97
     ):
         """Creates needed hoomd objects.
 
@@ -679,8 +684,8 @@ class Simulation:
 
         Parameters:
         -----------
-        morse_pot : False, or list of parameters
-            [r_cut, D0, alpha, r0]
+        table_pot : bool, defualt True
+            Set to True if using a table for the CG potential
 
         """
         hoomd_system = hoomd.init.read_gsd(self.system)
@@ -695,10 +700,6 @@ class Simulation:
                 table_pot_file = f"{FF_DIR}/{_pair}.txt"
                 pair_pot.set_from_file(
                     f"{pair[0]}", f"{pair[1]}", filename=f"{table_pot_file}"
-                )
-        elif morse_pot != False and table_pot == False:
-            pair_pot = hoomd.md.pair.morse(
-                    r_cut = morse_pot[0], nlist=self.nlist()
                 )
             for pair in [list(i) for i in combo(init_snap.particles.types, r=2)]:
                 pair_pot.pair_coeff.set(
