@@ -96,6 +96,7 @@ class Simulation:
         self.gsd_write = gsd_write
         self.log_write = log_write
         self.seed = seed
+        #TODO: I don't think we need these anymore; bonds and angles should be given table potentials
         self.bond_dicts = bond_dicts
         self.angle_dicts = angle_dicts
 
@@ -104,6 +105,7 @@ class Simulation:
                         "Autoscaling is not supported for coarse-grain sims."
                         "Provide the relevant reference units"
                     )
+            #TODO Remove this assertion, see note above
             assert all([self.bond_dicts, self.angle_dicts]), (
                         "If using a coarse-grain system, pass in the bonding "
                         "and angle information via the bond_dict and angle_dict "
@@ -671,9 +673,7 @@ class Simulation:
                 finally:
                     gsd_restart.write_restart()
 
-    def _create_hoomd_sim_from_snapshot(
-            self, table_pot=True, table_pot_width=97
-    ):
+    def _create_hoomd_sim_from_snapshot(self, pot_dir=None):
         """Creates needed hoomd objects.
 
         Similar to the `create_hoomd_simulation` function
@@ -691,50 +691,84 @@ class Simulation:
         hoomd_system = hoomd.init.read_gsd(self.system)
         with gsd.hoomd.open(self.system, "rb") as f:
             init_snap = f[0]
-        if table_pot != False and morse_pot == False:
-            pair_pot = hoomd.md.pair.table(
-                    width=table_pot_width, nlist=self.nlist()
-            )
-            for pair in [list(i) for i in combo(init_snap.particles.types, r=2)]:
-                _pair = "-".join(sorted(pair))
-                table_pot_file = f"{FF_DIR}/{_pair}.txt"
-                pair_pot.set_from_file(
-                    f"{pair[0]}", f"{pair[1]}", filename=f"{table_pot_file}"
-                )
-            for pair in [list(i) for i in combo(init_snap.particles.types, r=2)]:
-                pair_pot.pair_coeff.set(
-                        pair[0],
-                        pair[1],
-                        D0=morse_pot[1],
-                        alpha=morse_pot[2],
-                        r0=morse_pot[3]
-                    )
-        # Create bond and angle objects 
-        harmonic_bond = hoomd.md.bond.harmonic()
-        for bond in self.bond_dicts:
-            bond_pair = sorted([bond["type1"], bond["type2"]])
-            name = "-".join(bond_pair)
-            k = bond["k"]
-            r0 = bond["r0"]
-            harmonic_bond.bond_coeff.set(name, k=k, r0=r0)
 
-        harmonic_angle = hoomd.md.angle.harmonic()
-        for angle in self.angle_dicts:
-            name = "-".join(
-                    [angle["type1"], angle["type2"], angle["type3"]]
+        # Create pair potential object, and load table files
+        # Use width of 100 to create object, will update later
+        # depending on the potential files used.
+        pair_pot = hoomd.md.pair.table(
+                width=100, nlist=self.nlist()
+        )
+        pair_widths = []
+        for pair in [list(i) for i in combo(init_snap.particles.types, r=2)]:
+            _pair = "-".join(sorted(pair))
+            pair_pot_file = f"{FF_DIR}/{_pair}.txt"
+            try:
+                assert os.path.exists(pair_pot_file)
+            except AssertionError:
+                raise RuntimeError(f"The potnetial file for pair {_pair} "
+                        "does not exist in PolyBinder's Forcefield directory."
                 )
-            k = angle["k"]
-            theta0 = angle["theta0"]
-            harmonic_angle.angle_coeff.set(name, k=k, t0=theta0)
+            width = len(np.loadtxt(pair_pot_file)[:,0])
+            pair_widths.append(width)
+            pair_pot.set_from_file(
+                f"{pair[0]}", f"{pair[1]}", filename=f"{pair_pot_file}"
+            )
+        if not all([i == pair_widths[0] for i in pair_widths]):
+            raise RuntimeError(
+                    "The potential files for all pairs must be the same length"
+            )
+        # Update width attribute for hoomd.md.pair.table
+        pair_pot.width = pair_widths[0]
+
+        # Repeat same process for Bonds and Angles 
+        bond_pot = hoomd.md.bond.table(width=100)
+        bond_widths = []
+        for bond in init_snap.bonds.types:
+            bond_pot_file = f"{FF_DIR}/bond.txt"
+            try:
+                assert os.path.exists(bond_pot_file)
+            except AssertionError:
+                raise RuntimeError(f"The potnetial file for bond {bond} "
+                        "does not exist in PolyBinder's Forcefield directory."
+                )
+            width = len(np.loadtxt(bond_pot_file)[:,0])
+            bond_widths.append(width)
+            bond_pot.set_from_file(f"{bond}", f"{bond_pot_file}")
+
+        if not all([i == bond_widths[0] for i in bond_widths]):
+            raise RuntimeError(
+                    "The potential files for all bonds must be the same length"
+            )
+        bond_pot.width = bond_widths[0]
+
+        angle_pot = hoomd.md.angle.table(width=100)
+        angle_widths = []
+        for angle in init_snap.angles.types:
+            angle_pot_file = f"{FF_DIR}/bond.txt"
+            try:
+                assert os.path.exists(angle_pot_file)
+            except AssertionError:
+                raise RuntimeError(f"The potnetial file for angle {angle} "
+                        "does not exist in PolyBinder's Forcefield directory."
+                )
+            width = len(np.loadtxt(angle_pot_file)[:,0])
+            angle_widths.append(width)
+            angle_pot.set_from_file(f"{angle}", f"{angle_pot_file}")
+
+        if not all([i == angle_widths[0] for i in angle_widths]):
+            raise RuntimeError(
+                    "The potential files for all angles must be the same length"
+            )
+        angle_pot.width = bond_widths[0]
 
         hoomd_objs = [
                 init_snap,
                 hoomd_system,
                 self.nlist(),
                 pair_pot,
-                harmonic_bond,
-                harmonic_angle,
-            ]
+                bond_pot,
+                angle_pot,
+        ]
         return hoomd_objs 
 
     def _hoomd_walls(self, wall_axis, init_x, init_y, init_z):
