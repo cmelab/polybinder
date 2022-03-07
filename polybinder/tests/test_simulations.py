@@ -266,7 +266,7 @@ class TestSimulate(BaseTest):
         )
         simulation.quench(
                 kT=3.5,
-                n_steps=1e3,
+                n_steps=0,
                 shrink_kT=3.5,
                 shrink_steps=1e3,
                 shrink_period=10,
