@@ -6,29 +6,29 @@ import numpy as np
 import gsd.hoomd
 import polybinder 
 from polybinder.system import System, Initializer, Interface, Fused
-from polybinder.library import SYSTEM_DIR
+from polybinder.tests.assets import ASSETS_DIR
 from base_test import BaseTest
 
 
 class TestSystems(BaseTest):
     def test_fused(self):
         fused = Fused(
-                gsd_file=os.path.join(SYSTEM_DIR, "test_slab_xwall.gsd"),
+                gsd_file=os.path.join(ASSETS_DIR, "test_slab_xwall.gsd"),
                 ref_distance=0.33997
             )
 
     def test_interface_2_files(self):
         interface = Interface(
-                slabs=[os.path.join(SYSTEM_DIR, "test_slab_xwall.gsd"), 
-                    os.path.join(SYSTEM_DIR, "test_slab_xwall.gsd")
+                slabs=[os.path.join(ASSETS_DIR, "test_slab_xwall.gsd"), 
+                    os.path.join(ASSETS_DIR, "test_slab_xwall.gsd")
                     ],
                 ref_distance=0.33997
             )
 
     def test_interface_y(self):
         interface = Interface(
-                slabs=[os.path.join(SYSTEM_DIR, "test_slab_ywall.gsd"), 
-                    os.path.join(SYSTEM_DIR, "test_slab_ywall.gsd")
+                slabs=[os.path.join(ASSETS_DIR, "test_slab_ywall.gsd"), 
+                    os.path.join(ASSETS_DIR, "test_slab_ywall.gsd")
                     ],
                 ref_distance=0.33997,
                 weld_axis="y"
@@ -36,8 +36,8 @@ class TestSystems(BaseTest):
 
     def test_interface_z(self):
         interface = Interface(
-                slabs=[os.path.join(SYSTEM_DIR, "test_slab_zwall.gsd"), 
-                    os.path.join(SYSTEM_DIR, "test_slab_zwall.gsd")
+                slabs=[os.path.join(ASSETS_DIR, "test_slab_zwall.gsd"), 
+                    os.path.join(ASSETS_DIR, "test_slab_zwall.gsd")
                     ],
                 ref_distance=0.33997,
                 weld_axis="z"
@@ -412,7 +412,7 @@ class TestSystems(BaseTest):
             )
 
     def test_gsd_to_mbuild(self):
-        gsd_file = os.path.join(SYSTEM_DIR, "test_slab_xwall.gsd")
+        gsd_file = os.path.join(ASSETS_DIR, "test_slab_xwall.gsd")
         mb_comp = polybinder.system._gsd_to_mbuild(
                 gsd_file=gsd_file, ref_distance=3.39
             )
