@@ -261,14 +261,15 @@ class TestSimulate(BaseTest):
         simulation = simulate.Simulation(
                 cg_system,
                 r_cut=2.5,
+                mode="cpu",
                 ref_values = {"distance": 3.3997, "energy": 0.21, "mass": 15.99},
                 cg_potentials_dir = "test_potentials"
         )
         simulation.quench(
                 kT=3.5,
-                n_steps=0,
+                n_steps=500,
                 shrink_kT=3.5,
-                shrink_steps=1e3,
+                shrink_steps=500,
                 shrink_period=10,
                 table_pot=True
             )
