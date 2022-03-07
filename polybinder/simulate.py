@@ -1,5 +1,6 @@
-import operator
 from itertools import combinations_with_replacement as combo
+import operator
+import os
 
 import gsd.hoomd
 import hoomd
@@ -214,7 +215,7 @@ class Simulation:
                 init_y = objs[0].box.Ly
                 init_z = objs[0].box.Lz
             elif self.cg_system is True:
-                objs = self._create_hoomd_sim_from_snapshot(**kwargs)
+                objs = self._create_hoomd_sim_from_snapshot()
                 self.log_quantities.remove("pair_lj_energy")
                 init_x = objs[0].configuration.box[0]
                 init_y = objs[0].configuration.box[1]
@@ -678,31 +679,14 @@ class Simulation:
         Created specifically for using table potentials with
         coarse-grained systems.
 
-        Parameters:
-        -----------
-        pot_dir : str, default = None 
-            Direcotry inside of polybinder.library.focefields
-            to look for table potnetial files.
-
-            If None, it will check in polybinder.library.forcefields
-            for any needed table potential files.
-            You can create a CG-specific directory in
-            polybinder.library.forcefields to group together relevant
-            files. If you do, specify the additional directory name
-            with `pot_dir`
-
         """
         hoomd_system = hoomd.init.read_gsd(self.system)
         with gsd.hoomd.open(self.system, "rb") as f:
             init_snap = f[0]
 
-        # Create pair potential object, and load table files
-        # Use width of 100 to create object, will update later
-        # depending on the potential files used.
-        pair_pot = hoomd.md.pair.table(
-                width=100, nlist=self.nlist()
-        )
-        pair_widths = []
+        pairs = []
+        pair_pot_files = []
+        pair_pot_widths = []
         for pair in [list(i) for i in combo(init_snap.particles.types, r=2)]:
             _pair = "-".join(sorted(pair))
             pair_pot_file = f"{self.cg_ff_path}/{_pair}.txt"
@@ -712,58 +696,73 @@ class Simulation:
                 raise RuntimeError(f"The potnetial file for pair {_pair} "
                         "does not exist in PolyBinder's Forcefield directory."
                 )
-            width = len(np.loadtxt(pair_pot_file)[:,0])
-            pair_widths.append(width)
-            pair_pot.set_from_file(
-                f"{pair[0]}", f"{pair[1]}", filename=f"{pair_pot_file}"
-            )
-        if not all([i == pair_widths[0] for i in pair_widths]):
-            raise RuntimeError(
-                    "The potential files for all pairs must be the same length"
-            )
-        # Update width attribute for hoomd.md.pair.table
-        pair_pot.width = pair_widths[0]
+            pairs.append(_pair)
+            pair_pot_files.append(pair_pot_file)
+            pair_pot_widths.append(len(np.loadtxt(pair_pot_file)[:,0]))
 
-        # Repeat same process for Bonds and Angles 
-        bond_pot = hoomd.md.bond.table(width=100)
-        bond_widths = []
+        if not all([i == pair_pot_widths[0] for i in pair_pot_widths]):
+            raise RuntimeError(
+                "All pair potential files must have the same length"    
+            )
+
+        pair_pot = hoomd.md.pair.table(
+                width=pair_pot_widths[0], nlist=self.nlist()
+        )
+        for pair, fpath in zip(pairs, pair_pot_files):
+            pair = pair.split("-")
+            pair_pot.set_from_file(f"{pair[0]}", f"{pair[1]}", filename=fpath)
+
+        # Repeat same process for Bonds 
+        bonds = []
+        bond_pot_files = []
+        bond_pot_widths = []
         for bond in init_snap.bonds.types:
-            bond_pot_file = f"{self.cg_ff_path}/{bond}.txt"
+            fname = f"{bond}_bond.txt"
+            bond_pot_file = f"{self.cg_ff_path}/{fname}"
             try:
                 assert os.path.exists(bond_pot_file)
             except AssertionError:
                 raise RuntimeError(f"The potnetial file for bond {bond} "
                         "does not exist in PolyBinder's Forcefield directory."
                 )
-            width = len(np.loadtxt(bond_pot_file)[:,0])
-            bond_widths.append(width)
-            bond_pot.set_from_file(f"{bond}", f"{bond_pot_file}")
+            bonds.append(bond)
+            bond_pot_files.append(bond_pot_file)
+            bond_pot_widths.append(len(np.loadtxt(bond_pot_file)[:,0]))
 
-        if not all([i == bond_widths[0] for i in bond_widths]):
+        if not all([i == bond_pot_widths[0] for i in bond_pot_widths]):
             raise RuntimeError(
-                    "The potential files for all bonds must be the same length"
+                "All bond potential files must have the same length"    
             )
-        bond_pot.width = bond_widths[0]
 
-        angle_pot = hoomd.md.angle.table(width=100)
-        angle_widths = []
+        bond_pot = hoomd.md.bond.table(width=bond_pot_widths[0])
+        for bond, fpath in zip(bonds, bond_pot_files):
+            bond_pot.set_from_file(f"{bond}", f"{bond_pot_file}")
+        
+        # Repeat same process for Angles 
+        angles = []
+        angle_pot_files = []
+        angle_pot_widths = []
         for angle in init_snap.angles.types:
-            angle_pot_file = f"{self.cg_ff_path}/{angle}.txt"
+            fname = f"{angle}_angle.txt"
+            angle_pot_file = f"{self.cg_ff_path}/{fname}"
             try:
                 assert os.path.exists(angle_pot_file)
             except AssertionError:
                 raise RuntimeError(f"The potnetial file for angle {angle} "
-                        "does not exist in PolyBinder's Forcefield directory."
+                        "does not exist in {self.cg_ff_path}"
                 )
-            width = len(np.loadtxt(angle_pot_file)[:,0])
-            angle_widths.append(width)
-            angle_pot.set_from_file(f"{angle}", f"{angle_pot_file}")
+            angles.append(angle)
+            angle_pot_files.append(angle_pot_file)
+            angle_pot_widths.append(len(np.loadtxt(angle_pot_file)[:,0]))
 
-        if not all([i == angle_widths[0] for i in angle_widths]):
+        if not all([i == angle_pot_widths[0] for i in angle_pot_widths]):
             raise RuntimeError(
-                    "The potential files for all angles must be the same length"
+                "All bond potential files must have the same length"    
             )
-        angle_pot.width = bond_widths[0]
+
+        angle_pot = hoomd.md.angle.table(width=angle_pot_widths[0])
+        for angle, fpath in zip(angles, angle_pot_files):
+            angle_pot.set_from_file(f"{angle}", f"{angle_pot_file}")
 
         hoomd_objs = [
                 init_snap,

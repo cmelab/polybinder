@@ -3,6 +3,8 @@ import os
 import pytest
 from polybinder.system import System, Initializer, Interface
 from polybinder.library import COMPOUND_DIR, SYSTEM_DIR
+from polybinder.tests.assets import ASSETS_DIR
+
 
 class BaseTest:
     @pytest.fixture(autouse=True)
@@ -12,7 +14,7 @@ class BaseTest:
     @pytest.fixture()
     def test_interface_x(self):
         slab = Interface(
-            slabs=os.path.join(SYSTEM_DIR, "test_slab_xwall.gsd"),
+            slabs=os.path.join(ASSETS_DIR, "test_slab_xwall.gsd"),
             ref_distance=0.33997,
             gap=0.1,
             weld_axis="x"
@@ -22,7 +24,7 @@ class BaseTest:
     @pytest.fixture()
     def test_interface_y(self):
         slab = Interface(
-            slabs=os.path.join(SYSTEM_DIR, "test_slab_ywall.gsd"),
+            slabs=os.path.join(ASSETS_DIR, "test_slab_ywall.gsd"),
             ref_distance=0.33997,
             gap=0.1,
             weld_axis="y"
@@ -32,7 +34,7 @@ class BaseTest:
     @pytest.fixture()
     def test_interface_z(self):
         slab = Interface(
-            slabs=os.path.join(SYSTEM_DIR, "test_slab_zwall.gsd"),
+            slabs=os.path.join(ASSETS_DIR, "test_slab_zwall.gsd"),
             ref_distance=0.33997,
             gap=0.1,
             weld_axis="z"
@@ -56,7 +58,7 @@ class BaseTest:
                 )
         pekk_sys.coarse_grain_system(
                 ref_distance=3.39, ref_mass=15.99
-            )
+        )
         return pekk_sys
 
     @pytest.fixture

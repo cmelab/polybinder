@@ -256,21 +256,14 @@ class TestSimulate(BaseTest):
                 n_steps=1e3,
                 expand_period=10
             )
-    
+
     def test_cg_sim(self, cg_system):
         simulation = simulate.Simulation(
                 cg_system,
                 r_cut=2.5,
                 ref_values = {"distance": 3.3997, "energy": 0.21, "mass": 15.99},
-                bond_dicts = [{"type1": "P", "type2": "P", "k": 5, "r0": 3.95}],
-                angle_dicts = [
-                    {"type1":"P",
-                     "type2":"P",
-                     "type3":"P",
-                     "k":1,
-                     "theta0":2.35}
-                    ]
-                )
+                cg_potentials_dir = "test_potentials"
+        )
         simulation.quench(
                 kT=3.5,
                 n_steps=1e3,
