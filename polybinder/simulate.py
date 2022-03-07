@@ -50,12 +50,12 @@ class Simulation:
         Period to write simulation data to the log file.
     seed : int, default 42
         Seed passed to integrator when randomizing velocities.
-    bond_dicts : dict, default None
-        Dictionary of bond pairs and parameters (k, r0).
-        Use when initializing coarse-grained simulations.
-    angle_dicts : dict, default None
-        Dictionary of angle groups and parameters (k, theta0).
-        Use when initializing coarse-grained simulations.
+    cg_potentials_dir : str, default None
+        Directory inside of polybinder.library.forcefields to
+        look for coarse-grained system potentials. If left
+        as None, then it will only look in polybinder.library.forcefields
+        This is only used when `system` has been coarse-grained in
+        polybinder.system
     
     Methods
     -------
@@ -82,8 +82,7 @@ class Simulation:
         gsd_write=1e4,
         log_write=1e3,
         seed=42,
-        bond_dicts=None,
-        angle_dicts=None
+        cg_potentials_dir=None
     ):
         self.r_cut = r_cut
         self.tau_kt = tau_kt
@@ -96,26 +95,23 @@ class Simulation:
         self.gsd_write = gsd_write
         self.log_write = log_write
         self.seed = seed
-        #TODO: I don't think we need these anymore; bonds and angles should be given table potentials
-        self.bond_dicts = bond_dicts
-        self.angle_dicts = angle_dicts
-
+        # Coarsed-grained related parameters, system is a str (file path of GSD)
         if isinstance(system.system, str):
             assert ref_values != None, (
                         "Autoscaling is not supported for coarse-grain sims."
                         "Provide the relevant reference units"
                     )
-            #TODO Remove this assertion, see note above
-            assert all([self.bond_dicts, self.angle_dicts]), (
-                        "If using a coarse-grain system, pass in the bonding "
-                        "and angle information via the bond_dict and angle_dict "
-                        "parameters."
-                    )
+
             self.system = system.system
             self.cg_system = True
+            if cg_potentials_dir is None:
+                self.cg_ff_path = FF_DIR
+            else:
+                self.cg_ff_path = f"{FF_DIR}/{cg_potentials_dir}"
             self.ref_energy = ref_values["energy"]
             self.ref_distance = ref_values["distance"]
             self.ref_mass = ref_values["mass"]
+        # Non coarse-grained related parameters, system is a pmd.Structure 
         elif isinstance(system.system, pmd.Structure):
             self.system = system.system
             self.cg_system = False
@@ -673,7 +669,7 @@ class Simulation:
                 finally:
                     gsd_restart.write_restart()
 
-    def _create_hoomd_sim_from_snapshot(self, pot_dir=None):
+    def _create_hoomd_sim_from_snapshot(self):
         """Creates needed hoomd objects.
 
         Similar to the `create_hoomd_simulation` function
@@ -684,8 +680,16 @@ class Simulation:
 
         Parameters:
         -----------
-        table_pot : bool, defualt True
-            Set to True if using a table for the CG potential
+        pot_dir : str, default = None 
+            Direcotry inside of polybinder.library.focefields
+            to look for table potnetial files.
+
+            If None, it will check in polybinder.library.forcefields
+            for any needed table potential files.
+            You can create a CG-specific directory in
+            polybinder.library.forcefields to group together relevant
+            files. If you do, specify the additional directory name
+            with `pot_dir`
 
         """
         hoomd_system = hoomd.init.read_gsd(self.system)
@@ -701,7 +705,7 @@ class Simulation:
         pair_widths = []
         for pair in [list(i) for i in combo(init_snap.particles.types, r=2)]:
             _pair = "-".join(sorted(pair))
-            pair_pot_file = f"{FF_DIR}/{_pair}.txt"
+            pair_pot_file = f"{self.cg_ff_path}/{_pair}.txt"
             try:
                 assert os.path.exists(pair_pot_file)
             except AssertionError:
@@ -724,7 +728,7 @@ class Simulation:
         bond_pot = hoomd.md.bond.table(width=100)
         bond_widths = []
         for bond in init_snap.bonds.types:
-            bond_pot_file = f"{FF_DIR}/bond.txt"
+            bond_pot_file = f"{self.cg_ff_path}/{bond}.txt"
             try:
                 assert os.path.exists(bond_pot_file)
             except AssertionError:
@@ -744,7 +748,7 @@ class Simulation:
         angle_pot = hoomd.md.angle.table(width=100)
         angle_widths = []
         for angle in init_snap.angles.types:
-            angle_pot_file = f"{FF_DIR}/bond.txt"
+            angle_pot_file = f"{self.cg_ff_path}/{angle}.txt"
             try:
                 assert os.path.exists(angle_pot_file)
             except AssertionError:
