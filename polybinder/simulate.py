@@ -54,7 +54,7 @@ class Simulation:
     cg_potentials_dir : str, default None
         Directory inside of polybinder.library.forcefields to
         look for coarse-grained system potentials. If left
-        as None, then it will only look in polybinder.library.forcefields
+        as None, then it will only look in polybinder.library.forcefields.
         This is only used when `system` has been coarse-grained in
         polybinder.system
     
@@ -258,7 +258,7 @@ class Simulation:
                         group=_all,
                         kT=shrink_kT,
                         tau=self.tau_kt
-                        )
+                )
                 integrator.randomize_velocities(seed=self.seed)
                 x_variant = hoomd.variant.linear_interp(
                         [(0, init_x), (shrink_steps, self.target_box[0])]
