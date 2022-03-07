@@ -102,7 +102,7 @@ class System:
                 "The system will be generated using monomer_sequence. "
                 "para_weight should only be used when "
                 "generating random copolymer sequences. "
-                    )
+            )
             self.para_weight = None
 
         if sample_pdi:
@@ -111,7 +111,7 @@ class System:
                     pdi,
                     Mn,
                     Mw,
-                    )
+        )
         elif not sample_pdi and n_compounds != None:
             if not isinstance(n_compounds, list):
                 self.n_compounds = [n_compounds]
@@ -134,7 +134,7 @@ class System:
             pdi,
             Mn,
             Mw,
-            ):
+    ):
         if isinstance(n_compounds, int):
             self.n_compounds = n_compounds
         elif isinstance(n_compounds, list) and len(n_compounds) == 1:
@@ -170,13 +170,13 @@ class System:
         self.polymer_lengths = sorted(list(set(samples)))
         self.n_compounds = [
                 list(samples).count(x) for x in self.polymer_lengths
-                ]
+        ]
 
     def _weibull_k_expression(self, x):
         return (
                 (2.0 * x * gamma(2.0 / x)) /
                 gamma(1.0 / x) ** 2 - (self.Mw / self.Mn)
-                )
+        )
 
     def _weibull_lambda_expression(self, k):
         return self.Mn * k / gamma(1.0 / k)
@@ -196,7 +196,7 @@ class System:
             / recovered_lambda
             * (x / recovered_lambda) ** (recovered_k - 1)
             * np.exp(-((x / recovered_lambda) ** recovered_k)),
-            }
+        }
         return mass_dict
 
 
@@ -390,7 +390,7 @@ class Initializer:
                 (crystal.box.Lx / 2,
                 crystal.box.Ly / 2,
                 crystal.box.Lz / 2)
-                )
+        )
         return crystal
 
     def coarse_grain_system(
@@ -448,7 +448,7 @@ class Initializer:
             cg_system = System(
                             atoms_per_monomer=atoms_per_monomer,
                             gsd_file="atomistic_gsd.gsd"
-                        )
+            )
             for idx, mol in enumerate(cg_system.molecules):
                 mol.sequence = self.system_parms.molecule_sequences[idx]
                 mol.assign_types()
@@ -478,7 +478,7 @@ class Initializer:
         if segment_length is not None:
             raise ValueError(
                     "Coarse-graining using segments is not yet supported"
-                    )
+            )
 
         with gsd.hoomd.open("cg_system.gsd", "wb") as f:
             cg_snap = cg_system.coarse_grain_snap(
@@ -559,7 +559,7 @@ class Initializer:
         self.residues = []
         for length, n in zip(
                 self.system_parms.polymer_lengths, self.system_parms.n_compounds
-            ):
+        ):
             if sequence != "random":
                 polymer, mol_sequence = build_molecule(
                     self.system_parms.molecule,
@@ -628,16 +628,17 @@ class Fused:
                 mins=(0,0,0),
                 maxs=system.get_boundingbox().lengths,
                 angles = (90, 90, 90)
-            )
+        )
         system.translate_to(
                 [system.box.Lx / 2,
                 system.box.Ly / 2,
                 system.box.Lz / 2,]
-            )
+        )
 
         ff_path = f"{FF_DIR}/gaff-nosmarts.xml"
         forcefield = foyer.Forcefield(forcefield_files=ff_path)
         self.system = forcefield.apply(system)
+
 
 class Interface:
     """Initialize an interface system between one or two "slabs" that were
@@ -685,7 +686,7 @@ class Interface:
         assert weld_axis in ["x", "y", "z"], (
                     "Choose the axis of the interface. "
                     "Valid choices are 'x', 'y', 'z'"
-                )
+        )
         trans_axis = axis_dict[weld_axis]
 
         interface = mb.Compound()
@@ -699,12 +700,12 @@ class Interface:
                 mins=(0, 0, 0),
                 maxs = interface.get_boundingbox().lengths,
                 angles = (90, 90, 90)
-            )
+        )
         current_len = getattr(system_box, f"L{weld_axis}")
         setattr(system_box,
                 f"_L{weld_axis}",
                 current_len + (2*self.ref_distance*1.1225)
-            )
+        )
         #system_box._Lx += 2 * self.ref_distance * 1.1225
         interface.box = system_box
         # Center in the adjusted box
@@ -712,7 +713,7 @@ class Interface:
                 [interface.box.Lx / 2,
                 interface.box.Ly / 2,
                 interface.box.Lz / 2,]
-            )
+        )
 
         ff_path = f"{FF_DIR}/gaff-nosmarts.xml"
         forcefield = foyer.Forcefield(forcefield_files=ff_path)
