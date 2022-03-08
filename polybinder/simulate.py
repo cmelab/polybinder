@@ -57,6 +57,8 @@ class Simulation:
         as None, then it will only look in polybinder.library.forcefields.
         This is only used when `system` has been coarse-grained in
         polybinder.system
+    restart : str, default None
+        Path to gsd file from which to restart the simulation
     
     Methods
     -------
@@ -83,7 +85,8 @@ class Simulation:
         gsd_write=1e4,
         log_write=1e3,
         seed=42,
-        cg_potentials_dir=None
+        cg_potentials_dir=None,
+        restart=None
     ):
         self.r_cut = r_cut
         self.tau_kt = tau_kt
@@ -96,6 +99,7 @@ class Simulation:
         self.gsd_write = gsd_write
         self.log_write = log_write
         self.seed = seed
+        self.restart = restart
         # Coarsed-grained related parameters, system is a str (file path of GSD)
         if isinstance(system.system, str):
             assert ref_values != None, (
@@ -209,7 +213,8 @@ class Simulation:
                     self.ref_energy,
                     self.r_cut,
                     self.auto_scale,
-                    nlist=self.nlist
+                    nlist=self.nlist,
+                    restart=self.restart
                 )
                 init_x = objs[0].box.Lx
                 init_y = objs[0].box.Ly
@@ -680,9 +685,17 @@ class Simulation:
         coarse-grained systems.
 
         """
-        hoomd_system = hoomd.init.read_gsd(self.system)
-        with gsd.hoomd.open(self.system, "rb") as f:
-            init_snap = f[0]
+        if self.restart is None:
+            hoomd_system = hoomd.init.read_gsd(self.system)
+            with gsd.hoomd.open(self.system, "rb") as f:
+                init_snap = f[0]
+        else:
+            with gsd.hoomd.open(self.restart) as f:
+                init_snap = f[-1]
+                hoomd_system = hoomd.init.read_gsd(
+                    self.restart, restart=self.restart
+                )
+                print("Simulation initialized from restart file")
 
         pairs = []
         pair_pot_files = []
