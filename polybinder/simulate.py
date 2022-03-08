@@ -693,8 +693,8 @@ class Simulation:
             try:
                 assert os.path.exists(pair_pot_file)
             except AssertionError:
-                raise RuntimeError(f"The potnetial file for pair {_pair} "
-                        "does not exist in PolyBinder's Forcefield directory."
+                raise RuntimeError(f"The potential file {pair_pot_file} "
+                    f"for pair {_pair} does not exist in {self.cg_ff_path}."
                 )
             pairs.append(_pair)
             pair_pot_files.append(pair_pot_file)
@@ -722,8 +722,8 @@ class Simulation:
             try:
                 assert os.path.exists(bond_pot_file)
             except AssertionError:
-                raise RuntimeError(f"The potnetial file for bond {bond} "
-                        "does not exist in PolyBinder's Forcefield directory."
+                raise RuntimeError(f"The potential file {bond_pot_file} "
+                    f"for bond {bond} does not exist in {self.cg_ff_path}."
                 )
             bonds.append(bond)
             bond_pot_files.append(bond_pot_file)
@@ -748,8 +748,8 @@ class Simulation:
             try:
                 assert os.path.exists(angle_pot_file)
             except AssertionError:
-                raise RuntimeError(f"The potnetial file for angle {angle} "
-                        "does not exist in {self.cg_ff_path}"
+                raise RuntimeError(f"The potential file {angle_pot_file} "
+                    f"for angle {angle} does not exist in {self.cg_ff_path}."
                 )
             angles.append(angle)
             angle_pot_files.append(angle_pot_file)
@@ -775,9 +775,7 @@ class Simulation:
         return hoomd_objs 
 
     def _hoomd_walls(self, wall_axis, init_x, init_y, init_z):
-        """
-        Create hoomd LJ wall potentials
-        """
+        """Create hoomd LJ wall potentials"""
         wall_origin = np.asarray(wall_axis) * np.array(
                 [init_x/2, init_y/2, init_z/2]
                 )

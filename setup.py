@@ -97,7 +97,8 @@ setup(
     package_data={"polybinder": [
         "library/compounds/*",
         "library/forcefields/*",
-        "library/systems/*"
+        "library/forcefields/test_potentials/*",
+        "library/systems/*",
         "libary/assets/*"
         ]},
     install_requires=REQUIRED,
