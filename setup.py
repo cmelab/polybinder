@@ -98,6 +98,7 @@ setup(
         "library/compounds/*",
         "library/forcefields/*",
         "library/systems/*"
+        "libary/assets/*"
         ]},
     install_requires=REQUIRED,
     include_package_data=True,
