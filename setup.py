@@ -99,7 +99,7 @@ setup(
         "library/forcefields/*",
         "library/forcefields/test_potentials/*",
         "library/systems/*",
-        "libary/assets/*"
+        "library/assets/*"
         ]},
     install_requires=REQUIRED,
     include_package_data=True,
