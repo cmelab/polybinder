@@ -6,7 +6,7 @@ import numpy as np
 import gsd.hoomd
 import polybinder 
 from polybinder.system import System, Initializer, Interface, Fused
-from polybinder.tests.assets import ASSETS_DIR
+from polybinder.library import ASSETS_DIR
 from base_test import BaseTest
 
 

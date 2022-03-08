@@ -2,8 +2,7 @@ import os
 
 import pytest
 from polybinder.system import System, Initializer, Interface
-from polybinder.library import COMPOUND_DIR, SYSTEM_DIR
-from polybinder.tests.assets import ASSETS_DIR
+from polybinder.library import COMPOUND_DIR, SYSTEM_DIR, ASSETS_DIR
 
 
 class BaseTest:
