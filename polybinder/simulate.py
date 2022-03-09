@@ -338,10 +338,15 @@ class Simulation:
             integrator.randomize_velocities(seed=self.seed)
             try:
                 hoomd.run(n_steps)
+                print("Simulation completed")
+                done=True
             except hoomd.WalltimeLimitReached:
-                pass
+                print("Walltime limit reached")
+                done=False
             finally:
                 gsd_restart.write_restart()
+                print("Restart GSD file written")
+        return done
 
     def anneal(
         self,
