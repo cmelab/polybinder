@@ -216,9 +216,15 @@ class Simulation:
                     nlist=self.nlist,
                     restart=self.restart
                 )
-                init_x = objs[0].box.Lx
-                init_y = objs[0].box.Ly
-                init_z = objs[0].box.Lz
+                if self.restart is None:
+                    init_x = objs[0].box.Lx
+                    init_y = objs[0].box.Ly
+                    init_z = objs[0].box.Lz
+                else:
+                    init_x = objs[0].configuration.box[0]
+                    init_y = objs[0].configuration.box[1]
+                    init_z = objs[0].configuration.box[2]
+
             elif self.cg_system is True:
                 objs = self._create_hoomd_sim_from_snapshot()
                 self.log_quantities.remove("pair_lj_energy")
