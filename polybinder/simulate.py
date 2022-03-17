@@ -201,6 +201,8 @@ class Simulation:
                 "If shrinking, all of  shrink_kT, shrink_steps and "
                 "shrink_periopd need to be given."
             )
+        if shrink_steps is None:
+            shrink_steps = 0
 
         hoomd_args = f"--single-mpi --mode={self.mode}"
         sim = hoomd.context.initialize(hoomd_args)
@@ -343,7 +345,7 @@ class Simulation:
                             kT=kT)
             integrator.randomize_velocities(seed=self.seed)
             try:
-                hoomd.run(n_steps)
+                hoomd.run_upto(n_steps + shrink_steps)
                 print("Simulation completed")
                 done=True
             except hoomd.WalltimeLimitReached:
@@ -375,6 +377,9 @@ class Simulation:
                 "If shrinking, then all of shirnk_kT, shrink_steps "
                 "and shrink_period need to be given"
             )
+        if shirnk_steps is None:
+            shrink_steps = 0
+
         if not schedule:
             temps = np.linspace(kT_init, kT_final, len(step_sequence))
             temps = [np.round(t, 1) for t in temps]
@@ -511,7 +516,8 @@ class Simulation:
                             tau=self.tau_kt,
                             kT=1
                     )
-
+            
+            last_step = shrink_steps 
             for kT in schedule: 
                 n_steps = schedule[kT]
                 integrator.set_params(kT=kT)
@@ -519,9 +525,13 @@ class Simulation:
                 print(f"Running @ Temp = {kT} kT")
                 print(f"Running for {n_steps} steps")
                 try:
-                    hoomd.run(n_steps)
+                    hoomd.run_upto(n_steps + last_step)
+                    last_step += n_steps
+                    done = True
+                    last_temp = kT
                 except hoomd.WalltimeLimitReached:
-                    pass
+                    done = False
+                    last_temp = kT
                 finally:
                     gsd_restart.write_restart()
 
