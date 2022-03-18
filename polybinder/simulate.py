@@ -529,9 +529,11 @@ class Simulation:
                     last_step += n_steps
                     done = True
                     last_temp = kT
+                    return done, last_temp
                 except hoomd.WalltimeLimitReached:
                     done = False
                     last_temp = kT
+                    return done, last_temp
                 finally:
                     gsd_restart.write_restart()
 
