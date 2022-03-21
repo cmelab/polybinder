@@ -5,8 +5,7 @@ import os
 import gsd.hoomd
 import hoomd
 import hoomd.md
-from hoomd.md import wall
-from mbuild.formats.hoomd_simulation import create_hoomd_simulation
+from mbuild.formats.hoomd_forcefield import create_hoomd_forcefield
 import numpy as np
 import parmed as pmd
 
@@ -257,7 +256,7 @@ class Simulation:
                         "r_cut": 2.5,
                         "r_extrap": 0
                 }
-				forcefields.append(wall_force)
+                forcefields.append(wall_force)
 
         integrator = hoomd.md.Integrator(dt=dt)
         integrator.forces = forcefields
@@ -314,10 +313,10 @@ class Simulation:
                 if (sim.device.communicator.walltime + sim.walltime >=
                         self.wall_time_limit):
                     break
-        finally:
-            hoomd.write.GSD.write(
-                    state=sim.state, mode='wb', filename="restart.gsd"
-            )
+    finally:
+        hoomd.write.GSD.write(
+                state=sim.state, mode='wb', filename="restart.gsd"
+        )
 		
 
     def anneal(
