@@ -377,7 +377,7 @@ class Simulation:
                 "If shrinking, then all of shirnk_kT, shrink_steps "
                 "and shrink_period need to be given"
             )
-        if shirnk_steps is None:
+        if shrink_steps is None:
             shrink_steps = 0
 
         if not schedule:
