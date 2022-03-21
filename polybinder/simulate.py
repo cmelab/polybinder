@@ -57,6 +57,8 @@ class Simulation:
         as None, then it will only look in polybinder.library.forcefields.
         This is only used when `system` has been coarse-grained in
         polybinder.system
+    restart : str, default None
+        Path to gsd file from which to restart the simulation
     
     Methods
     -------
@@ -83,7 +85,8 @@ class Simulation:
         gsd_write=1e4,
         log_write=1e3,
         seed=42,
-        cg_potentials_dir=None
+        cg_potentials_dir=None,
+        restart=None
     ):
         self.r_cut = r_cut
         self.tau_kt = tau_kt
@@ -96,6 +99,7 @@ class Simulation:
         self.gsd_write = gsd_write
         self.log_write = log_write
         self.seed = seed
+        self.restart = restart
         # Coarsed-grained related parameters, system is a str (file path of GSD)
         if isinstance(system.system, str):
             assert ref_values != None, (
@@ -197,6 +201,8 @@ class Simulation:
                 "If shrinking, all of  shrink_kT, shrink_steps and "
                 "shrink_periopd need to be given."
             )
+        if shrink_steps is None:
+            shrink_steps = 0
 
         hoomd_args = f"--single-mpi --mode={self.mode}"
         sim = hoomd.context.initialize(hoomd_args)
@@ -209,11 +215,18 @@ class Simulation:
                     self.ref_energy,
                     self.r_cut,
                     self.auto_scale,
-                    nlist=self.nlist
+                    nlist=self.nlist,
+                    restart=self.restart
                 )
-                init_x = objs[0].box.Lx
-                init_y = objs[0].box.Ly
-                init_z = objs[0].box.Lz
+                if self.restart is None:
+                    init_x = objs[0].box.Lx
+                    init_y = objs[0].box.Ly
+                    init_z = objs[0].box.Lz
+                else:
+                    init_x = objs[0].configuration.box[0]
+                    init_y = objs[0].configuration.box[1]
+                    init_z = objs[0].configuration.box[2]
+
             elif self.cg_system is True:
                 objs = self._create_hoomd_sim_from_snapshot()
                 self.log_quantities.remove("pair_lj_energy")
@@ -332,11 +345,16 @@ class Simulation:
                             kT=kT)
             integrator.randomize_velocities(seed=self.seed)
             try:
-                hoomd.run(n_steps)
+                hoomd.run_upto(n_steps + shrink_steps)
+                print("Simulation completed")
+                done=True
             except hoomd.WalltimeLimitReached:
-                pass
+                print("Walltime limit reached")
+                done=False
             finally:
                 gsd_restart.write_restart()
+                print("Restart GSD file written")
+        return done
 
     def anneal(
         self,
@@ -359,6 +377,9 @@ class Simulation:
                 "If shrinking, then all of shirnk_kT, shrink_steps "
                 "and shrink_period need to be given"
             )
+        if shrink_steps is None:
+            shrink_steps = 0
+
         if not schedule:
             temps = np.linspace(kT_init, kT_final, len(step_sequence))
             temps = [np.round(t, 1) for t in temps]
@@ -495,7 +516,8 @@ class Simulation:
                             tau=self.tau_kt,
                             kT=1
                     )
-
+            
+            last_step = shrink_steps 
             for kT in schedule: 
                 n_steps = schedule[kT]
                 integrator.set_params(kT=kT)
@@ -503,9 +525,15 @@ class Simulation:
                 print(f"Running @ Temp = {kT} kT")
                 print(f"Running for {n_steps} steps")
                 try:
-                    hoomd.run(n_steps)
+                    hoomd.run_upto(n_steps + last_step)
+                    last_step += n_steps
+                    done = True
+                    last_temp = kT
+                    return done, last_temp
                 except hoomd.WalltimeLimitReached:
-                    pass
+                    done = False
+                    last_temp = kT
+                    return done, last_temp
                 finally:
                     gsd_restart.write_restart()
 
@@ -680,9 +708,17 @@ class Simulation:
         coarse-grained systems.
 
         """
-        hoomd_system = hoomd.init.read_gsd(self.system)
-        with gsd.hoomd.open(self.system, "rb") as f:
-            init_snap = f[0]
+        if self.restart is None:
+            hoomd_system = hoomd.init.read_gsd(self.system)
+            with gsd.hoomd.open(self.system, "rb") as f:
+                init_snap = f[0]
+        else:
+            with gsd.hoomd.open(self.restart) as f:
+                init_snap = f[-1]
+                hoomd_system = hoomd.init.read_gsd(
+                    self.restart, restart=self.restart
+                )
+                print("Simulation initialized from restart file")
 
         pairs = []
         pair_pot_files = []
