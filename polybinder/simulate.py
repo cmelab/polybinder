@@ -228,7 +228,7 @@ class Simulation:
                 group=_all, sim=sim, forcefields=forcefields
         )
         sim.operations.writers.append(gsd_writer)
-        sim.operations.writers.append(table_file)
+        #sim.operations.writers.append(table_file)
         
         if wall_axis is not None: # Set up wall potentials
             wall_force, walls, normal_vector = self._hoomd_walls(
@@ -278,7 +278,8 @@ class Simulation:
             assert sim.state.box == final_box
 
         if pressure: # Set NPT integrator
-            try integrator: # Not yet defined if no shrink step ran
+            try: 
+                integrator # Not yet defined if no shrink step ran
                 sim.operations.remove(integrator)
             except NameError:
                 integrator = hoomd.md.Integrator(dt=self.dt)
@@ -289,7 +290,8 @@ class Simulation:
             integrator.methods = [integrator_method]
             sim.operations.add(integrator)
         else: # Set NVT integrator 
-            try integrator: # Not yet defined if no shrink step ran
+            try: 
+                integrator # Not yet defined if no shrink step ran
                 sim.operations.remove(integrator)
             except NameError:
                 integrator = hoomd.md.Integrator(dt=self.dt)
