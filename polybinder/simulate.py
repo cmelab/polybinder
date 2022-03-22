@@ -227,29 +227,11 @@ class Simulation:
         else:
             sim.create_state_from_snapshot(init_snap)
         _all = hoomd.filter.All()
-
-        # GSD and Logging: #TODO: Put the GSD and table writer into a function
-        if self.restart:
-            writemode = "a"
-        else:
-            writemode = "w"
-        gsd_writer = hoomd.write.GSD(
-                filename="sim_traj.gsd",
-                trigger=hoomd.trigger.Periodic(
-                    period=int(self.gsd_write), phase=0
-                ),
-                mode=f"{writemode}b",
-                dynamic=["momentum"]
+        gsd_writer, table_file = self._hoomd_writers(
+                group=_all, sim=sim, forcefields=forcefields
         )
         sim.operations.writers.append(gsd_writer)
-        #TODO: Finish setting up log file wrtier
-        logger = hoomd.logging.Logger(categories=["scalar", "string"])
-        logger.add(sim, quantities=["timestep", "tps"])
-        thermo_props = hoomd.md.compute.ThermodynamicQuantities(filter=_all)
-        logger.add(thermo_props, quantities=self.log_quantities)
-        # TODO: Will this work when I'm using self._create_hoomd_sim?
-        # Doesn't seem to work. Question: How do we add bond, lj, angle energies to logger?
-        #logger.add(forcefields[:])
+        sim.operations.writers.append(table_file)
         
         # Setup walls
         if wall_axis is not None:
@@ -676,6 +658,33 @@ class Simulation:
                     pass
                 finally:
                     gsd_restart.write_restart()
+    
+    def _hoomd_writers(self, group, forcefields, sim):
+        # GSD and Logging:
+        if self.restart:
+            writemode = "a"
+        else:
+            writemode = "w"
+        gsd_writer = hoomd.write.GSD(
+                filename="sim_traj.gsd",
+                trigger=hoomd.trigger.Periodic(int(self.gsd_write)),
+                mode=f"{writemode}b",
+                dynamic=["momentum"]
+        )
+
+        logger = hoomd.logging.Logger(categories=["scalar", "string"])
+        logger.add(sim, quantities=["timestep", "tps"])
+        thermo_props = hoomd.md.compute.ThermodynamicQuantities(filter=group)
+        logger.add(thermo_props, quantities=self.log_quantities)
+
+        table_file = hoomd.write.Table(
+            output=open("sim_traj.txt", mode=f"{writemode}", newline="\n"),
+            trigger=hoomd.trigger.Periodic(period=int(self.log_write)),
+            logger=logger,
+            delimiter=",",
+            max_header_len=None,
+        )
+        return gsd_writer, table_file 
 
     def _create_hoomd_sim_from_snapshot(self):
         """Creates needed hoomd objects.
