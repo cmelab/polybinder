@@ -110,7 +110,6 @@ class Simulation:
                         "Autoscaling is not supported for coarse-grain sims."
                         "Provide the relevant reference units"
             )
-
             self.system = system.system
             self.cg_system = True
             if cg_potentials_dir is None:
@@ -143,7 +142,6 @@ class Simulation:
         if system.system_type != "interface":
             # Conv from nm (mBuild) to ang (parmed) and set to reduced length 
             self.target_box = system.target_box * 10 / self.ref_distance
-        #TODO Check if all of these are still valid for v3 
         self.log_quantities = [
             "kinetic_temperature",
             "potential_energy",
@@ -165,7 +163,7 @@ class Simulation:
         **kwargs
     ):
         """Runs an NVT or NPT simulation at a single temperature
-        and pressure.
+        and/or pressure.
 
         Call this funciton after initializing the Simulation class.
 
@@ -218,7 +216,6 @@ class Simulation:
         init_z = init_snap.configuration.box[2]
         #TODO: Do I need to set "1-4" here, or is it set in mBuild?
         forcefields[0].nlist.exclusions = ["bond", "1-3"]
-
         # Create Hoomd simulation object and initialize a state
         device = hoomd.device.auto_select()
         sim = hoomd.Simulation(device=device, seed=self.seed)
@@ -233,24 +230,21 @@ class Simulation:
         sim.operations.writers.append(gsd_writer)
         sim.operations.writers.append(table_file)
         
-        # Setup walls
-        if wall_axis is not None:
-            if wall_axis is not None:
-                wall_force, walls, normal_vector = self._hoomd_walls(
-                        wall_axis, init_x, init_y, init_z
-                )
-                wall_force.params[init_snap.particles.types] = {
-                        "epsilon": 1.0,
-                        "sigma": 1.0,
-                        "r_cut": 2.5,
-                        "r_extrap": 0
-                }
-                forcefields.append(wall_force)
+        if wall_axis is not None: # Set up wall potentials
+            wall_force, walls, normal_vector = self._hoomd_walls(
+                    wall_axis, init_x, init_y, init_z
+            )
+            wall_force.params[init_snap.particles.types] = {
+                    "epsilon": 1.0,
+                    "sigma": 1.0,
+                    "r_cut": 2.5,
+                    "r_extrap": 0
+            }
+            forcefields.append(wall_force)
 
-        integrator = hoomd.md.Integrator(dt=self.dt)
-        integrator.forces = forcefields
-        # Set up shrinking step
-        if shrink_kT and shrink_steps:
+        if shrink_kT and shrink_steps: # Set up shrinking run
+            integrator = hoomd.md.Integrator(dt=self.dt)
+            integrator.forces = forcefields
             integrator_method = hoomd.md.methods.NVT(
                     filter=_all, kT=shrink_kT, tau=self.tau_kt
             )
@@ -283,21 +277,27 @@ class Simulation:
                 sim.run(shrink_steps + 1)
             assert sim.state.box == final_box
 
-
         if pressure: # Set NPT integrator
-            sim.operations.remove(integrator)
+            try integrator: # Not yet defined if no shrink step ran
+                sim.operations.remove(integrator)
+            except NameError:
+                integrator = hoomd.md.Integrator(dt=self.dt)
+                integrator.forces = forcefields
             integrator_method = hoomd.md.methods.NPT(
                     filter=_all, kT=kT, S=pressure, tauS=self.tau_p
             )
             integrator.methods = [integrator_method]
             sim.operations.add(integrator)
         else: # Set NVT integrator 
-            sim.operations.remove(integrator)
+            try integrator: # Not yet defined if no shrink step ran
+                sim.operations.remove(integrator)
+            except NameError:
+                integrator = hoomd.md.Integrator(dt=self.dt)
+                integrator.forces = forcefields
             integrator_method = hoomd.md.methods.NVT(
                     filter=_all, kT=kT, tau=self.tau_kt
             )
             integrator.methods = [integrator_method]
-            #integrator.forces = forcefields
             sim.operations.add(integrator)
 
         sim.state.thermalize_particle_momenta(filter=_all, kT=kT)
@@ -346,6 +346,7 @@ class Simulation:
             temps = [np.round(t, 1) for t in temps]
             schedule = dict(zip(temps, step_sequence))
 
+        ## BEGIN HOOMD V2 STUFF:
         # Get hoomd stuff set:
         hoomd_args = f"--single-mpi --mode={self.mode}"
         sim = hoomd.context.initialize(hoomd_args)
