@@ -225,7 +225,8 @@ class Simulation:
             sim.create_state_from_gsd(self.restart)
         else:
             sim.create_state_from_snapshot(init_snap)
-        integrator = hoomd.md.Integrator(dt=self.dt)
+            #TODO: Where to call Integrator
+        #integrator = hoomd.md.Integrator(dt=self.dt)
         _all = hoomd.filter.All()
 
         # GSD and Logging: #TODO: Put the GSD and table writer into a function
@@ -270,9 +271,10 @@ class Simulation:
         # Set up shrinking step
         if shrink_kT and shrink_steps:
             integrator_method = hoomd.md.methods.NVT(
-                    filter=_all, kT=kT, tau=self.tau_kt
+                    filter=_all, kT=shrink_kT, tau=self.tau_kt
             )
             integrator.methods = [integrator_method]
+            sim.operations.integrator = integrator
             sim.state.thermalize_particle_momenta(filter=_all, kT=shrink_kT)
             box_resize_trigger = hoomd.trigger.Periodic(shrink_period)
             ramp = hoomd.variant.Ramp(
@@ -310,6 +312,8 @@ class Simulation:
                     filter=_all, kT=kT, tau=self.tau_kt
             )
             integrator.methods = [integrator_method]
+
+        sim.operations.integrator = integrator
         sim.state.thermalize_particle_momenta(filter=_all, kT=kT)
 
         try:
