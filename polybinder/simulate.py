@@ -195,7 +195,7 @@ class Simulation:
         if [shrink_kT, shrink_steps, shrink_period].count(None) %3 != 0:
             raise ValueError(
                 "If shrinking, all of  shrink_kT, shrink_steps and "
-                "shrink_periopd need to be given."
+                "shrink_period need to be given."
             )
         if shrink_steps is None:
             shrink_steps = 0
@@ -218,15 +218,14 @@ class Simulation:
         init_z = init_snap.configuration.box[2]
         #TODO: Do I need to set "1-4" here, or is it set in mBuild?
         forcefields[0].nlist.exclusions = ["bond", "1-3"]
-        
+
+        # Create Hoomd simulation object and initialize a state
         device = hoomd.device.auto_select()
         sim = hoomd.Simulation(device=device, seed=self.seed)
         if self.restart:
             sim.create_state_from_gsd(self.restart)
         else:
             sim.create_state_from_snapshot(init_snap)
-            #TODO: Where to call Integrator
-        #integrator = hoomd.md.Integrator(dt=self.dt)
         _all = hoomd.filter.All()
 
         # GSD and Logging: #TODO: Put the GSD and table writer into a function
@@ -243,7 +242,7 @@ class Simulation:
                 dynamic=["momentum"]
         )
         sim.operations.writers.append(gsd_writer)
-
+        #TODO: Finish setting up log file wrtier
         logger = hoomd.logging.Logger(categories=["scalar", "string"])
         logger.add(sim, quantities=["timestep", "tps"])
         thermo_props = hoomd.md.compute.ThermodynamicQuantities(filter=_all)
@@ -274,12 +273,13 @@ class Simulation:
                     filter=_all, kT=shrink_kT, tau=self.tau_kt
             )
             integrator.methods = [integrator_method]
-            sim.operations.integrator = integrator
+            sim.operations.add(integrator)
             sim.state.thermalize_particle_momenta(filter=_all, kT=shrink_kT)
             box_resize_trigger = hoomd.trigger.Periodic(shrink_period)
             ramp = hoomd.variant.Ramp(
                 A=0, B=1, t_start=sim.timestep, t_ramp=int(shrink_steps)
             ) 
+            #TODO: Add the box stuff to its own function? Will be used in 2 different places
             initial_box = sim.state.box
             final_box = hoomd.Box(
                     Lx=self.target_box[0],
@@ -292,7 +292,7 @@ class Simulation:
                     variant=ramp,
                     trigger=box_resize_trigger
             )
-            sim.operations.updates.append(box_resize)
+            sim.operations.updaters.append(box_resize)
 
             if wall_axis is not None:
                 pass
@@ -303,23 +303,28 @@ class Simulation:
 
 
         if pressure: # Set NPT integrator
+            sim.operations.remove(integrator)
             integrator_method = hoomd.md.methods.NPT(
                     filter=_all, kT=kT, S=pressure, tauS=self.tau_p
             )
             integrator.methods = [integrator_method]
+            sim.operations.add(integrator)
         else: # Set NVT integrator 
+            sim.operations.remove(integrator)
             integrator_method = hoomd.md.methods.NVT(
                     filter=_all, kT=kT, tau=self.tau_kt
             )
             integrator.methods = [integrator_method]
+            #integrator.forces = forcefields
+            sim.operations.add(integrator)
 
-        sim.operations.integrator = integrator
         sim.state.thermalize_particle_momenta(filter=_all, kT=kT)
 
         try:
             while sim.timestep < n_steps + shrink_steps + 1:
+                #TODO: Use a better approach here to not end up running an odd amount of steps?
                 sim.run(n_steps + shrink_steps + 1)
-                sim.run(min(10000, n_steps + shrink_steps + 1 - sim.timestep))
+                #sim.run(min(10000, n_steps + shrink_steps + 1 - sim.timestep))
                 if self.wall_time_limit:
                     if (sim.device.communicator.walltime + sim.walltime >=
                             self.wall_time_limit):
