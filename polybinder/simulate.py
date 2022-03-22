@@ -79,7 +79,7 @@ class Simulation:
         r_cut=2.5,
         tau_kt=0.1,
         tau_p=None,
-        nlist="cell",
+        nlist="Cell",
         dt=0.0001,
         auto_scale=True,
         ref_values=None,
@@ -94,7 +94,7 @@ class Simulation:
         self.r_cut = r_cut
         self.tau_kt = tau_kt
         self.tau_p = tau_p
-        self.nlist = getattr(hoomd.md.nlist, nlist.lower())
+        self.nlist = getattr(hoomd.md.nlist, nlist)
         self.dt = dt
         self.auto_scale = auto_scale
         self.ref_values = ref_values
@@ -208,8 +208,6 @@ class Simulation:
                     self.ref_energy,
                     self.r_cut,
                     self.auto_scale,
-                    nlist=self.nlist,
-                    restart=self.restart
             )
         else:
             #TODO: See what needs to be changed and returned in _create_hoomd_sim..
@@ -220,18 +218,26 @@ class Simulation:
         init_z = init_snap.configuration.box[2]
         #TODO: Do I need to set "1-4" here, or is it set in mBuild?
         forcefields[0].nlist.exclusions = ["bond", "1-3"]
+        
         device = hoomd.device.auto_select()
+        sim = hoomd.Simulation(device=device, seed=self.seed)
+        if self.restart:
+            sim.create_state_from_gsd(self.restart)
+        else:
+            sim.create_state_from_snapshot(init_snap)
         integrator = hoomd.md.Integrator(dt=self.dt)
         _all = hoomd.filter.All()
-        #TODO: Put the GSD and table writer into a function
-        # GSD and Logging:
+
+        # GSD and Logging: #TODO: Put the GSD and table writer into a function
         if self.restart:
             writemode = "a"
         else:
             writemode = "w"
         gsd_writer = hoomd.write.GSD(
                 filename="sim_traj.gsd",
-                trigger=hoomd.trigger.Periodic(self.gsd_write),
+                trigger=hoomd.trigger.Periodic(
+                    period=int(self.gsd_write), phase=0
+                ),
                 mode=f"{writemode}b",
                 dynamic=["momentum"]
         )
@@ -240,9 +246,10 @@ class Simulation:
         logger = hoomd.logging.Logger(categories=["scalar", "string"])
         logger.add(sim, quantities=["timestep", "tps"])
         thermo_props = hoomd.md.compute.ThermodynamicQuantities(filter=_all)
-        logger.add(thermoprops, quantities=self.log_quantities)
+        logger.add(thermo_props, quantities=self.log_quantities)
         # TODO: Will this work when I'm using self._create_hoomd_sim?
-        logger.add(forcefields[:])
+        # Doesn't seem to work. Question: How do we add bond, lj, angle energies to logger?
+        #logger.add(forcefields[:])
         
         # Setup walls
         if wall_axis is not None:
@@ -258,10 +265,10 @@ class Simulation:
                 }
                 forcefields.append(wall_force)
 
-        integrator = hoomd.md.Integrator(dt=dt)
+        integrator = hoomd.md.Integrator(dt=self.dt)
         integrator.forces = forcefields
         # Set up shrinking step
-        if shirnk_kT and shrink_steps:
+        if shrink_kT and shrink_steps:
             integrator_method = hoomd.md.methods.NVT(
                     filter=_all, kT=kT, tau=self.tau_kt
             )
@@ -293,30 +300,30 @@ class Simulation:
             assert sim.state.box == final_box
 
 
-    if pressure: # Set NPT integrator
-        integrator_method = hoomd.md.methods.NPT(
-                filter=_all, kT=kT, S=pressure, tauS=self.tau_p
-        )
-        integrator.methods = [integrator_method]
-    else: # Set NVT integrator 
-        integrator_method = hoomd.md.methods.NVT(
-                filter=_all, kT=kT, tau=self.tau_kt
-        )
-        integrator.methods = [integrator_method]
-    sim.state.thermalize_particle_momenta(filter=_all, kT=kT)
+        if pressure: # Set NPT integrator
+            integrator_method = hoomd.md.methods.NPT(
+                    filter=_all, kT=kT, S=pressure, tauS=self.tau_p
+            )
+            integrator.methods = [integrator_method]
+        else: # Set NVT integrator 
+            integrator_method = hoomd.md.methods.NVT(
+                    filter=_all, kT=kT, tau=self.tau_kt
+            )
+            integrator.methods = [integrator_method]
+        sim.state.thermalize_particle_momenta(filter=_all, kT=kT)
 
-    try:
-        while sim.timestep < n_steps + shrink_steps + 1:
-            sim.run(n_steps + shrink_steps + 1)
-            sim.run(min(10000, n_steps + shrink_steps + 1 - sim.timestep))
-            if self.wall_time_limit:
-                if (sim.device.communicator.walltime + sim.walltime >=
-                        self.wall_time_limit):
-                    break
-    finally:
-        hoomd.write.GSD.write(
-                state=sim.state, mode='wb', filename="restart.gsd"
-        )
+        try:
+            while sim.timestep < n_steps + shrink_steps + 1:
+                sim.run(n_steps + shrink_steps + 1)
+                sim.run(min(10000, n_steps + shrink_steps + 1 - sim.timestep))
+                if self.wall_time_limit:
+                    if (sim.device.communicator.walltime + sim.walltime >=
+                            self.wall_time_limit):
+                        break
+        finally:
+            hoomd.write.GSD.write(
+                    state=sim.state, mode='wb', filename="restart.gsd"
+            )
 		
 
     def anneal(
