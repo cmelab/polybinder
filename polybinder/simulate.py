@@ -219,6 +219,7 @@ class Simulation:
         #TODO: Do I need to set "1-4" here, or is it set in mBuild?
         forcefields[0].nlist.exclusions = ["bond", "1-3"]
         # Create Hoomd simulation object and initialize a state
+        #TODO: Change neighbor list from cell to tree if needed
         device = hoomd.device.auto_select()
         sim = hoomd.Simulation(device=device, seed=self.seed)
         if self.restart:
@@ -371,6 +372,7 @@ class Simulation:
         # Create Hoomd simulation object and initialize a state
         device = hoomd.device.auto_select()
         sim = hoomd.Simulation(device=device, seed=self.seed)
+        #TODO: Change nlist from cell to tree if needed
         if self.restart:
             sim.create_state_from_gsd(self.restart)
         else:
@@ -494,6 +496,53 @@ class Simulation:
             is used for the distance.
 
         """
+        if self.cg_system is False:
+            init_snap, forcefields, refs = create_hoomd_forcefield(
+                    self.system,
+                    self.ref_distance,
+                    self.ref_mass,
+                    self.ref_energy,
+                    self.r_cut,
+                    self.auto_scale,
+            )
+        else:
+            #TODO: See what needs to be changed and returned
+            #in _create_hoomd_sim..
+            init_snap, objs = self._create_hoomd_sim_from_snapshot()
+
+        device = hoomd.device.auto_select()
+        sim = hoomd.Simulation(device=device, seed=self.seed)
+        if self.restart:
+            sim.create_state_from_gsd(self.restart)
+        else:
+            sim.create_state_from_snapshot(init_snap)
+        _all = hoomd.filter.All()
+        gsd_writer, table_file = self._hoomd_writers(
+                group=_all, sim=sim, forcefields=forcefields
+        )
+        sim.operations.writers.append(gsd_writer)
+        #sim.operations.writers.append(table_file)
+        init_box = sim.state.box
+
+        tensile_axis = tensile_axis.lower()
+        # TODO: Call on the init_box here instead
+        init_length = getattr(init_snap.box, f"L{tensile_axis}")
+        fix_length = init_length * fix_ratio
+        target_length = init_length * (1+strain)
+        linear_variant = hoomd.variant.linear_interp(
+                [(0, init_length), (n_steps, target_length)]
+        )
+        axis_dict = {
+            "x": np.array([1,0,0]),
+            "y": np.array([0,1,0]),
+            "z": np.array([0,0,1])
+        }
+        adjust_axis = axis_dict[tensile_axis]
+
+
+
+
+        ## BEGIN HOOMD 2 STUFF:
         hoomd_args = f"--single-mpi --mode={self.mode}"
         sim = hoomd.context.initialize(hoomd_args)
         with sim:
