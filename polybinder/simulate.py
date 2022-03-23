@@ -187,7 +187,7 @@ class Simulation:
             Not compatible with NPT simulations; pressure must be None
 
         """
-        if wall_axis and pressure:
+        if wall_axis and pressure is not None:
             raise ValueError(
                     "Wall potentials can only be used with the NVT ensemble."
             )
@@ -217,7 +217,7 @@ class Simulation:
         init_y = init_snap.configuration.box[1]
         init_z = init_snap.configuration.box[2]
         #TODO: Do I need to set "1-4" here, or is it set in mBuild?
-        forcefields[0].nlist.exclusions = ["bond", "1-3"]
+        forcefields[0].nlist.exclusions = ["bond", "1-3", "1-4"]
         # Create Hoomd simulation object and initialize a state
         #TODO: Change neighbor list from cell to tree if needed
         device = hoomd.device.auto_select()
@@ -280,36 +280,42 @@ class Simulation:
                 sim.run(shrink_steps + 1)
             assert sim.state.box == final_box
 
-        if pressure: # Set NPT integrator
-            try: 
-                integrator # Not yet defined if no shrink step ran
+        if pressure is not None: # Set NPT integrator
+            if shrink_kT and shrink_steps:
                 sim.operations.remove(integrator)
-            except NameError:
+            else:
                 integrator = hoomd.md.Integrator(dt=self.dt)
                 integrator.forces = forcefields
+
             integrator_method = hoomd.md.methods.NPT(
-                    filter=_all, kT=kT, S=pressure, tauS=self.tau_p
+                    filter=_all,
+                    kT=kT,
+                    tau=self.tau_kt,
+                    S=pressure,
+                    tauS=self.tau_p, 
+                    couple="xyz"
             )
             integrator.methods = [integrator_method]
             sim.operations.add(integrator)
-        else: # Set NVT integrator 
+
+        else: # Update or Set NVT integrator 
             try: 
-                integrator # Not yet defined if no shrink step ran
-                sim.operations.remove(integrator)
+                integrator.methods[0].kT = kT
             except NameError:
                 integrator = hoomd.md.Integrator(dt=self.dt)
                 integrator.forces = forcefields
-            integrator_method = hoomd.md.methods.NVT(
+                sim.operations.add(integrator)
+
+                integrator_method = hoomd.md.methods.NVT(
                     filter=_all, kT=kT, tau=self.tau_kt
-            )
-            integrator.methods = [integrator_method]
-            sim.operations.add(integrator)
+                )
+                integrator.methods = [integrator_method]
 
         sim.state.thermalize_particle_momenta(filter=_all, kT=kT)
         try:
             while sim.timestep < n_steps + shrink_steps + 1:
                 #TODO: Use a better approach here avoid an odd amount of steps?
-                sim.run(n_steps + shrink_steps + 1)
+                sim.run(n_steps)
                 #sim.run(min(10000, n_steps + shrink_steps + 1 - sim.timestep))
                 if self.wall_time_limit:
                     if (sim.device.communicator.walltime + sim.walltime >=
@@ -332,7 +338,7 @@ class Simulation:
         shrink_steps=None,
         shrink_period=None,
     ):
-        if wall_axis and pressure:
+        if wall_axis and pressure is not None:
             raise ValueError(
                 "Wall potentials can only be used with the NVT ensemble"
             )
@@ -381,7 +387,7 @@ class Simulation:
                 group=_all, sim=sim, forcefields=forcefields
         )
         sim.operations.writers.append(gsd_writer)
-        #sim.operations.writers.append(table_file)
+        sim.operations.writers.append(table_file)
         
         if wall_axis is not None: # Set up wall potentials
             wall_force, walls, normal_vector = self._hoomd_walls(
@@ -430,44 +436,40 @@ class Simulation:
                 sim.run(shrink_steps + 1)
             assert sim.state.box == final_box
 
-        if pressure: # Set NPT integrator
-            try: 
-                integrator # Not yet defined if no shrink step ran
+        if pressure is not None: # Set NPT integrator
+            if shrink_kT and shrink_steps:
                 sim.operations.remove(integrator)
-            except NameError:
+            else:
                 integrator = hoomd.md.Integrator(dt=self.dt)
                 integrator.forces = forcefields
+
             integrator_method = hoomd.md.methods.NPT(
-                    filter=_all, kT=kT, S=pressure, tauS=self.tau_p
+                    filter=_all,
+                    kT=1.0,
+                    tau=self.tau_kt,
+                    S=pressure,
+                    tauS=self.tau_p, 
+                    couple="xyz"
             )
-            integrator.methods = [integrator_method]
             sim.operations.add(integrator)
         else: # Set NVT integrator 
             try: 
-                integrator # Not yet defined if no shrink step ran
-                sim.operations.remove(integrator)
-            except NameError:
+                integrator  # Not yet defined if no shrink step ran
+            except:
                 integrator = hoomd.md.Integrator(dt=self.dt)
                 integrator.forces = forcefields
+                integrator_method = hoomd.md.methods.NVT(
+                    filter=_all, kT=1.0, tau=self.tau_kt
+                )
+                integrator.methods = [integrator_method]
+                sim.operations.add(integrator)
 
         last_step = shrink_steps
         for kT in schedule:
-            if pressure:
-                integrator_method = hoomd.md.methods.NPT(
-                        filter=_all, kT=kT, S=pressure, tauS=self.tau_p
-                )
-                integrator.methods = [integrator_method]
-            else:
-                integrator_method = hoomd.md.methods.NVT(
-                        filter=_all, kT=kT, tau=self.tau_kt
-                )
-                integrator.methods = [integrator_method]
-
-            sim.operations.add(integrator)
+            integrator.methods[0].kT = kT
             sim.state.thermalize_particle_momenta(filter=_all, kT=kT)
             n_steps = schedule[kT]
             sim.run(n_steps) 
-            sim.operations.remove(integrator)
 
     def tensile(self,
             kT,
