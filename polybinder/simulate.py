@@ -227,11 +227,11 @@ class Simulation:
         else:
             sim.create_state_from_snapshot(init_snap)
         _all = hoomd.filter.All()
-        gsd_writer, table_file = self._hoomd_writers(
+        gsd_writer, table_file, = self._hoomd_writers(
                 group=_all, sim=sim, forcefields=forcefields
         )
         sim.operations.writers.append(gsd_writer)
-        #sim.operations.writers.append(table_file)
+        sim.operations.writers.append(table_file)
         
         if wall_axis is not None: # Set up wall potentials
             wall_force, walls, normal_vector = self._hoomd_walls(
@@ -306,7 +306,6 @@ class Simulation:
             sim.operations.add(integrator)
 
         sim.state.thermalize_particle_momenta(filter=_all, kT=kT)
-
         try:
             while sim.timestep < n_steps + shrink_steps + 1:
                 #TODO: Use a better approach here avoid an odd amount of steps?
@@ -694,13 +693,15 @@ class Simulation:
         logger = hoomd.logging.Logger(categories=["scalar", "string"])
         logger.add(sim, quantities=["timestep", "tps"])
         thermo_props = hoomd.md.compute.ThermodynamicQuantities(filter=group)
+        sim.operations.computes.append(thermo_props)
         logger.add(thermo_props, quantities=self.log_quantities)
+        for f in forcefields:
+            logger.add(f, quantities=["energy"])
 
         table_file = hoomd.write.Table(
             output=open("sim_traj.txt", mode=f"{writemode}", newline="\n"),
             trigger=hoomd.trigger.Periodic(period=int(self.log_write)),
             logger=logger,
-            delimiter=",",
             max_header_len=None,
         )
         return gsd_writer, table_file 
