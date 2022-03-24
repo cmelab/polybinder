@@ -517,167 +517,86 @@ class Simulation:
             sim.create_state_from_gsd(self.restart)
         else:
             sim.create_state_from_snapshot(init_snap)
-        _all = hoomd.filter.All()
         gsd_writer, table_file = self._hoomd_writers(
                 group=_all, sim=sim, forcefields=forcefields
         )
         sim.operations.writers.append(gsd_writer)
-        #sim.operations.writers.append(table_file)
-        init_box = sim.state.box
-
-        tensile_axis = tensile_axis.lower()
-        # TODO: Call on the init_box here instead
-        init_length = getattr(init_snap.box, f"L{tensile_axis}")
-        fix_length = init_length * fix_ratio
-        target_length = init_length * (1+strain)
-        linear_variant = hoomd.variant.linear_interp(
-                [(0, init_length), (n_steps, target_length)]
-        )
+        sim.operations.writers.append(table_file)
+        
+        # Set up target volume, tensile axis, etc.
         axis_dict = {
             "x": np.array([1,0,0]),
             "y": np.array([0,1,0]),
             "z": np.array([0,0,1])
         }
-        adjust_axis = axis_dict[tensile_axis]
+        init_box = sim.state.box
+        final_box = hoomd.Box(
+                Lx=init_box.Lx, Ly=init_box.Ly, Lz=init_box.Lz
+        )
+        tensile_axis = tensile_axis.lower()
+        init_length = getattr(init_box, f"L{tensile_axis}")
+        fix_length = init_length * fix_ratio
+        target_length = init_length * (1+strain)
+		box_resize_trigger = hoomd.trigger.Periodic(expand_period)
+		ramp = hoomd.variant.Ramp(
+			A=0, B=1, t_start=sim.timestep, t_ramp=int(n_steps)
+		)
+        
+        # Set up the walls of fixed particles
+        snap = sim.state.get_snapshot()
+        box_max = getattr(init_box, f"L{fix_axis}")/2
+        box_min = -box_max
+        if fix_axis == "x":
+            positions = snap.particles.position[:,0]
+            final_box.Lx = target_length
+        elif fix_axis == "y":
+            positions = snap.particles.position[:,1]
+            final_box.Ly = target_length
+        elif fix_axis == "z":
+            positions = snap.particles.position[:2]
+            final_box.Lz = target_length
 
-
-
-
-        ## BEGIN HOOMD 2 STUFF:
-        hoomd_args = f"--single-mpi --mode={self.mode}"
-        sim = hoomd.context.initialize(hoomd_args)
-        with sim:
-            objs, refs = create_hoomd_simulation(
-                    self.system,
-                    self.ref_distance,
-                    self.ref_mass,
-                    self.ref_energy,
-                    self.r_cut,
-                    self.auto_scale,
-                    nlist=self.nlist
-            )
-            hoomd_system = objs[1]
-            init_snap = objs[0]
-            tensile_axis = tensile_axis.lower()
-            init_length = getattr(init_snap.box, f"L{tensile_axis}")
-            fix_length = init_length * fix_ratio
-            target_length = init_length * (1+strain)
-            linear_variant = hoomd.variant.linear_interp(
-                    [(0, init_length), (n_steps, target_length)]
-            )
-            axis_dict = {
-                "x": np.array([1,0,0]),
-                "y": np.array([0,1,0]),
-                "z": np.array([0,0,1])
-            }
-            adjust_axis = axis_dict[tensile_axis]
-
-            if tensile_axis == "x":
-                fix_left = hoomd.group.cuboid( # Negative x side of box
-                        name="left",
-                        xmin=-init_snap.box.Lx / 2,
-                        xmax=(-init_snap.box.Lx / 2)  + fix_length
-                )
-                fix_right = hoomd.group.cuboid(
-                        name="right",
-                        xmin=(init_snap.box.Lx / 2) - fix_length,
-                        xmax=init_snap.box.Lx / 2
-                )
-                box_updater = hoomd.update.box_resize(
-                        Lx=linear_variant,
-                        period=expand_period,
-                        scale_particles=False
-                )
-            elif tensile_axis == "y":
-                fix_left = hoomd.group.cuboid( # Negative x side of box
-                        name="left",
-                        ymin=-init_snap.box.Ly / 2,
-                        ymax=(-init_snap.box.Ly / 2)  + fix_length
-                )
-                fix_right = hoomd.group.cuboid(
-                        name="right",
-                        ymin=(init_snap.box.Ly / 2) - fix_length,
-                        ymax=init_snap.box.Ly / 2
-                )
-                box_updater = hoomd.update.box_resize(
-                        Ly=linear_variant,
-                        period=expand_period,
-                        scale_particles=False
-                )
-            elif tensile_axis == "z":
-                fix_left = hoomd.group.cuboid( # Negative x side of box
-                        name="left",
-                        zmin=-init_snap.box.Lz / 2,
-                        zmax=(-init_snap.box.Lz / 2)  + fix_length
-                )
-                fix_right = hoomd.group.cuboid(
-                        name="right",
-                        zmin=(init_snap.box.Lz / 2) - fix_length,
-                        zmax=init_snap.box.Lz / 2
-                )
-                box_updater = hoomd.update.box_resize(
-                        Lz=linear_variant,
-                        period=expand_period,
-                        scale_particles=False
-                )
-
-            _all_fixed = hoomd.group.union(
-                    name="fixed", a=fix_left, b=fix_right
-            )
-            _all = hoomd.group.all()
-            _integrate = hoomd.group.difference(
-                    name="integrate", a=_all, b=_all_fixed
-            )
-            hoomd.md.integrate.mode_standard(dt=self.dt)
-            integrator = hoomd.md.integrate.nve(
-                    group=_integrate, limit=None, zero_force=False
-            )
-            integrator.randomize_velocities(kT, seed=self.seed)
-
-            hoomd.dump.gsd(
-                    "sim_traj.gsd",
-                    period=self.gsd_write,
-                    group=_all,
-                    phase=0,
-                    dynamic=["momentum"],
-                    overwrite=False
-            )
-            hoomd.analyze.log(
-                    "sim_traj.log",
-                    period=self.log_write,
-                    quantities=self.log_quantities,
-                    header_prefix="#",
-                    overwrite=True,
-                    phase=0
-            )
-            gsd_restart = hoomd.dump.gsd(
-                    "restart.gsd",
-                    period=self.gsd_write,
-                    group=_all,
-                    truncate=True,
-                    phase=0,
-                    dynamic=["momentum"]
-            )
-            
-            # Start simulation run
-            adjust_axis = axis_dict[tensile_axis]
-            step = 0
-            last_L = init_length 
-            while step < n_steps:
-                try:
-                    hoomd.run_upto(step + expand_period)
-                    current_L = getattr(hoomd_system.box, f"L{tensile_axis}")
-                    diff = current_L - last_L
-                    for particle in fix_left:
-                        particle.position -= (adjust_axis * (diff/2))
-                    for particle in fix_right:
-                        particle.position += (adjust_axis * (diff/2))
-                    step += expand_period
-                    last_L = current_L 
-                except hoomd.WalltimeLimitReached:
-                    pass
-                finally:
-                    gsd_restart.write_restart()
+        left_tags = np.where(positions < box_min + wall_thickness)[0]
+        right_tags = np.where(positions > box_max - wall_thickness)[0]
+        fix_left = hoomd.filter.Tags(left_tags)
+        fix_right = hoomd.filter.Tags(right_rights)
+        all_fixed = hoomd.filter.Union(fix_left, right_right)
+        _all = hoomd.filter.All()
+        integrate_group = hoomd.filter.Difference(_all, all_fixed)
+        
+        # Finish setting up simulation
+        integrator = hoomd.md.Integrator(dt=self.dt)
+        integrator.forces = forcefields
+        integrator_method = hoomd.md.methods.NVT(
+                filter=integrate_group, kT=kT, tau=self.tau_kt
+        )
+        box_resize = hoomd.update.BoxResize(
+                box1=init_box,
+                box2=final_box,
+                variant=ramp,
+                trigger=box_resize_trigger
+        )
+        integrator.methods = [integrator_method]
+        sim.operations.add(integrator)
+        sim.state.thermalize_particle_momenta(filter=integrate_group, kT=kt)
+        if device.devices[0] == "CPU":
+            local_snap = sim.state.cpu_local_snapshot
+        else:
+            local_snap = sim.state.gpu_local_snapshot
+        
+        adj_axis = axis_dict[tensile_axis]
+        step = 0
+        last_L = init_length
+        while step < n_steps:
+            try:
+                sim.run(expand_period)
+                current_L = getattr(sim.state.box, f"L{tensile_axis}")
+                diff = current_L = last_L
+                with local_snap as snap:
+                    snap.particles.position[left_tags] -= (adj_axis*(diff/2))
+                    snap.particles.position[right_tags] += (adj_axis*(diff/2))
+                last_L = current_L
+                step += expand_period
     
     def _hoomd_writers(self, group, forcefields, sim):
         # GSD and Logging:
