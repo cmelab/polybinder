@@ -749,7 +749,7 @@ class Simulation:
         normal_vector = -np.asarray(wall_axis)
         wall_origin2 = -wall_origin
         normal_vector2 = -normal_vector
-        wall1 = hoomd.wall.Plane(origin=wall_origin, normal=normval_vector)
+        wall1 = hoomd.wall.Plane(origin=wall_origin, normal=normal_vector)
         wall2 = hoomd.wall.Plane(origin=wall_origin2, normal=normal_vector2)
         walls = [wall1, wall2]
         lj_wall = hoomd.md.external.wall.LJ(
