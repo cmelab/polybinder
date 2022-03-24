@@ -554,7 +554,7 @@ class Simulation:
             positions = snap.particles.position[:,1]
             final_box.Ly = target_length
         elif tensile_axis == "z":
-            positions = snap.particles.position[:2]
+            positions = snap.particles.position[:,2]
             final_box.Lz = target_length
 
         left_tags = np.where(positions < box_min + fix_length)[0]
