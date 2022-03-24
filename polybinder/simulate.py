@@ -536,7 +536,7 @@ class Simulation:
         )
         tensile_axis = tensile_axis.lower()
         init_length = getattr(init_box, f"L{tensile_axis}")
-        fix_length = init_length * fix_ratio / 2
+        fix_length = init_length * fix_ratio
         target_length = init_length * (1+strain)
         box_resize_trigger = hoomd.trigger.Periodic(expand_period)
         ramp = hoomd.variant.Ramp(
