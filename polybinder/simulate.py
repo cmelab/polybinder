@@ -513,6 +513,7 @@ class Simulation:
 
         device = hoomd.device.auto_select()
         sim = hoomd.Simulation(device=device, seed=self.seed)
+        _all = hoomd.filter.All()
         if self.restart:
             sim.create_state_from_gsd(self.restart)
         else:
@@ -561,7 +562,6 @@ class Simulation:
         fix_left = hoomd.filter.Tags(left_tags)
         fix_right = hoomd.filter.Tags(right_rights)
         all_fixed = hoomd.filter.Union(fix_left, right_right)
-        _all = hoomd.filter.All()
         integrate_group = hoomd.filter.Difference(_all, all_fixed)
         
         # Finish setting up simulation
