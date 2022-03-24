@@ -201,12 +201,12 @@ class Simulation:
         
         if self.cg_system is False:
             init_snap, forcefields, refs = create_hoomd_forcefield(
-                    self.system,
-                    self.ref_distance,
-                    self.ref_mass,
-                    self.ref_energy,
-                    self.r_cut,
-                    self.auto_scale,
+                    structure=self.system,
+                    r_cut=self.r_cut,
+                    ref_distance=self.ref_distance,
+                    ref_mass=self.ref_mass,
+                    ref_energy=self.ref_energy,
+                    auto_scale=self.auto_scale,
             )
         else:
             #TODO: See what needs to be changed and returned
@@ -357,12 +357,12 @@ class Simulation:
 
         if self.cg_system is False:
             init_snap, forcefields, refs = create_hoomd_forcefield(
-                    self.system,
-                    self.ref_distance,
-                    self.ref_mass,
-                    self.ref_energy,
-                    self.r_cut,
-                    self.auto_scale,
+                    structure=self.system,
+                    r_cut=self.r_cut,
+                    ref_distance=self.ref_distance,
+                    ref_mass=self.ref_mass,
+                    ref_energy=self.ref_energy,
+                    auto_scale=self.auto_scale,
             )
         else:
             #TODO: See what needs to be changed and returned
@@ -499,12 +499,12 @@ class Simulation:
         """
         if self.cg_system is False:
             init_snap, forcefields, refs = create_hoomd_forcefield(
-                    self.system,
-                    self.ref_distance,
-                    self.ref_mass,
-                    self.ref_energy,
-                    self.r_cut,
-                    self.auto_scale,
+                    structure=self.system,
+                    r_cut=self.r_cut,
+                    ref_distance=self.ref_distance,
+                    ref_mass=self.ref_mass,
+                    ref_energy=self.ref_energy,
+                    auto_scale=self.auto_scale,
             )
         else:
             #TODO: See what needs to be changed and returned
@@ -552,16 +552,21 @@ class Simulation:
         box_min = -box_max
         print("Box Max/Min")
         print(box_max, box_min)
+        print(box_max - fix_length)
+        print(box_min + fix_length)
         if tensile_axis == "x":
             positions = snap.particles.position[:,0]
+            print(positions)
             final_box.Lx = target_length
         elif tensile_axis == "y":
             positions = snap.particles.position[:,1]
+            print(positions)
             final_box.Ly = target_length
         elif tensile_axis == "z":
             positions = snap.particles.position[:,2]
+            print(positions)
             final_box.Lz = target_length
-
+        return sim
         left_tags = np.where(positions < (box_min + fix_length))[0]
         print("left tags")
         print(left_tags)
