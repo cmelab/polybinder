@@ -752,5 +752,5 @@ class Simulation:
         wall1 = hoomd.wall.Plane(origin=wall_origin, normal=normal_vector)
         wall2 = hoomd.wall.Plane(origin=wall_origin2, normal=normal_vector2)
         walls = [wall1, wall2]
-        lj_wall = hoomd.md.external.wall.LJ(walls=walls, r_cut=2.5)
+        lj_wall = hoomd.md.external.wall.LJ(walls=walls)
         return lj_wall, walls, normal_vector
