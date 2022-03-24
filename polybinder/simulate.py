@@ -537,9 +537,9 @@ class Simulation:
         init_length = getattr(init_box, f"L{tensile_axis}")
         fix_length = init_length * fix_ratio / 2
         target_length = init_length * (1+strain)
-		box_resize_trigger = hoomd.trigger.Periodic(expand_period)
-		ramp = hoomd.variant.Ramp(
-			A=0, B=1, t_start=sim.timestep, t_ramp=int(n_steps)
+        box_resize_trigger = hoomd.trigger.Periodic(expand_period)
+        ramp = hoomd.variant.Ramp(
+            A=0, B=1, t_start=sim.timestep, t_ramp=int(n_steps)
 		)
         
         # Set up the walls of fixed particles
