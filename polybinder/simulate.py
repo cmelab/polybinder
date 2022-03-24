@@ -545,7 +545,7 @@ class Simulation:
         
         # Set up the walls of fixed particles
         snap = sim.state.get_snapshot()
-        box_max = getattr(init_box, f"L{fix_axis}")/2
+        box_max = getattr(init_box, f"L{tensile_axis}")/2
         box_min = -box_max
         if fix_axis == "x":
             positions = snap.particles.position[:,0]
