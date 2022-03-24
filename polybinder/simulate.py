@@ -535,7 +535,7 @@ class Simulation:
         )
         tensile_axis = tensile_axis.lower()
         init_length = getattr(init_box, f"L{tensile_axis}")
-        fix_length = init_length * fix_ratio
+        fix_length = init_length * fix_ratio / 2
         target_length = init_length * (1+strain)
 		box_resize_trigger = hoomd.trigger.Periodic(expand_period)
 		ramp = hoomd.variant.Ramp(
@@ -556,8 +556,8 @@ class Simulation:
             positions = snap.particles.position[:2]
             final_box.Lz = target_length
 
-        left_tags = np.where(positions < box_min + wall_thickness)[0]
-        right_tags = np.where(positions > box_max - wall_thickness)[0]
+        left_tags = np.where(positions < box_min + fix_length)[0]
+        right_tags = np.where(positions > box_max - fix_length)[0]
         fix_left = hoomd.filter.Tags(left_tags)
         fix_right = hoomd.filter.Tags(right_rights)
         all_fixed = hoomd.filter.Union(fix_left, right_right)
@@ -578,7 +578,7 @@ class Simulation:
         )
         integrator.methods = [integrator_method]
         sim.operations.add(integrator)
-        sim.state.thermalize_particle_momenta(filter=integrate_group, kT=kt)
+        sim.state.thermalize_particle_momenta(filter=integrate_group, kT=kT)
         if device.devices[0] == "CPU":
             local_snap = sim.state.cpu_local_snapshot
         else:
