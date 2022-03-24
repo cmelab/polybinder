@@ -557,8 +557,8 @@ class Simulation:
             positions = snap.particles.position[:,2]
             final_box.Lz = target_length
 
-        left_tags = np.where(positions < box_min + fix_length)[0]
-        right_tags = np.where(positions > box_max - fix_length)[0]
+        left_tags = np.where(positions < (box_min + fix_length))[0]
+        right_tags = np.where(positions > (box_max - fix_length))[0]
         fix_left = hoomd.filter.Tags(left_tags.astype(np.uint32))
         fix_right = hoomd.filter.Tags(right_tags.astype(np.uint32))
         all_fixed = hoomd.filter.Union(fix_left, fix_right)
