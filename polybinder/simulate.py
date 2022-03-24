@@ -597,6 +597,9 @@ class Simulation:
                     snap.particles.position[right_tags] += (adj_axis*(diff/2))
                 last_L = current_L
                 step += expand_period
+            #TODO: Add gsd restart write stuff
+            except:
+                pass
     
     def _hoomd_writers(self, group, forcefields, sim):
         # GSD and Logging:
