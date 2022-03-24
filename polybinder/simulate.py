@@ -550,6 +550,8 @@ class Simulation:
         snap = sim.state.get_snapshot()
         box_max = getattr(init_box, f"L{tensile_axis}")/2
         box_min = -box_max
+        print("Box Max/Min")
+        print(box_max, box_min)
         if tensile_axis == "x":
             positions = snap.particles.position[:,0]
             final_box.Lx = target_length
