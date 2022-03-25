@@ -536,11 +536,8 @@ class Simulation:
         )
         tensile_axis = tensile_axis.lower()
         init_length = getattr(init_box, f"L{tensile_axis}")
-        print(init_length)
         fix_length = init_length * fix_ratio
-        print(fix_length)
         target_length = init_length * (1+strain)
-        print(target_length)
         box_resize_trigger = hoomd.trigger.Periodic(expand_period)
         ramp = hoomd.variant.Ramp(
             A=0, B=1, t_start=sim.timestep, t_ramp=int(n_steps)
@@ -550,30 +547,17 @@ class Simulation:
         snap = sim.state.get_snapshot()
         box_max = getattr(init_box, f"L{tensile_axis}")/2
         box_min = -box_max
-        print("Box Max/Min")
-        print(box_max, box_min)
-        print(box_max - fix_length)
-        print(box_min + fix_length)
         if tensile_axis == "x":
             positions = snap.particles.position[:,0]
-            print(positions)
             final_box.Lx = target_length
         elif tensile_axis == "y":
             positions = snap.particles.position[:,1]
-            print(positions)
             final_box.Ly = target_length
         elif tensile_axis == "z":
             positions = snap.particles.position[:,2]
-            print(positions)
             final_box.Lz = target_length
-        return sim
         left_tags = np.where(positions < (box_min + fix_length))[0]
-        print("left tags")
-        print(left_tags)
         right_tags = np.where(positions > (box_max - fix_length))[0]
-        assert not np.array_equal(left_tags, right_tags)
-        print("right tags")
-        print(right_tags)
         fix_left = hoomd.filter.Tags(left_tags.astype(np.uint32))
         fix_right = hoomd.filter.Tags(right_tags.astype(np.uint32))
         all_fixed = hoomd.filter.Union(fix_left, fix_right)
