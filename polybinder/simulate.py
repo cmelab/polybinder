@@ -234,17 +234,16 @@ class Simulation:
         sim.operations.writers.append(table_file)
         
         if wall_axis is not None: # Set up wall potentials
-            wall_force, walls, normal_vector = self._hoomd_walls(
-                    wall_axis, init_x, init_y, init_z
-            )
-            wall_force.params[init_snap.particles.types] = {
+            walls = self._hoomd_walls(wall_axis, init_x, init_y, init_z)
+            lj_walls = hoomd.md.external.wall.LJ(walls=walls)
+            lj_walls.params[init_snap.particles.types] = {
                     "epsilon": 1.0,
                     "sigma": 1.0,
                     "r_cut": 2.5,
                     "r_extrap": 0
             }
-            forcefields.append(wall_force)
-
+            forcefields.append(lj_walls)
+        
         if shrink_kT and shrink_steps: # Set up shrinking run
             integrator = hoomd.md.Integrator(dt=self.dt)
             integrator.forces = forcefields
@@ -273,9 +272,22 @@ class Simulation:
             )
             sim.operations.updaters.append(box_resize)
 
-            if wall_axis is not None:
-                pass
-                # TODO: Update walls during shrink?
+            if wall_axis is not None: # Update walls during shrinking
+                while sim.timestep < shrink_steps + 1:
+                    sim.run(shrink_period)
+                    sim.operations.integrator.forces.remove(lj_walls)
+                    Lx = sim.state.box.Lx
+                    Ly = sim.state.box.Ly
+                    Lz = sim.state.box.Lz
+                    new_walls = self._hoomd_walls(wall_axis, Lx, Ly, Lz)
+                    lj_walls = hoomd.md.external.wall.LJ(walls=new_walls)
+                    lj_walls.params[init_snap.particles.types] = {
+                            "epsilon": 1.0,
+                            "sigma": 1.0,
+                            "r_cut": 2.5,
+                            "r_extrap": 0
+                    }
+                    sim.operations.integrator.forces.append(lj_walls)
             else: # Run shrink steps without updating walls
                 sim.run(shrink_steps + 1)
             assert sim.state.box == final_box
@@ -429,7 +441,22 @@ class Simulation:
             )
             sim.operations.updaters.append(box_resize)
 
-            if wall_axis is not None:
+            if wall_axis is not None: # Update walls during shrinking
+                while sim.timestep < shrink_steps + 1:
+                    sim.run(shrink_period)
+                    sim.operations.integrator.forces.remove(lj_walls)
+                    Lx = sim.state.box.Lx
+                    Ly = sim.state.box.Ly
+                    Lz = sim.state.box.Lz
+                    new_walls = self._hoomd_walls(wall_axis, Lx, Ly, Lz)
+                    lj_walls = hoomd.md.external.wall.LJ(walls=new_walls)
+                    lj_walls.params[init_snap.particles.types] = {
+                            "epsilon": 1.0,
+                            "sigma": 1.0,
+                            "r_cut": 2.5,
+                            "r_extrap": 0
+                    }
+                    sim.operations.integrator.forces.append(lj_walls)
                 pass
                 # TODO: Update walls during shrink?
             else: # Run shrink steps without updating walls
@@ -562,13 +589,11 @@ class Simulation:
         fix_right = hoomd.filter.Tags(right_tags.astype(np.uint32))
         all_fixed = hoomd.filter.Union(fix_left, fix_right)
         integrate_group = hoomd.filter.SetDifference(_all, all_fixed)
-        
+
         # Finish setting up simulation
         integrator = hoomd.md.Integrator(dt=self.dt)
         integrator.forces = forcefields
-        integrator_method = hoomd.md.methods.NVT(
-                filter=integrate_group, kT=kT, tau=self.tau_kt
-        )
+        integrator_method = hoomd.md.methods.NVE(filter=integrate_group)
         box_resize = hoomd.update.BoxResize(
                 box1=init_box,
                 box2=final_box,
@@ -590,12 +615,12 @@ class Simulation:
             try:
                 sim.run(expand_period)
                 current_L = getattr(sim.state.box, f"L{tensile_axis}")
-                diff = current_L = last_L
+                diff = current_L - last_L
                 with local_snap as snap:
                     snap.particles.position[left_tags] -= (adj_axis*(diff/2))
                     snap.particles.position[right_tags] += (adj_axis*(diff/2))
                 last_L = current_L
-                step += expand_period
+                step += expand_period + 1
             #TODO: Add gsd restart write stuff
             except:
                 pass
@@ -751,5 +776,5 @@ class Simulation:
         wall1 = hoomd.wall.Plane(origin=wall_origin, normal=normal_vector)
         wall2 = hoomd.wall.Plane(origin=wall_origin2, normal=normal_vector2)
         walls = [wall1, wall2]
-        lj_wall = hoomd.md.external.wall.LJ(walls=walls)
-        return lj_wall, walls, normal_vector
+        return walls
+
