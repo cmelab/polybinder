@@ -561,7 +561,7 @@ class Simulation:
         fix_left = hoomd.filter.Tags(left_tags.astype(np.uint32))
         fix_right = hoomd.filter.Tags(right_tags.astype(np.uint32))
         all_fixed = hoomd.filter.Union(fix_left, fix_right)
-        integrate_group = hoomd.filter.Difference(_all, all_fixed)
+        integrate_group = hoomd.filter.SetDifference(_all, all_fixed)
         
         # Finish setting up simulation
         integrator = hoomd.md.Integrator(dt=self.dt)
