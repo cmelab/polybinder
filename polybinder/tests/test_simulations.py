@@ -235,13 +235,20 @@ class TestSimulate(BaseTest):
 
     def test_tensile_x(self, test_interface_x):
         simulation = simulate.Simulation(test_interface_x, dt=0.00001, mode="cpu")
-        simulation.tensile(kT=2.0, strain=0.25, n_steps=5e2, expand_period=10)
+        simulation.tensile(
+                kT=2.0,
+                fix_ratio = 0.30,
+                strain=0.25,
+                n_steps=5e2,
+                expand_period=10
+        )
 
     def test_tensile_y(self, test_interface_y):
         simulation = simulate.Simulation(test_interface_y, dt=0.00001, mode="cpu")
         simulation.tensile(
                 kT=2.0,
                 tensile_axis="y",
+                fix_ratio = 0.30,
                 strain=0.25,
                 n_steps=1e3,
                 expand_period=10
@@ -252,6 +259,7 @@ class TestSimulate(BaseTest):
         simulation.tensile(
                 kT=2.0,
                 tensile_axis="z",
+                fix_ratio = 0.30,
                 strain=0.25,
                 n_steps=1e3,
                 expand_period=10
