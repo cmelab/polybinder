@@ -216,7 +216,6 @@ class Simulation:
         init_x = init_snap.configuration.box[0]
         init_y = init_snap.configuration.box[1]
         init_z = init_snap.configuration.box[2]
-        #TODO: Do I need to set "1-4" here, or is it set in mBuild?
         forcefields[0].nlist.exclusions = ["bond", "1-3", "1-4"]
         # Create Hoomd simulation object and initialize a state
         #TODO: Change neighbor list from cell to tree if needed
@@ -257,7 +256,6 @@ class Simulation:
             ramp = hoomd.variant.Ramp(
                 A=0, B=1, t_start=sim.timestep, t_ramp=int(shrink_steps)
             ) 
-            #TODO: Add the box stuff to its own function?
             initial_box = sim.state.box
             final_box = hoomd.Box(
                     Lx=self.target_box[0],
@@ -384,8 +382,7 @@ class Simulation:
         init_x = init_snap.configuration.box[0]
         init_y = init_snap.configuration.box[1]
         init_z = init_snap.configuration.box[2]
-        #TODO: Do I need to set "1-4" here, or is it set in mBuild?
-        forcefields[0].nlist.exclusions = ["bond", "1-3"]
+        forcefields[0].nlist.exclusions = ["bond", "1-3", "1-4"]
         # Create Hoomd simulation object and initialize a state
         device = hoomd.device.auto_select()
         sim = hoomd.Simulation(device=device, seed=self.seed)
@@ -426,7 +423,6 @@ class Simulation:
             ramp = hoomd.variant.Ramp(
                 A=0, B=1, t_start=sim.timestep, t_ramp=int(shrink_steps)
             ) 
-            #TODO: Add the box stuff to its own function?
             initial_box = sim.state.box
             final_box = hoomd.Box(
                     Lx=self.target_box[0],
@@ -457,10 +453,9 @@ class Simulation:
                             "r_extrap": 0
                     }
                     sim.operations.integrator.forces.append(lj_walls)
-                pass
-                # TODO: Update walls during shrink?
             else: # Run shrink steps without updating walls
                 sim.run(shrink_steps + 1)
+            #TODO: Remove this assertion, added for trouble shooting
             assert sim.state.box == final_box
 
         if pressure is not None: # Set NPT integrator
@@ -482,7 +477,7 @@ class Simulation:
         else: # Set NVT integrator 
             try: 
                 integrator  # Not yet defined if no shrink step ran
-            except:
+            except NameError:
                 integrator = hoomd.md.Integrator(dt=self.dt)
                 integrator.forces = forcefields
                 integrator_method = hoomd.md.methods.NVT(
@@ -571,6 +566,7 @@ class Simulation:
 		)
         
         # Set up the walls of fixed particles
+        # TODO: Try just using init_snap here rather than get_snapshot()
         snap = sim.state.get_snapshot()
         box_max = getattr(init_box, f"L{tensile_axis}")/2
         box_min = -box_max
@@ -589,7 +585,6 @@ class Simulation:
         fix_right = hoomd.filter.Tags(right_tags.astype(np.uint32))
         all_fixed = hoomd.filter.Union(fix_left, fix_right)
         integrate_group = hoomd.filter.SetDifference(_all, all_fixed)
-
         # Finish setting up simulation
         integrator = hoomd.md.Integrator(dt=self.dt)
         integrator.forces = forcefields
