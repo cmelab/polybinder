@@ -196,8 +196,12 @@ class Simulation:
                 "If shrinking, all of  shrink_kT, shrink_steps and "
                 "shrink_period need to be given."
             )
+            #TODO: I don't think we need this anymore
         if shrink_steps is None:
             shrink_steps = 0
+
+        device = hoomd.device.auto_select()
+        sim = hoomd.Simulation(device=device, seed=self.seed)
         
         if self.cg_system is False:
             init_snap, forcefields, refs = create_hoomd_forcefield(
@@ -208,23 +212,19 @@ class Simulation:
                     ref_energy=self.ref_energy,
                     auto_scale=self.auto_scale,
             )
+            if self.restart:
+                sim.create_state_from_gsd(self.restart)
+            else:
+                sim.create_state_from_snapshot(init_snap)
         else:
-            #TODO: See what needs to be changed and returned
-            #in _create_hoomd_sim..
-            init_snap, objs = self._create_hoomd_sim_from_snapshot()
+            init_snap, forcefields = self._create_hoomd_sim_from_snapshot()
+            sim.create_state_from_snapshot(init_snap)
 
         init_x = init_snap.configuration.box[0]
         init_y = init_snap.configuration.box[1]
         init_z = init_snap.configuration.box[2]
         forcefields[0].nlist.exclusions = ["bond", "1-3", "1-4"]
-        # Create Hoomd simulation object and initialize a state
         #TODO: Change neighbor list from cell to tree if needed
-        device = hoomd.device.auto_select()
-        sim = hoomd.Simulation(device=device, seed=self.seed)
-        if self.restart:
-            sim.create_state_from_gsd(self.restart)
-        else:
-            sim.create_state_from_snapshot(init_snap)
         _all = hoomd.filter.All()
         gsd_writer, table_file, = self._hoomd_writers(
                 group=_all, sim=sim, forcefields=forcefields
@@ -357,14 +357,13 @@ class Simulation:
                 "If shrinking, then all of shirnk_kT, shrink_steps "
                 "and shrink_period need to be given"
             )
+            #TODO: Remove this (probably)
         if shrink_steps is None:
             shrink_steps = 0
 
-        if not schedule:
-            temps = np.linspace(kT_init, kT_final, len(step_sequence))
-            temps = [np.round(t, 1) for t in temps]
-            schedule = dict(zip(temps, step_sequence))
-
+        device = hoomd.device.auto_select()
+        sim = hoomd.Simulation(device=device, seed=self.seed)
+        
         if self.cg_system is False:
             init_snap, forcefields, refs = create_hoomd_forcefield(
                     structure=self.system,
@@ -374,23 +373,25 @@ class Simulation:
                     ref_energy=self.ref_energy,
                     auto_scale=self.auto_scale,
             )
+            if self.restart:
+                sim.create_state_from_gsd(self.restart)
+            else:
+                sim.create_state_from_snapshot(init_snap)
         else:
-            #TODO: See what needs to be changed and returned
-            #in _create_hoomd_sim..
-            init_snap, objs = self._create_hoomd_sim_from_snapshot()
+            init_snap, forcefields = self._create_hoomd_sim_from_snapshot()
+            sim.create_state_from_snapshot(init_snap)
+
+        if not schedule:
+            temps = np.linspace(kT_init, kT_final, len(step_sequence))
+            temps = [np.round(t, 1) for t in temps]
+            schedule = dict(zip(temps, step_sequence))
 
         init_x = init_snap.configuration.box[0]
         init_y = init_snap.configuration.box[1]
         init_z = init_snap.configuration.box[2]
         forcefields[0].nlist.exclusions = ["bond", "1-3", "1-4"]
         # Create Hoomd simulation object and initialize a state
-        device = hoomd.device.auto_select()
-        sim = hoomd.Simulation(device=device, seed=self.seed)
         #TODO: Change nlist from cell to tree if needed
-        if self.restart:
-            sim.create_state_from_gsd(self.restart)
-        else:
-            sim.create_state_from_snapshot(init_snap)
         _all = hoomd.filter.All()
         gsd_writer, table_file = self._hoomd_writers(
                 group=_all, sim=sim, forcefields=forcefields
@@ -399,16 +400,15 @@ class Simulation:
         sim.operations.writers.append(table_file)
         
         if wall_axis is not None: # Set up wall potentials
-            wall_force, walls, normal_vector = self._hoomd_walls(
-                    wall_axis, init_x, init_y, init_z
-            )
-            wall_force.params[init_snap.particles.types] = {
+            walls = self._hoomd_walls(wall_axis, init_x, init_y, init_z)
+            lj_walls = hoomd.md.external.wall.LJ(walls=walls)
+            lj_walls.params[init_snap.particles.types] = {
                     "epsilon": 1.0,
                     "sigma": 1.0,
                     "r_cut": 2.5,
                     "r_extrap": 0
             }
-            forcefields.append(wall_force)
+            forcefields.append(lj_walls)
 
         if shrink_kT and shrink_steps: # Set up shrinking run
             integrator = hoomd.md.Integrator(dt=self.dt)
@@ -660,20 +660,15 @@ class Simulation:
 
         """
         if self.restart is None:
-            hoomd_system = hoomd.init.read_gsd(self.system)
             with gsd.hoomd.open(self.system, "rb") as f:
                 init_snap = f[0]
         else:
             with gsd.hoomd.open(self.restart) as f:
                 init_snap = f[-1]
-                hoomd_system = hoomd.init.read_gsd(
-                    self.restart, restart=self.restart
-                )
                 print("Simulation initialized from restart file")
-
-        pairs = []
-        pair_pot_files = []
-        pair_pot_widths = []
+        # Create pair table potentials
+        nlist = self.nlist(buffer=0.4)
+        pair_table = hoomd.md.pair.Table(nlist=nlist)
         for pair in [list(i) for i in combo(init_snap.particles.types, r=2)]:
             _pair = "-".join(sorted(pair))
             pair_pot_file = f"{self.cg_ff_path}/{_pair}.txt"
@@ -683,21 +678,13 @@ class Simulation:
                 raise RuntimeError(f"The potential file {pair_pot_file} "
                     f"for pair {_pair} does not exist in {self.cg_ff_path}."
                 )
-            pairs.append(_pair)
-            pair_pot_files.append(pair_pot_file)
-            pair_pot_widths.append(len(np.loadtxt(pair_pot_file)[:,0]))
-
-        if not all([i == pair_pot_widths[0] for i in pair_pot_widths]):
-            raise RuntimeError(
-                "All pair potential files must have the same length"    
+            pair_data = np.loadtxt(pair_pot_file)
+            r_min = pair_data[:,0][0]
+            r_cut = pair_data[:,0][-1]
+            pair_table.params[tuple(sorted(pair))] = dict(
+                    r_min=r_min, U=pair_data[:,1], F=pair_data[:,2]
             )
-
-        pair_pot = hoomd.md.pair.table(
-                width=pair_pot_widths[0], nlist=self.nlist()
-        )
-        for pair, fpath in zip(pairs, pair_pot_files):
-            pair = pair.split("-")
-            pair_pot.set_from_file(f"{pair[0]}", f"{pair[1]}", filename=fpath)
+            pair_table.r_cut[tuple(sorted(pair))] = r_cut
 
         # Repeat same process for Bonds 
         bonds = []
@@ -721,9 +708,17 @@ class Simulation:
                 "All bond potential files must have the same length"    
             )
 
-        bond_pot = hoomd.md.bond.table(width=bond_pot_widths[0])
+        bond_table = hoomd.md.bond.Table(width=bond_pot_widths[0])
         for bond, fpath in zip(bonds, bond_pot_files):
-            bond_pot.set_from_file(f"{bond}", f"{bond_pot_file}")
+            bond_data = np.loadtxt(fpath)
+            r_min = bond_data[:,0][0]
+            r_max = bond_data[:,0][-1]
+            bond_table.params[bond] = dict(
+                    r_min=r_min,
+                    r_max=r_max,
+                    U=bond_data[:,1],
+                    F=bond_data[:,2]
+            )
         
         # Repeat same process for Angles 
         angles = []
@@ -747,18 +742,19 @@ class Simulation:
                 "All bond potential files must have the same length"    
             )
 
-        angle_pot = hoomd.md.angle.table(width=angle_pot_widths[0])
+        angle_table = hoomd.md.angle.Table(width=angle_pot_widths[0])
         for angle, fpath in zip(angles, angle_pot_files):
-            angle_pot.set_from_file(f"{angle}", f"{angle_pot_file}")
+            angle_data = np.loadtxt(fpath)
+            angle_table.params[angle] = dict(
+                    U=angle_data[:,1], tau=angle_data[:,2]
+            )
 
-        hoomd_objs = [
-                hoomd_system,
-                self.nlist(),
-                pair_pot,
-                bond_pot,
-                angle_pot,
+        hoomd_forces = [
+                pair_table,
+                bond_table,
+                angle_table,
         ]
-        return init_snap, hoomd_objs 
+        return init_snap, hoomd_forces 
 
     def _hoomd_walls(self, wall_axis, Lx, Ly, Lz):
         """Create hoomd LJ wall potentials"""
