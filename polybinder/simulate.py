@@ -593,7 +593,8 @@ class Simulation:
                 box1=init_box,
                 box2=final_box,
                 variant=ramp,
-                trigger=box_resize_trigger
+                trigger=box_resize_trigger,
+                filter=all_fixed
         )
         integrator.methods = [integrator_method]
         sim.operations.add(integrator)
@@ -609,12 +610,12 @@ class Simulation:
         while step < n_steps:
             try:
                 sim.run(expand_period)
-                current_L = getattr(sim.state.box, f"L{tensile_axis}")
-                diff = current_L - last_L
-                with local_snap as snap:
-                    snap.particles.position[left_tags] -= (adj_axis*(diff/2))
-                    snap.particles.position[right_tags] += (adj_axis*(diff/2))
-                last_L = current_L
+        #        current_L = getattr(sim.state.box, f"L{tensile_axis}")
+        #        diff = current_L - last_L
+        #        with local_snap as snap:
+        #            snap.particles.position[left_tags] -= (adj_axis*(diff/2))
+        #            snap.particles.position[right_tags] += (adj_axis*(diff/2))
+        #        last_L = current_L
                 step += expand_period + 1
             #TODO: Add gsd restart write stuff
             except:
