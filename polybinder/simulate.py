@@ -28,10 +28,9 @@ class Simulation:
         Thermostat coupling period (in simulation time units)
     tau_p : float, default None
         Barostat coupling period (in simulation time units)
-    nlist : str, default `cell`
-        Type of neighborlist to use. Options are "cell", "tree", and "stencil".
-        See https://hoomd-blue.readthedocs.io/en/stable/nlist.html and
-        https://hoomd-blue.readthedocs.io/en/stable/module-md-nlist.html
+    nlist : str, default `Cell`
+        Type of neighborlist to use. Options are "Cell", "Tree", and "Stencil".
+        See https://hoomd-blue.readthedocs.io/en/latest/module-md-nlist.html
     dt : float, default 0.0001
         Size of simulation timestep (in simulation time units)
     auto_scale : bool, default True
@@ -156,8 +155,8 @@ class Simulation:
         n_steps,
         kT=None,
         pressure=None,
+        shrink_steps=0,
         shrink_kT=None,
-        shrink_steps=None,
         shrink_period=None,
         wall_axis=None,
         **kwargs
@@ -177,7 +176,7 @@ class Simulation:
             The dimensionless pressure at which to run the simulation
         shrink_kT : float, default None
             The dimensionless temperature to use during the shrink steps
-        shrink_steps : int, defualt None
+        shrink_steps : int, defualt 0 
             The number of steps to run during the shrink process
         shrink_period : int, default None
             The period between box updates during shrinking
@@ -191,14 +190,12 @@ class Simulation:
             raise ValueError(
                     "Wall potentials can only be used with the NVT ensemble."
             )
-        if [shrink_kT, shrink_steps, shrink_period].count(None) %3 != 0:
-            raise ValueError(
-                "If shrinking, all of  shrink_kT, shrink_steps and "
-                "shrink_period need to be given."
-            )
-            #TODO: I don't think we need this anymore
-        if shrink_steps is None:
-            shrink_steps = 0
+        if shrink_steps != 0:
+            if np.count_nonzero([shrink_kT, shrink_steps, shrink_period]) != 3:
+                raise ValueError(
+                    "If shrinking, all of  shrink_kT, shrink_steps and "
+                    "shrink_period need to be given."
+                )
 
         device = hoomd.device.auto_select()
         sim = hoomd.Simulation(device=device, seed=self.seed)
@@ -223,8 +220,9 @@ class Simulation:
         init_x = init_snap.configuration.box[0]
         init_y = init_snap.configuration.box[1]
         init_z = init_snap.configuration.box[2]
+        if isinstance(self.nlist, hoomd.md.nlist.Tree):
+            forcefields[0].nlist = self.nlist(buffer=0.4)
         forcefields[0].nlist.exclusions = ["bond", "1-3", "1-4"]
-        #TODO: Change neighbor list from cell to tree if needed
         _all = hoomd.filter.All()
         gsd_writer, table_file, = self._hoomd_writers(
                 group=_all, sim=sim, forcefields=forcefields
@@ -242,7 +240,7 @@ class Simulation:
                     "r_extrap": 0
             }
             forcefields.append(lj_walls)
-        
+         
         if shrink_kT and shrink_steps: # Set up shrinking run
             integrator = hoomd.md.Integrator(dt=self.dt)
             integrator.forces = forcefields
@@ -344,22 +342,20 @@ class Simulation:
         step_sequence=None,
         schedule=None,
         wall_axis=None,
+        shrink_steps=0,
         shrink_kT=None,
-        shrink_steps=None,
         shrink_period=None,
     ):
         if wall_axis and pressure is not None:
             raise ValueError(
                 "Wall potentials can only be used with the NVT ensemble"
             )
-        if [shrink_kT, shrink_steps, shrink_period].count(None) %3 != 0:
-            raise ValueError(
-                "If shrinking, then all of shirnk_kT, shrink_steps "
-                "and shrink_period need to be given"
-            )
-            #TODO: Remove this (probably)
-        if shrink_steps is None:
-            shrink_steps = 0
+        if shrink_steps != 0:
+            if np.count_nonzero([shrink_kT, shrink_steps, shrink_period]) != 3:
+                raise ValueError(
+                    "If shrinking, all of  shrink_kT, shrink_steps and "
+                    "shrink_period need to be given."
+                )
 
         device = hoomd.device.auto_select()
         sim = hoomd.Simulation(device=device, seed=self.seed)
@@ -389,9 +385,10 @@ class Simulation:
         init_x = init_snap.configuration.box[0]
         init_y = init_snap.configuration.box[1]
         init_z = init_snap.configuration.box[2]
+        if isinstance(self.nlist, hoomd.md.nlist.Tree):
+            forcefields[0].nlist = self.nlist(buffer=0.4)
         forcefields[0].nlist.exclusions = ["bond", "1-3", "1-4"]
         # Create Hoomd simulation object and initialize a state
-        #TODO: Change nlist from cell to tree if needed
         _all = hoomd.filter.All()
         gsd_writer, table_file = self._hoomd_writers(
                 group=_all, sim=sim, forcefields=forcefields
@@ -455,7 +452,6 @@ class Simulation:
                     sim.operations.integrator.forces.append(lj_walls)
             else: # Run shrink steps without updating walls
                 sim.run(shrink_steps + 1)
-            #TODO: Remove this assertion, added for trouble shooting
             assert sim.state.box == final_box
 
         if pressure is not None: # Set NPT integrator
@@ -474,7 +470,7 @@ class Simulation:
                     couple="xyz"
             )
             sim.operations.add(integrator)
-        else: # Set NVT integrator 
+        
             try: 
                 integrator  # Not yet defined if no shrink step ran
             except NameError:
@@ -486,7 +482,6 @@ class Simulation:
                 integrator.methods = [integrator_method]
                 sim.operations.add(integrator)
 
-        last_step = shrink_steps
         for kT in schedule:
             integrator.methods[0].kT = kT
             sim.state.thermalize_particle_momenta(filter=_all, kT=kT)
@@ -529,8 +524,6 @@ class Simulation:
                     auto_scale=self.auto_scale,
             )
         else:
-            #TODO: See what needs to be changed and returned
-            #in _create_hoomd_sim..
             init_snap, objs = self._create_hoomd_sim_from_snapshot()
 
         device = hoomd.device.auto_select()
@@ -566,19 +559,18 @@ class Simulation:
 		)
         
         # Set up the walls of fixed particles
-        # TODO: Try just using init_snap here rather than get_snapshot()
-        snap = sim.state.get_snapshot()
         box_max = getattr(init_box, f"L{tensile_axis}")/2
         box_min = -box_max
         if tensile_axis == "x":
-            positions = snap.particles.position[:,0]
+            positions = init_snap.particles.position[:,0]
             final_box.Lx = target_length
         elif tensile_axis == "y":
-            positions = snap.particles.position[:,1]
+            positions = init_snap.particles.position[:,1]
             final_box.Ly = target_length
         elif tensile_axis == "z":
-            positions = snap.particles.position[:,2]
+            positions = init_snap.particles.position[:,2]
             final_box.Lz = target_length
+            
         left_tags = np.where(positions < (box_min + fix_length))[0]
         right_tags = np.where(positions > (box_max - fix_length))[0]
         fix_left = hoomd.filter.Tags(left_tags.astype(np.uint32))
@@ -596,13 +588,15 @@ class Simulation:
                 trigger=box_resize_trigger,
                 filter=all_fixed
         )
+        sim.operations.updaters.append(box_resize)
         integrator.methods = [integrator_method]
         sim.operations.add(integrator)
         sim.state.thermalize_particle_momenta(filter=integrate_group, kT=kT)
-        if device.devices[0] == "CPU":
-            local_snap = sim.state.cpu_local_snapshot
-        else:
-            local_snap = sim.state.gpu_local_snapshot
+        # TODO: See TODO below, can probably remove these
+        #if device.devices[0] == "CPU":
+        #    local_snap = sim.state.cpu_local_snapshot
+        #else:
+        #    local_snap = sim.state.gpu_local_snapshot
         
         adj_axis = axis_dict[tensile_axis]
         step = 0
@@ -610,13 +604,14 @@ class Simulation:
         while step < n_steps:
             try:
                 sim.run(expand_period)
+                #TODO Might be able to remove this stuff
         #        current_L = getattr(sim.state.box, f"L{tensile_axis}")
         #        diff = current_L - last_L
         #        with local_snap as snap:
         #            snap.particles.position[left_tags] -= (adj_axis*(diff/2))
         #            snap.particles.position[right_tags] += (adj_axis*(diff/2))
         #        last_L = current_L
-                step += expand_period + 1
+                step += expand_period
             #TODO: Add gsd restart write stuff
             except:
                 pass

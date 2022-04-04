@@ -19,7 +19,7 @@ class TestSimulate(BaseTest):
                 kT=2,
                 n_steps=5e2,
                 shrink_kT=5,
-                shrink_steps=None,
+                shrink_steps=1e3,
                 shrink_period=None,
             )
         # Pressure and walls quench
@@ -28,9 +28,6 @@ class TestSimulate(BaseTest):
                 kT=2,
                 pressure=0.1,
                 n_steps=5e2,
-                shrink_kT=None,
-                shrink_steps=None,
-                shrink_period=None,
                 wall_axis=[1, 0, 0],
             )
         # Pressure and walls anneal
@@ -40,9 +37,6 @@ class TestSimulate(BaseTest):
                 kT_final=1,
                 step_sequence = [5e2, 5e2],
                 pressure=0.1,
-                shrink_kT=None,
-                shrink_steps=None,
-                shrink_period=None,
                 wall_axis=[1, 0 , 0],
             )
         with pytest.raises(AssertionError):
@@ -52,6 +46,18 @@ class TestSimulate(BaseTest):
                     ref_values=None
             )
 
+    def test_tree_nlist(self, peek_system):
+        simulation = simulate.Simulation(
+                peek_system,
+                tau_p=0.1,
+                dt=0.0001,
+                mode="cpu",
+                nlist="Tree"
+        )
+        simulation.quench(
+            kT=2, pressure=0.1, n_steps=5e2,
+        )
+
     def test_quench_no_shrink(self, peek_system):
         simulation = simulate.Simulation(
                 peek_system,
@@ -60,23 +66,13 @@ class TestSimulate(BaseTest):
                 mode="cpu"
         )
         simulation.quench(
-            kT=2,
-            pressure=0.1,
-            n_steps=5e2,
-            shrink_kT=None,
-            shrink_steps=None,
-            shrink_period=None,
+            kT=2, pressure=0.1, n_steps=5e2,
         )
 
     def test_anneal_no_shrink(self, peek_system):
         simulation = simulate.Simulation(peek_system, dt=0.0001, mode="cpu")
         simulation.anneal(
-            kT_init=4,
-            kT_final=2,
-            step_sequence=[5e2, 5e2],
-            shrink_kT=None,
-            shrink_steps=None,
-            shrink_period=None,
+            kT_init=4, kT_final=2, step_sequence=[5e2, 5e2]
         )
 
     def test_quench_npt(self, peek_system):
