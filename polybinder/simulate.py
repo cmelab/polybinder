@@ -141,6 +141,7 @@ class Simulation:
         if system.system_type != "interface":
             # Conv from nm (mBuild) to ang (parmed) and set to reduced length 
             self.target_box = system.target_box * 10 / self.ref_distance
+
         self.log_quantities = [
             "kinetic_temperature",
             "potential_energy",
@@ -159,7 +160,6 @@ class Simulation:
         shrink_kT=None,
         shrink_period=None,
         wall_axis=None,
-        **kwargs
     ):
         """Runs an NVT or NPT simulation at a single temperature
         and/or pressure.
@@ -191,7 +191,7 @@ class Simulation:
                     "Wall potentials can only be used with the NVT ensemble."
             )
         if shrink_steps != 0:
-            if np.count_nonzero([shrink_kT, shrink_steps, shrink_period]) != 3:
+            if [shrink_kT, shrink_period].count(None) != 0:
                 raise ValueError(
                     "If shrinking, all of  shrink_kT, shrink_steps and "
                     "shrink_period need to be given."
@@ -241,7 +241,7 @@ class Simulation:
             }
             forcefields.append(lj_walls)
          
-        if shrink_kT and shrink_steps: # Set up shrinking run
+        if shrink_steps != 0: # Set up shrinking run
             integrator = hoomd.md.Integrator(dt=self.dt)
             integrator.forces = forcefields
             integrator_method = hoomd.md.methods.NVT(
@@ -351,7 +351,7 @@ class Simulation:
                 "Wall potentials can only be used with the NVT ensemble"
             )
         if shrink_steps != 0:
-            if np.count_nonzero([shrink_kT, shrink_steps, shrink_period]) != 3:
+            if [shrink_kT, shrink_period].count(None) != 0:
                 raise ValueError(
                     "If shrinking, all of  shrink_kT, shrink_steps and "
                     "shrink_period need to be given."
@@ -407,7 +407,7 @@ class Simulation:
             }
             forcefields.append(lj_walls)
 
-        if shrink_kT and shrink_steps: # Set up shrinking run
+        if shrink_steps != 0: # Set up shrinking run
             integrator = hoomd.md.Integrator(dt=self.dt)
             integrator.forces = forcefields
             integrator_method = hoomd.md.methods.NVT(
@@ -455,7 +455,7 @@ class Simulation:
             assert sim.state.box == final_box
 
         if pressure is not None: # Set NPT integrator
-            if shrink_kT and shrink_steps:
+            if shrink_steps !=0:
                 sim.operations.remove(integrator)
             else:
                 integrator = hoomd.md.Integrator(dt=self.dt)
@@ -471,16 +471,16 @@ class Simulation:
             )
             sim.operations.add(integrator)
         
-            try: 
-                integrator  # Not yet defined if no shrink step ran
-            except NameError:
-                integrator = hoomd.md.Integrator(dt=self.dt)
-                integrator.forces = forcefields
-                integrator_method = hoomd.md.methods.NVT(
-                    filter=_all, kT=1.0, tau=self.tau_kt
-                )
-                integrator.methods = [integrator_method]
-                sim.operations.add(integrator)
+        try: 
+            integrator  # Not yet defined if no shrink step ran
+        except NameError:
+            integrator = hoomd.md.Integrator(dt=self.dt)
+            integrator.forces = forcefields
+            integrator_method = hoomd.md.methods.NVT(
+                filter=_all, kT=1.0, tau=self.tau_kt
+            )
+            integrator.methods = [integrator_method]
+            sim.operations.add(integrator)
 
         for kT in schedule:
             integrator.methods[0].kT = kT
@@ -508,10 +508,10 @@ class Simulation:
         expand_period : int
             The number of steps ran between each box update.
         fix_ratio : float, default = 0.05
-            The distance along the x-axis to fix particles in place.
-            Treated as a percentage of the initial  volume's x_length.
-            Since particles are fixed on each side, half of x_fix
-            is used for the distance.
+            The distance along the tensile axis to fix particles in place.
+            Treated as a percentage of the initial box length.
+            Since particles are fixed on each side, half of fix_ratio
+            is used for the distance on each side.
 
         """
         if self.cg_system is False:
@@ -540,11 +540,6 @@ class Simulation:
         sim.operations.writers.append(table_file)
         
         # Set up target volume, tensile axis, etc.
-        axis_dict = {
-            "x": np.array([1,0,0]),
-            "y": np.array([0,1,0]),
-            "z": np.array([0,0,1])
-        }
         init_box = sim.state.box
         final_box = hoomd.Box(
                 Lx=init_box.Lx, Ly=init_box.Ly, Lz=init_box.Lz
@@ -577,6 +572,7 @@ class Simulation:
         fix_right = hoomd.filter.Tags(right_tags.astype(np.uint32))
         all_fixed = hoomd.filter.Union(fix_left, fix_right)
         integrate_group = hoomd.filter.SetDifference(_all, all_fixed)
+
         # Finish setting up simulation
         integrator = hoomd.md.Integrator(dt=self.dt)
         integrator.forces = forcefields
@@ -592,26 +588,10 @@ class Simulation:
         integrator.methods = [integrator_method]
         sim.operations.add(integrator)
         sim.state.thermalize_particle_momenta(filter=integrate_group, kT=kT)
-        # TODO: See TODO below, can probably remove these
-        #if device.devices[0] == "CPU":
-        #    local_snap = sim.state.cpu_local_snapshot
-        #else:
-        #    local_snap = sim.state.gpu_local_snapshot
         
-        adj_axis = axis_dict[tensile_axis]
-        step = 0
-        last_L = init_length
-        while step < n_steps:
+        while sim.timestep < n_steps:
             try:
                 sim.run(expand_period)
-                #TODO Might be able to remove this stuff
-        #        current_L = getattr(sim.state.box, f"L{tensile_axis}")
-        #        diff = current_L - last_L
-        #        with local_snap as snap:
-        #            snap.particles.position[left_tags] -= (adj_axis*(diff/2))
-        #            snap.particles.position[right_tags] += (adj_axis*(diff/2))
-        #        last_L = current_L
-                step += expand_period
             #TODO: Add gsd restart write stuff
             except:
                 pass
@@ -648,8 +628,8 @@ class Simulation:
     def _create_hoomd_sim_from_snapshot(self):
         """Creates needed hoomd objects.
 
-        Similar to the `create_hoomd_simulation` function
-        from mbuild, but designed to work when initializing
+        Similar to the `create_hoomd_forcefield` function
+        from mBuild, but designed to work when initializing
         a system from a gsd file rather than a Parmed structure.
         Created specifically for using table potentials with
         coarse-grained systems.

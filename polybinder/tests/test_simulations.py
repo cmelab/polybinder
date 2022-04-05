@@ -275,5 +275,4 @@ class TestSimulate(BaseTest):
                 shrink_kT=3.5,
                 shrink_steps=500,
                 shrink_period=10,
-                table_pot=True
         )
