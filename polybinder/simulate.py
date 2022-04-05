@@ -322,9 +322,7 @@ class Simulation:
         sim.state.thermalize_particle_momenta(filter=_all, kT=kT)
         try:
             while sim.timestep < n_steps + shrink_steps + 1:
-                #TODO: Use a better approach here avoid an odd amount of steps?
-                sim.run(n_steps)
-                #sim.run(min(10000, n_steps + shrink_steps + 1 - sim.timestep))
+                sim.run(min(10000, n_steps + shrink_steps + 1 - sim.timestep))
                 if self.wall_time_limit:
                     if (sim.device.communicator.walltime + sim.walltime >=
                             self.wall_time_limit):
@@ -346,6 +344,36 @@ class Simulation:
         shrink_kT=None,
         shrink_period=None,
     ):
+        """Runs a simulation through a series of temperatures in the 
+        NVT or NPT ensemble.
+        You can define the annealing sequence by specifying an 
+        initial and final temperature and a series of steps, or
+        you can pass in a dicitonary of kT:n_steps.
+
+        kT_init : float, optional, default=None
+            The starting temperature
+        kT_final : float, optional, default=None
+            The final temperature
+        pressure : float, optional, default=None
+            When a pressure is given, the NPT ensemble is used.
+        step_sequence : list of ints, optional, default=None
+            The series of simulation steps to run between
+            kT_init and kT_final
+        schedule : dict, optional, default=None
+            Use this instead of kT_init, kT_final and step_sequnce to
+            explicitly set the series of temperatures and steps at each to run
+        shrink_kT : float, default None
+            The dimensionless temperature to use during the shrink steps
+        shrink_steps : int, defualt 0 
+            The number of steps to run during the shrink process
+        shrink_period : int, default None
+            The period between box updates during shrinking
+        wall_axis : (1,3) array like, default None
+            Create LJ wall potentials along the specified axis
+            of the simulation volume.
+            Not compatible with NPT simulations; pressure must be None
+
+        """
         if wall_axis and pressure is not None:
             raise ValueError(
                 "Wall potentials can only be used with the NVT ensemble"
@@ -588,14 +616,19 @@ class Simulation:
         integrator.methods = [integrator_method]
         sim.operations.add(integrator)
         sim.state.thermalize_particle_momenta(filter=integrate_group, kT=kT)
+
+        try:
+            while sim.timestep < n_steps + 1:
+                sim.run(min(10000, n_steps + shrink_steps + 1 - sim.timestep))
+                if self.wall_time_limit:
+                    if (sim.device.communicator.walltime + sim.walltime >=
+                            self.wall_time_limit):
+                        break
+        finally:
+            hoomd.write.GSD.write(
+                    state=sim.state, mode='wb', filename="restart.gsd"
+            )
         
-        while sim.timestep < n_steps:
-            try:
-                sim.run(expand_period)
-            #TODO: Add gsd restart write stuff
-            except:
-                pass
-    
     def _hoomd_writers(self, group, forcefields, sim):
         # GSD and Logging:
         if self.restart:
