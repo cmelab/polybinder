@@ -619,7 +619,7 @@ class Simulation:
 
         try:
             while sim.timestep < n_steps + 1:
-                sim.run(min(10000, n_steps + shrink_steps + 1 - sim.timestep))
+                sim.run(min(10000, n_steps + 1 - sim.timestep))
                 if self.wall_time_limit:
                     if (sim.device.communicator.walltime + sim.walltime >=
                             self.wall_time_limit):
