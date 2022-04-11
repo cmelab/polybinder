@@ -417,8 +417,9 @@ class Simulation:
         init_y = init_snap.configuration.box[1]
         init_z = init_snap.configuration.box[2]
         if isinstance(self.nlist, hoomd.md.nlist.Tree):
+            lj_exclusions = forcefields[0].nlist.exclusions
             forcefields[0].nlist = self.nlist(buffer=0.4)
-        forcefields[0].nlist.exclusions = ["bond", "1-3", "1-4"]
+            forcefields[0].nlist.exclusions = lj_exclusions
         # Create Hoomd simulation object and initialize a state
         _all = hoomd.filter.All()
         gsd_writer, table_file = self._hoomd_writers(
