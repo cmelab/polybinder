@@ -70,6 +70,9 @@ class Simulation:
         Define a schedule of temperature and steps to follow over the
         course of the simulation. Can be used in NVT or NPT at a single
         pressure.
+    tensile: Runs a hoomd simulation
+        Use this simulation method to perform a tensile test on the 
+        simulation volume. 
 
     """
     def __init__(
