@@ -413,7 +413,7 @@ class Initializer:
         try:
             from polybinderCG.coarse_grain import System
         except ImportError:
-            print(
+            raise ImportError(
                 "polybinderCG must be installed to use coarse-graining features"
             )
 

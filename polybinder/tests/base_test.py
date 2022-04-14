@@ -127,3 +127,7 @@ class BaseTest:
                 remove_hydrogens=True
                 )
         return pekk_sys
+
+    @pytest.fixture
+    def restart_gsd(self):
+        return os.path.join(ASSETS_DIR, "test_restart.gsd") 

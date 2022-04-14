@@ -5,8 +5,7 @@ import os
 import gsd.hoomd
 import hoomd
 import hoomd.md
-from hoomd.md import wall
-from mbuild.formats.hoomd_simulation import create_hoomd_simulation
+from mbuild.formats.hoomd_forcefield import create_hoomd_forcefield
 import numpy as np
 import parmed as pmd
 
@@ -29,10 +28,9 @@ class Simulation:
         Thermostat coupling period (in simulation time units)
     tau_p : float, default None
         Barostat coupling period (in simulation time units)
-    nlist : str, default `cell`
-        Type of neighborlist to use. Options are "cell", "tree", and "stencil".
-        See https://hoomd-blue.readthedocs.io/en/stable/nlist.html and
-        https://hoomd-blue.readthedocs.io/en/stable/module-md-nlist.html
+    nlist : str, default `Cell`
+        Type of neighborlist to use. Options are "Cell", "Tree", and "Stencil".
+        See https://hoomd-blue.readthedocs.io/en/latest/module-md-nlist.html
     dt : float, default 0.0001
         Size of simulation timestep (in simulation time units)
     auto_scale : bool, default True
@@ -59,6 +57,9 @@ class Simulation:
         polybinder.system
     restart : str, default None
         Path to gsd file from which to restart the simulation
+    wall_time_limit : int, default None
+        Set a maximum amount of time in seconds a simulation is allowed
+        to run even if it hasn't ran to completion.
     
     Methods
     -------
@@ -69,6 +70,9 @@ class Simulation:
         Define a schedule of temperature and steps to follow over the
         course of the simulation. Can be used in NVT or NPT at a single
         pressure.
+    tensile: Runs a hoomd simulation
+        Use this simulation method to perform a tensile test on the 
+        simulation volume. 
 
     """
     def __init__(
@@ -77,7 +81,7 @@ class Simulation:
         r_cut=2.5,
         tau_kt=0.1,
         tau_p=None,
-        nlist="cell",
+        nlist="Cell",
         dt=0.0001,
         auto_scale=True,
         ref_values=None,
@@ -86,12 +90,13 @@ class Simulation:
         log_write=1e3,
         seed=42,
         cg_potentials_dir=None,
-        restart=None
+        restart=None,
+        wall_time_limit=None
     ):
         self.r_cut = r_cut
         self.tau_kt = tau_kt
         self.tau_p = tau_p
-        self.nlist = getattr(hoomd.md.nlist, nlist.lower())
+        self.nlist = getattr(hoomd.md.nlist, nlist)
         self.dt = dt
         self.auto_scale = auto_scale
         self.ref_values = ref_values
@@ -100,13 +105,13 @@ class Simulation:
         self.log_write = log_write
         self.seed = seed
         self.restart = restart
+        self.wall_time_limit = wall_time_limit
         # Coarsed-grained related parameters, system is a str (file path of GSD)
         if isinstance(system.system, str):
             assert ref_values != None, (
                         "Autoscaling is not supported for coarse-grain sims."
                         "Provide the relevant reference units"
-                    )
-
+            )
             self.system = system.system
             self.cg_system = True
             if cg_potentials_dir is None:
@@ -141,20 +146,12 @@ class Simulation:
             self.target_box = system.target_box * 10 / self.ref_distance
 
         self.log_quantities = [
-            "temperature",
-            "pressure",
-            "pressure_xx",
-            "pressure_yy",
-            "pressure_zz",
-            "pressure_xy",
-            "pressure_xz",
-            "pressure_yz",
-            "volume",
+            "kinetic_temperature",
             "potential_energy",
             "kinetic_energy",
-            "pair_lj_energy",
-            "bond_harmonic_energy",
-            "angle_harmonic_energy",
+            "volume",
+            "pressure",
+            "pressure_tensor",
         ]
 
     def quench(
@@ -162,14 +159,13 @@ class Simulation:
         n_steps,
         kT=None,
         pressure=None,
+        shrink_steps=0,
         shrink_kT=None,
-        shrink_steps=None,
         shrink_period=None,
         wall_axis=None,
-        **kwargs
     ):
         """Runs an NVT or NPT simulation at a single temperature
-        and pressure.
+        and/or pressure.
 
         Call this funciton after initializing the Simulation class.
 
@@ -183,179 +179,162 @@ class Simulation:
             The dimensionless pressure at which to run the simulation
         shrink_kT : float, default None
             The dimensionless temperature to use during the shrink steps
-        shrink_steps : int, defualt None
+        shrink_steps : int, defualt 0 
             The number of steps to run during the shrink process
         shrink_period : int, default None
             The period between box updates during shrinking
         wall_axis : (1,3) array like, default None
-            Create LJ wall potentials along the specified axis of the simulation volume.
+            Create LJ wall potentials along the specified axis
+            of the simulation volume.
             Not compatible with NPT simulations; pressure must be None
 
         """
-        if wall_axis and pressure:
+        if wall_axis and pressure is not None:
             raise ValueError(
                     "Wall potentials can only be used with the NVT ensemble."
-                    )
-        if [shrink_kT, shrink_steps, shrink_period].count(None) %3 != 0:
-            raise ValueError(
-                "If shrinking, all of  shrink_kT, shrink_steps and "
-                "shrink_periopd need to be given."
             )
-        if shrink_steps is None:
-            shrink_steps = 0
-
-        hoomd_args = f"--single-mpi --mode={self.mode}"
-        sim = hoomd.context.initialize(hoomd_args)
-        with sim:
-            if self.cg_system is False:
-                objs, refs = create_hoomd_simulation(
-                    self.system,
-                    self.ref_distance,
-                    self.ref_mass,
-                    self.ref_energy,
-                    self.r_cut,
-                    self.auto_scale,
-                    nlist=self.nlist,
-                    restart=self.restart
-                )
-                if self.restart is None:
-                    init_x = objs[0].box.Lx
-                    init_y = objs[0].box.Ly
-                    init_z = objs[0].box.Lz
-                else:
-                    init_x = objs[0].configuration.box[0]
-                    init_y = objs[0].configuration.box[1]
-                    init_z = objs[0].configuration.box[2]
-
-            elif self.cg_system is True:
-                objs = self._create_hoomd_sim_from_snapshot()
-                self.log_quantities.remove("pair_lj_energy")
-                init_x = objs[0].configuration.box[0]
-                init_y = objs[0].configuration.box[1]
-                init_z = objs[0].configuration.box[2]
-
-            init_snap = objs[0]
-            hoomd_system = objs[1]
-            _all = hoomd.group.all()
-            hoomd.md.integrate.mode_standard(dt=self.dt)
-            hoomd.dump.gsd(
-                "sim_traj.gsd",
-                period=self.gsd_write,
-                group=_all,
-                phase=0,
-                dynamic=["momentum"],
-                overwrite=False,
-            )
-            hoomd.analyze.log(
-                "sim_traj.log",
-                period=self.log_write,
-                quantities=self.log_quantities,
-                header_prefix="#",
-                overwrite=True,
-                phase=0,
-            )
-
-            if wall_axis is not None:
-                wall_force, walls, normal_vector = self._hoomd_walls(
-                        wall_axis, init_x, init_y, init_z
-                )
-                wall_force.force_coeff.set(
-                    init_snap.particles.types,
-                    sigma=1.0,
-                    epsilon=1.0,
-                    r_extrap=0
+        if shrink_steps != 0:
+            if [shrink_kT, shrink_period].count(None) != 0:
+                raise ValueError(
+                    "If shrinking, all of  shrink_kT, shrink_steps and "
+                    "shrink_period need to be given."
                 )
 
+        device = hoomd.device.auto_select()
+        sim = hoomd.Simulation(device=device, seed=self.seed)
+        
+        if self.cg_system is False:
+            init_snap, forcefields, refs = create_hoomd_forcefield(
+                    structure=self.system,
+                    r_cut=self.r_cut,
+                    ref_distance=self.ref_distance,
+                    ref_mass=self.ref_mass,
+                    ref_energy=self.ref_energy,
+                    auto_scale=self.auto_scale,
+            )
+            if self.restart:
+                sim.create_state_from_gsd(self.restart)
+            else:
+                sim.create_state_from_snapshot(init_snap)
+        else:
+            init_snap, forcefields = self._create_hoomd_sim_from_snapshot()
+            sim.create_state_from_snapshot(init_snap)
+
+        init_x = init_snap.configuration.box[0]
+        init_y = init_snap.configuration.box[1]
+        init_z = init_snap.configuration.box[2]
+        if isinstance(self.nlist, hoomd.md.nlist.Tree):
+            forcefields[0].nlist = self.nlist(buffer=0.4)
+        forcefields[0].nlist.exclusions = ["bond", "1-3", "1-4"]
+        _all = hoomd.filter.All()
+        gsd_writer, table_file, = self._hoomd_writers(
+                group=_all, sim=sim, forcefields=forcefields
+        )
+        sim.operations.writers.append(gsd_writer)
+        sim.operations.writers.append(table_file)
+        
+        if wall_axis is not None: # Set up wall potentials
+            walls = self._hoomd_walls(wall_axis, init_x, init_y, init_z)
+            lj_walls = hoomd.md.external.wall.LJ(walls=walls)
+            lj_walls.params[init_snap.particles.types] = {
+                    "epsilon": 1.0,
+                    "sigma": 1.0,
+                    "r_cut": 2.5,
+                    "r_extrap": 0
+            }
+            forcefields.append(lj_walls)
+         
+        if shrink_steps != 0: # Set up shrinking run
+            integrator = hoomd.md.Integrator(dt=self.dt)
+            integrator.forces = forcefields
+            integrator_method = hoomd.md.methods.NVT(
+                    filter=_all, kT=shrink_kT, tau=self.tau_kt
+            )
+            integrator.methods = [integrator_method]
+            sim.operations.add(integrator)
+            sim.state.thermalize_particle_momenta(filter=_all, kT=shrink_kT)
+            box_resize_trigger = hoomd.trigger.Periodic(shrink_period)
+            ramp = hoomd.variant.Ramp(
+                A=0, B=1, t_start=sim.timestep, t_ramp=int(shrink_steps)
+            ) 
+            initial_box = sim.state.box
+            final_box = hoomd.Box(
+                    Lx=self.target_box[0],
+                    Ly=self.target_box[1],
+                    Lz=self.target_box[2]
+            )
+            box_resize = hoomd.update.BoxResize(
+                    box1=initial_box,
+                    box2=final_box,
+                    variant=ramp,
+                    trigger=box_resize_trigger
+            )
+            sim.operations.updaters.append(box_resize)
+
+            if wall_axis is not None: # Update walls during shrinking
+                while sim.timestep < shrink_steps + 1:
+                    sim.run(shrink_period)
+                    sim.operations.integrator.forces.remove(lj_walls)
+                    Lx = sim.state.box.Lx
+                    Ly = sim.state.box.Ly
+                    Lz = sim.state.box.Lz
+                    new_walls = self._hoomd_walls(wall_axis, Lx, Ly, Lz)
+                    lj_walls = hoomd.md.external.wall.LJ(walls=new_walls)
+                    lj_walls.params[init_snap.particles.types] = {
+                            "epsilon": 1.0,
+                            "sigma": 1.0,
+                            "r_cut": 2.5,
+                            "r_extrap": 0
+                    }
+                    sim.operations.integrator.forces.append(lj_walls)
+            else: # Run shrink steps without updating walls
+                sim.run(shrink_steps + 1)
+            assert sim.state.box == final_box
+
+        if pressure is not None: # Set NPT integrator
             if shrink_kT and shrink_steps:
-                integrator = hoomd.md.integrate.nvt(
-                        group=_all,
-                        kT=shrink_kT,
-                        tau=self.tau_kt
-                )
-                integrator.randomize_velocities(seed=self.seed)
-                x_variant = hoomd.variant.linear_interp(
-                        [(0, init_x), (shrink_steps, self.target_box[0])]
-                )
-                y_variant = hoomd.variant.linear_interp(
-                        [(0, init_y), (shrink_steps, self.target_box[1])]
-                )
-                z_variant = hoomd.variant.linear_interp(
-                        [(0, init_z), (shrink_steps, self.target_box[2])]
-                )
+                sim.operations.remove(integrator)
+            else:
+                integrator = hoomd.md.Integrator(dt=self.dt)
+                integrator.forces = forcefields
 
-                box_updater = hoomd.update.box_resize(
-                    Lx=x_variant, 
-                    Ly=y_variant,
-                    Lz=z_variant,
-                    period=shrink_period
-                )
-                # Update wall origins during shrinking
-                momentum = hoomd.md.update.zero_momentum(period=shrink_steps)
-                if wall_axis is not None:
-                    step = 0
-                    while step < shrink_steps:
-                        hoomd.run_upto(step + shrink_period)
-                        current_box = np.array([
-                                hoomd_system.box.Lx,
-                                hoomd_system.box.Ly,
-                                hoomd_system.box.Lz
-                        ])
-                        walls.del_plane([0, 1])
-                        walls.add_plane(
-                                (current_box/2 * wall_axis), normal_vector
-                        )
-                        walls.add_plane(
-                                (-current_box/2 * wall_axis), -normal_vector
-                        )
-                        step += shrink_period
-                else:
-                    hoomd.run_upto(shrink_steps)
-
-                box_updater.disable()
-                momentum.disable()
-
-            gsd_restart = hoomd.dump.gsd(
-                "restart.gsd",
-                period=self.gsd_write,
-                group=_all,
-                truncate=True,
-                phase=0,
-                dynamic=["momentum"]
+            integrator_method = hoomd.md.methods.NPT(
+                    filter=_all,
+                    kT=kT,
+                    tau=self.tau_kt,
+                    S=pressure,
+                    tauS=self.tau_p, 
+                    couple="xyz"
             )
-            # Run the primary simulation
-            if pressure:
-                try: # Not defined if no shrink step
-                    integrator.disable() 
-                except NameError:
-                    pass
-                integrator = hoomd.md.integrate.npt(
-                        group=_all,
-                        tau=self.tau_kt,
-                        tauP=self.tau_p,
-                        P=pressure,
-                        kT=kT
-                        )
-            elif not pressure:
-                try: # Integrator already created (shrinking), update kT
-                    integrator.set_params(kT=kT) 
-                except NameError: # Integrator not yet created (no shrinking)
-                    integrator = hoomd.md.integrate.nvt(
-                            group=_all,
-                            tau=self.tau_kt,
-                            kT=kT)
-            integrator.randomize_velocities(seed=self.seed)
-            try:
-                hoomd.run_upto(n_steps + shrink_steps)
-                print("Simulation completed")
-                done=True
-            except hoomd.WalltimeLimitReached:
-                print("Walltime limit reached")
-                done=False
-            finally:
-                gsd_restart.write_restart()
-                print("Restart GSD file written")
-        return done
+            integrator.methods = [integrator_method]
+            sim.operations.add(integrator)
 
+        else: # Update or Set NVT integrator 
+            try: 
+                integrator.methods[0].kT = kT
+            except NameError:
+                integrator = hoomd.md.Integrator(dt=self.dt)
+                integrator.forces = forcefields
+                sim.operations.add(integrator)
+
+                integrator_method = hoomd.md.methods.NVT(
+                    filter=_all, kT=kT, tau=self.tau_kt
+                )
+                integrator.methods = [integrator_method]
+
+        sim.state.thermalize_particle_momenta(filter=_all, kT=kT)
+        try:
+            while sim.timestep < n_steps + shrink_steps + 1:
+                sim.run(min(10000, n_steps + shrink_steps + 1 - sim.timestep))
+                if self.wall_time_limit:
+                    if (sim.device.communicator.walltime + sim.walltime >=
+                            self.wall_time_limit):
+                        break
+        finally:
+            hoomd.write.GSD.write(
+                    state=sim.state, mode='wb', filename="restart.gsd"
+            )
+		
     def anneal(
         self,
         kT_init=None,
@@ -364,178 +343,182 @@ class Simulation:
         step_sequence=None,
         schedule=None,
         wall_axis=None,
+        shrink_steps=0,
         shrink_kT=None,
-        shrink_steps=None,
         shrink_period=None,
     ):
-        if wall_axis and pressure:
+        """Runs a simulation through a series of temperatures in the 
+        NVT or NPT ensemble.
+        You can define the annealing sequence by specifying an 
+        initial and final temperature and a series of steps, or
+        you can pass in a dicitonary of kT:n_steps.
+
+        kT_init : float, optional, default=None
+            The starting temperature
+        kT_final : float, optional, default=None
+            The final temperature
+        pressure : float, optional, default=None
+            When a pressure is given, the NPT ensemble is used.
+        step_sequence : list of ints, optional, default=None
+            The series of simulation steps to run between
+            kT_init and kT_final
+        schedule : dict, optional, default=None
+            Use this instead of kT_init, kT_final and step_sequnce to
+            explicitly set the series of temperatures and steps at each to run
+        shrink_kT : float, default None
+            The dimensionless temperature to use during the shrink steps
+        shrink_steps : int, defualt 0 
+            The number of steps to run during the shrink process
+        shrink_period : int, default None
+            The period between box updates during shrinking
+        wall_axis : (1,3) array like, default None
+            Create LJ wall potentials along the specified axis
+            of the simulation volume.
+            Not compatible with NPT simulations; pressure must be None
+
+        """
+        if wall_axis and pressure is not None:
             raise ValueError(
                 "Wall potentials can only be used with the NVT ensemble"
             )
-        if [shrink_kT, shrink_steps, shrink_period].count(None) %3 != 0:
-            raise ValueError(
-                "If shrinking, then all of shirnk_kT, shrink_steps "
-                "and shrink_period need to be given"
+        if shrink_steps != 0:
+            if [shrink_kT, shrink_period].count(None) != 0:
+                raise ValueError(
+                    "If shrinking, all of  shrink_kT, shrink_steps and "
+                    "shrink_period need to be given."
+                )
+
+        device = hoomd.device.auto_select()
+        sim = hoomd.Simulation(device=device, seed=self.seed)
+        
+        if self.cg_system is False:
+            init_snap, forcefields, refs = create_hoomd_forcefield(
+                    structure=self.system,
+                    r_cut=self.r_cut,
+                    ref_distance=self.ref_distance,
+                    ref_mass=self.ref_mass,
+                    ref_energy=self.ref_energy,
+                    auto_scale=self.auto_scale,
             )
-        if shrink_steps is None:
-            shrink_steps = 0
+            if self.restart:
+                sim.create_state_from_gsd(self.restart)
+            else:
+                sim.create_state_from_snapshot(init_snap)
+        else:
+            init_snap, forcefields = self._create_hoomd_sim_from_snapshot()
+            sim.create_state_from_snapshot(init_snap)
 
         if not schedule:
             temps = np.linspace(kT_init, kT_final, len(step_sequence))
             temps = [np.round(t, 1) for t in temps]
             schedule = dict(zip(temps, step_sequence))
 
-        # Get hoomd stuff set:
-        hoomd_args = f"--single-mpi --mode={self.mode}"
-        sim = hoomd.context.initialize(hoomd_args)
-        with sim:
-            if self.cg_system is False:
-                objs, refs = create_hoomd_simulation(
-                    self.system,
-                    self.ref_distance,
-                    self.ref_mass,
-                    self.ref_energy,
-                    self.r_cut,
-                    self.auto_scale,
-                    nlist=self.nlist
-                )
-                init_x = objs[0].box.Lx
-                init_y = objs[0].box.Ly
-                init_z = objs[0].box.Lz
-            elif self.cg_system is True:
-                objs = self._create_hoomd_sim_from_snapshot()
-                self.log_quantities.remove("pair_lj_energy")
-                init_x = objs[0].configuration.box[0]
-                init_y = objs[0].configuration.box[1]
-                init_z = objs[0].configuration.box[2]
+        init_x = init_snap.configuration.box[0]
+        init_y = init_snap.configuration.box[1]
+        init_z = init_snap.configuration.box[2]
+        if isinstance(self.nlist, hoomd.md.nlist.Tree):
+            lj_exclusions = forcefields[0].nlist.exclusions
+            forcefields[0].nlist = self.nlist(buffer=0.4)
+            forcefields[0].nlist.exclusions = lj_exclusions
+        # Create Hoomd simulation object and initialize a state
+        _all = hoomd.filter.All()
+        gsd_writer, table_file = self._hoomd_writers(
+                group=_all, sim=sim, forcefields=forcefields
+        )
+        sim.operations.writers.append(gsd_writer)
+        sim.operations.writers.append(table_file)
+        
+        if wall_axis is not None: # Set up wall potentials
+            walls = self._hoomd_walls(wall_axis, init_x, init_y, init_z)
+            lj_walls = hoomd.md.external.wall.LJ(walls=walls)
+            lj_walls.params[init_snap.particles.types] = {
+                    "epsilon": 1.0,
+                    "sigma": 1.0,
+                    "r_cut": 2.5,
+                    "r_extrap": 0
+            }
+            forcefields.append(lj_walls)
 
-            hoomd_system = objs[1]
-            init_snap = objs[0]
-            _all = hoomd.group.all()
-            hoomd.md.integrate.mode_standard(dt=self.dt)
-            hoomd.dump.gsd(
-                "sim_traj.gsd",
-                period=self.gsd_write,
-                group=_all,
-                phase=0,
-                dynamic=["momentum"],
-                overwrite=False,
+        if shrink_steps != 0: # Set up shrinking run
+            integrator = hoomd.md.Integrator(dt=self.dt)
+            integrator.forces = forcefields
+            integrator_method = hoomd.md.methods.NVT(
+                    filter=_all, kT=shrink_kT, tau=self.tau_kt
             )
-            hoomd.analyze.log(
-                "sim_traj.log",
-                period=self.log_write,
-                quantities=self.log_quantities,
-                header_prefix="#",
-                overwrite=True,
-                phase=0,
+            integrator.methods = [integrator_method]
+            sim.operations.add(integrator)
+            sim.state.thermalize_particle_momenta(filter=_all, kT=shrink_kT)
+            box_resize_trigger = hoomd.trigger.Periodic(shrink_period)
+            ramp = hoomd.variant.Ramp(
+                A=0, B=1, t_start=sim.timestep, t_ramp=int(shrink_steps)
+            ) 
+            initial_box = sim.state.box
+            final_box = hoomd.Box(
+                    Lx=self.target_box[0],
+                    Ly=self.target_box[1],
+                    Lz=self.target_box[2]
             )
-            # Set up wall LJ potentials
-            if wall_axis is not None:
-                wall_force, walls, normal_vector = self._hoomd_walls(
-                        wall_axis, init_x, init_y, init_z
-                )
-                wall_force.force_coeff.set(
-                    init_snap.particles.types,
-                    sigma=1.0,
-                    epsilon=1.0,
-                    r_extrap=0
-                )
-
-            if shrink_kT and shrink_steps:
-                integrator = hoomd.md.integrate.nvt(
-                        group=_all,
-                        tau=self.tau_kt,
-                        kT=shrink_kT
-                )
-                integrator.randomize_velocities(seed=self.seed)
-                x_variant = hoomd.variant.linear_interp(
-                        [(0, init_x), (shrink_steps, self.target_box[0])]
-                )
-                y_variant = hoomd.variant.linear_interp(
-                        [(0, init_y), (shrink_steps, self.target_box[1])]
-                )
-                z_variant = hoomd.variant.linear_interp(
-                        [(0, init_z), (shrink_steps, self.target_box[2])]
-                )
-
-                box_updater = hoomd.update.box_resize(
-                    Lx=x_variant,
-                    Ly=y_variant,
-                    Lz=z_variant,
-                    period=shrink_period
-                )
-                # Update walls due to shrink box changes
-                if wall_axis is not None:
-                    step = 0
-                    while step < shrink_steps:
-                        hoomd.run_upto(step + shrink_period)
-                        current_box = np.array([
-                                hoomd_system.box.Lx,
-                                hoomd_system.box.Ly,
-                                hoomd_system.box.Lz
-                        ])
-                        walls.del_plane([0, 1])
-                        walls.add_plane(
-                                (current_box/2 * wall_axis), normal_vector
-                        )
-                        walls.add_plane(
-                                (-current_box/2 * wall_axis), -normal_vector
-                        )
-                        step += shrink_period
-                else:
-                    hoomd.run_upto(shrink_steps)
-                box_updater.disable()
-
-            gsd_restart = hoomd.dump.gsd(
-                "restart.gsd",
-                period=self.gsd_write,
-                group=_all,
-                truncate=True,
-                phase=0,
-                dynamic=["momentum"]
+            box_resize = hoomd.update.BoxResize(
+                    box1=initial_box,
+                    box2=final_box,
+                    variant=ramp,
+                    trigger=box_resize_trigger
             )
+            sim.operations.updaters.append(box_resize)
 
-            if pressure:
-                try:
-                    integrator.disable()
-                except NameError:
-                    pass
-                integrator = hoomd.md.integrate.npt(
-                        group=_all,
-                        tau=self.tau_kt,
-                        tauP=self.tau_p,
-                        P=pressure,
-                        kT=1
-                )
-            elif not pressure:
-                try:
-                    integrator
-                except NameError:
-                    integrator = hoomd.md.integrate.nvt(
-                            group=_all,
-                            tau=self.tau_kt,
-                            kT=1
-                    )
-            
-            last_step = shrink_steps 
-            for kT in schedule: 
-                n_steps = schedule[kT]
-                integrator.set_params(kT=kT)
-                integrator.randomize_velocities(seed=self.seed)
-                print(f"Running @ Temp = {kT} kT")
-                print(f"Running for {n_steps} steps")
-                try:
-                    hoomd.run_upto(n_steps + last_step)
-                    last_step += n_steps
-                    done = True
-                    last_temp = kT
-                    return done, last_temp
-                except hoomd.WalltimeLimitReached:
-                    done = False
-                    last_temp = kT
-                    return done, last_temp
-                finally:
-                    gsd_restart.write_restart()
+            if wall_axis is not None: # Update walls during shrinking
+                while sim.timestep < shrink_steps + 1:
+                    sim.run(shrink_period)
+                    sim.operations.integrator.forces.remove(lj_walls)
+                    Lx = sim.state.box.Lx
+                    Ly = sim.state.box.Ly
+                    Lz = sim.state.box.Lz
+                    new_walls = self._hoomd_walls(wall_axis, Lx, Ly, Lz)
+                    lj_walls = hoomd.md.external.wall.LJ(walls=new_walls)
+                    lj_walls.params[init_snap.particles.types] = {
+                            "epsilon": 1.0,
+                            "sigma": 1.0,
+                            "r_cut": 2.5,
+                            "r_extrap": 0
+                    }
+                    sim.operations.integrator.forces.append(lj_walls)
+            else: # Run shrink steps without updating walls
+                sim.run(shrink_steps + 1)
+            assert sim.state.box == final_box
+
+        if pressure is not None: # Set NPT integrator
+            if shrink_steps !=0:
+                sim.operations.remove(integrator)
+            else:
+                integrator = hoomd.md.Integrator(dt=self.dt)
+                integrator.forces = forcefields
+
+            integrator_method = hoomd.md.methods.NPT(
+                    filter=_all,
+                    kT=1.0,
+                    tau=self.tau_kt,
+                    S=pressure,
+                    tauS=self.tau_p, 
+                    couple="xyz"
+            )
+            sim.operations.add(integrator)
+        
+        try: 
+            integrator  # Not yet defined if no shrink step ran
+        except NameError:
+            integrator = hoomd.md.Integrator(dt=self.dt)
+            integrator.forces = forcefields
+            integrator_method = hoomd.md.methods.NVT(
+                filter=_all, kT=1.0, tau=self.tau_kt
+            )
+            integrator.methods = [integrator_method]
+            sim.operations.add(integrator)
+
+        for kT in schedule:
+            integrator.methods[0].kT = kT
+            sim.state.thermalize_particle_momenta(filter=_all, kT=kT)
+            n_steps = schedule[kT]
+            sim.run(n_steps) 
 
     def tensile(self,
             kT,
@@ -557,172 +540,148 @@ class Simulation:
         expand_period : int
             The number of steps ran between each box update.
         fix_ratio : float, default = 0.05
-            The distance along the x-axis to fix particles in place.
-            Treated as a percentage of the initial  volume's x_length.
-            Since particles are fixed on each side, half of x_fix
-            is used for the distance.
+            The distance along the tensile axis to fix particles in place.
+            Treated as a percentage of the initial box length.
+            Since particles are fixed on each side, half of fix_ratio
+            is used for the distance on each side.
 
         """
-        hoomd_args = f"--single-mpi --mode={self.mode}"
-        sim = hoomd.context.initialize(hoomd_args)
-        with sim:
-            objs, refs = create_hoomd_simulation(
-                    self.system,
-                    self.ref_distance,
-                    self.ref_mass,
-                    self.ref_energy,
-                    self.r_cut,
-                    self.auto_scale,
-                    nlist=self.nlist
+        if self.cg_system is False:
+            init_snap, forcefields, refs = create_hoomd_forcefield(
+                    structure=self.system,
+                    r_cut=self.r_cut,
+                    ref_distance=self.ref_distance,
+                    ref_mass=self.ref_mass,
+                    ref_energy=self.ref_energy,
+                    auto_scale=self.auto_scale,
             )
-            hoomd_system = objs[1]
-            init_snap = objs[0]
-            tensile_axis = tensile_axis.lower()
-            init_length = getattr(init_snap.box, f"L{tensile_axis}")
-            fix_length = init_length * fix_ratio
-            target_length = init_length * (1+strain)
-            linear_variant = hoomd.variant.linear_interp(
-                    [(0, init_length), (n_steps, target_length)]
-            )
-            axis_dict = {
-                "x": np.array([1,0,0]),
-                "y": np.array([0,1,0]),
-                "z": np.array([0,0,1])
-            }
-            adjust_axis = axis_dict[tensile_axis]
+        else:
+            init_snap, objs = self._create_hoomd_sim_from_snapshot()
 
-            if tensile_axis == "x":
-                fix_left = hoomd.group.cuboid( # Negative x side of box
-                        name="left",
-                        xmin=-init_snap.box.Lx / 2,
-                        xmax=(-init_snap.box.Lx / 2)  + fix_length
-                )
-                fix_right = hoomd.group.cuboid(
-                        name="right",
-                        xmin=(init_snap.box.Lx / 2) - fix_length,
-                        xmax=init_snap.box.Lx / 2
-                )
-                box_updater = hoomd.update.box_resize(
-                        Lx=linear_variant,
-                        period=expand_period,
-                        scale_particles=False
-                )
-            elif tensile_axis == "y":
-                fix_left = hoomd.group.cuboid( # Negative x side of box
-                        name="left",
-                        ymin=-init_snap.box.Ly / 2,
-                        ymax=(-init_snap.box.Ly / 2)  + fix_length
-                )
-                fix_right = hoomd.group.cuboid(
-                        name="right",
-                        ymin=(init_snap.box.Ly / 2) - fix_length,
-                        ymax=init_snap.box.Ly / 2
-                )
-                box_updater = hoomd.update.box_resize(
-                        Ly=linear_variant,
-                        period=expand_period,
-                        scale_particles=False
-                )
-            elif tensile_axis == "z":
-                fix_left = hoomd.group.cuboid( # Negative x side of box
-                        name="left",
-                        zmin=-init_snap.box.Lz / 2,
-                        zmax=(-init_snap.box.Lz / 2)  + fix_length
-                )
-                fix_right = hoomd.group.cuboid(
-                        name="right",
-                        zmin=(init_snap.box.Lz / 2) - fix_length,
-                        zmax=init_snap.box.Lz / 2
-                )
-                box_updater = hoomd.update.box_resize(
-                        Lz=linear_variant,
-                        period=expand_period,
-                        scale_particles=False
-                )
-
-            _all_fixed = hoomd.group.union(
-                    name="fixed", a=fix_left, b=fix_right
-            )
-            _all = hoomd.group.all()
-            _integrate = hoomd.group.difference(
-                    name="integrate", a=_all, b=_all_fixed
-            )
-            hoomd.md.integrate.mode_standard(dt=self.dt)
-            integrator = hoomd.md.integrate.nve(
-                    group=_integrate, limit=None, zero_force=False
-            )
-            integrator.randomize_velocities(kT, seed=self.seed)
-
-            hoomd.dump.gsd(
-                    "sim_traj.gsd",
-                    period=self.gsd_write,
-                    group=_all,
-                    phase=0,
-                    dynamic=["momentum"],
-                    overwrite=False
-            )
-            hoomd.analyze.log(
-                    "sim_traj.log",
-                    period=self.log_write,
-                    quantities=self.log_quantities,
-                    header_prefix="#",
-                    overwrite=True,
-                    phase=0
-            )
-            gsd_restart = hoomd.dump.gsd(
-                    "restart.gsd",
-                    period=self.gsd_write,
-                    group=_all,
-                    truncate=True,
-                    phase=0,
-                    dynamic=["momentum"]
-            )
+        device = hoomd.device.auto_select()
+        sim = hoomd.Simulation(device=device, seed=self.seed)
+        _all = hoomd.filter.All()
+        if self.restart:
+            sim.create_state_from_gsd(self.restart)
+        else:
+            sim.create_state_from_snapshot(init_snap)
+        gsd_writer, table_file = self._hoomd_writers(
+                group=_all, sim=sim, forcefields=forcefields
+        )
+        sim.operations.writers.append(gsd_writer)
+        sim.operations.writers.append(table_file)
+        
+        # Set up target volume, tensile axis, etc.
+        init_box = sim.state.box
+        final_box = hoomd.Box(
+                Lx=init_box.Lx, Ly=init_box.Ly, Lz=init_box.Lz
+        )
+        tensile_axis = tensile_axis.lower()
+        init_length = getattr(init_box, f"L{tensile_axis}")
+        fix_length = init_length * fix_ratio
+        target_length = init_length * (1+strain)
+        box_resize_trigger = hoomd.trigger.Periodic(expand_period)
+        ramp = hoomd.variant.Ramp(
+            A=0, B=1, t_start=sim.timestep, t_ramp=int(n_steps)
+		)
+        
+        # Set up the walls of fixed particles
+        box_max = getattr(init_box, f"L{tensile_axis}")/2
+        box_min = -box_max
+        if tensile_axis == "x":
+            positions = init_snap.particles.position[:,0]
+            final_box.Lx = target_length
+        elif tensile_axis == "y":
+            positions = init_snap.particles.position[:,1]
+            final_box.Ly = target_length
+        elif tensile_axis == "z":
+            positions = init_snap.particles.position[:,2]
+            final_box.Lz = target_length
             
-            # Start simulation run
-            adjust_axis = axis_dict[tensile_axis]
-            step = 0
-            last_L = init_length 
-            while step < n_steps:
-                try:
-                    hoomd.run_upto(step + expand_period)
-                    current_L = getattr(hoomd_system.box, f"L{tensile_axis}")
-                    diff = current_L - last_L
-                    for particle in fix_left:
-                        particle.position -= (adjust_axis * (diff/2))
-                    for particle in fix_right:
-                        particle.position += (adjust_axis * (diff/2))
-                    step += expand_period
-                    last_L = current_L 
-                except hoomd.WalltimeLimitReached:
-                    pass
-                finally:
-                    gsd_restart.write_restart()
+        left_tags = np.where(positions < (box_min + fix_length))[0]
+        right_tags = np.where(positions > (box_max - fix_length))[0]
+        fix_left = hoomd.filter.Tags(left_tags.astype(np.uint32))
+        fix_right = hoomd.filter.Tags(right_tags.astype(np.uint32))
+        all_fixed = hoomd.filter.Union(fix_left, fix_right)
+        integrate_group = hoomd.filter.SetDifference(_all, all_fixed)
+
+        # Finish setting up simulation
+        integrator = hoomd.md.Integrator(dt=self.dt)
+        integrator.forces = forcefields
+        integrator_method = hoomd.md.methods.NVE(filter=integrate_group)
+        box_resize = hoomd.update.BoxResize(
+                box1=init_box,
+                box2=final_box,
+                variant=ramp,
+                trigger=box_resize_trigger,
+                filter=all_fixed
+        )
+        sim.operations.updaters.append(box_resize)
+        integrator.methods = [integrator_method]
+        sim.operations.add(integrator)
+        sim.state.thermalize_particle_momenta(filter=integrate_group, kT=kT)
+
+        try:
+            while sim.timestep < n_steps + 1:
+                sim.run(min(10000, n_steps + 1 - sim.timestep))
+                if self.wall_time_limit:
+                    if (sim.device.communicator.walltime + sim.walltime >=
+                            self.wall_time_limit):
+                        break
+        finally:
+            hoomd.write.GSD.write(
+                    state=sim.state, mode='wb', filename="restart.gsd"
+            )
+        
+    def _hoomd_writers(self, group, forcefields, sim):
+        # GSD and Logging:
+        if self.restart:
+            writemode = "a"
+        else:
+            writemode = "w"
+        gsd_writer = hoomd.write.GSD(
+                filename="sim_traj.gsd",
+                trigger=hoomd.trigger.Periodic(int(self.gsd_write)),
+                mode=f"{writemode}b",
+                dynamic=["momentum"]
+        )
+
+        logger = hoomd.logging.Logger(categories=["scalar", "string"])
+        logger.add(sim, quantities=["timestep", "tps"])
+        thermo_props = hoomd.md.compute.ThermodynamicQuantities(filter=group)
+        sim.operations.computes.append(thermo_props)
+        logger.add(thermo_props, quantities=self.log_quantities)
+        for f in forcefields:
+            logger.add(f, quantities=["energy"])
+
+        table_file = hoomd.write.Table(
+            output=open("sim_traj.txt", mode=f"{writemode}", newline="\n"),
+            trigger=hoomd.trigger.Periodic(period=int(self.log_write)),
+            logger=logger,
+            max_header_len=None,
+        )
+        return gsd_writer, table_file 
 
     def _create_hoomd_sim_from_snapshot(self):
         """Creates needed hoomd objects.
 
-        Similar to the `create_hoomd_simulation` function
-        from mbuild, but designed to work when initializing
+        Similar to the `create_hoomd_forcefield` function
+        from mBuild, but designed to work when initializing
         a system from a gsd file rather than a Parmed structure.
         Created specifically for using table potentials with
         coarse-grained systems.
 
         """
         if self.restart is None:
-            hoomd_system = hoomd.init.read_gsd(self.system)
             with gsd.hoomd.open(self.system, "rb") as f:
                 init_snap = f[0]
         else:
             with gsd.hoomd.open(self.restart) as f:
                 init_snap = f[-1]
-                hoomd_system = hoomd.init.read_gsd(
-                    self.restart, restart=self.restart
-                )
                 print("Simulation initialized from restart file")
-
-        pairs = []
-        pair_pot_files = []
-        pair_pot_widths = []
+        # Create pair table potentials
+        nlist = self.nlist(buffer=0.4)
+        pair_table = hoomd.md.pair.Table(nlist=nlist)
         for pair in [list(i) for i in combo(init_snap.particles.types, r=2)]:
             _pair = "-".join(sorted(pair))
             pair_pot_file = f"{self.cg_ff_path}/{_pair}.txt"
@@ -732,21 +691,13 @@ class Simulation:
                 raise RuntimeError(f"The potential file {pair_pot_file} "
                     f"for pair {_pair} does not exist in {self.cg_ff_path}."
                 )
-            pairs.append(_pair)
-            pair_pot_files.append(pair_pot_file)
-            pair_pot_widths.append(len(np.loadtxt(pair_pot_file)[:,0]))
-
-        if not all([i == pair_pot_widths[0] for i in pair_pot_widths]):
-            raise RuntimeError(
-                "All pair potential files must have the same length"    
+            pair_data = np.loadtxt(pair_pot_file)
+            r_min = pair_data[:,0][0]
+            r_cut = pair_data[:,0][-1]
+            pair_table.params[tuple(sorted(pair))] = dict(
+                    r_min=r_min, U=pair_data[:,1], F=pair_data[:,2]
             )
-
-        pair_pot = hoomd.md.pair.table(
-                width=pair_pot_widths[0], nlist=self.nlist()
-        )
-        for pair, fpath in zip(pairs, pair_pot_files):
-            pair = pair.split("-")
-            pair_pot.set_from_file(f"{pair[0]}", f"{pair[1]}", filename=fpath)
+            pair_table.r_cut[tuple(sorted(pair))] = r_cut
 
         # Repeat same process for Bonds 
         bonds = []
@@ -770,9 +721,17 @@ class Simulation:
                 "All bond potential files must have the same length"    
             )
 
-        bond_pot = hoomd.md.bond.table(width=bond_pot_widths[0])
+        bond_table = hoomd.md.bond.Table(width=bond_pot_widths[0])
         for bond, fpath in zip(bonds, bond_pot_files):
-            bond_pot.set_from_file(f"{bond}", f"{bond_pot_file}")
+            bond_data = np.loadtxt(fpath)
+            r_min = bond_data[:,0][0]
+            r_max = bond_data[:,0][-1]
+            bond_table.params[bond] = dict(
+                    r_min=r_min,
+                    r_max=r_max,
+                    U=bond_data[:,1],
+                    F=bond_data[:,2]
+            )
         
         # Repeat same process for Angles 
         angles = []
@@ -796,35 +755,30 @@ class Simulation:
                 "All bond potential files must have the same length"    
             )
 
-        angle_pot = hoomd.md.angle.table(width=angle_pot_widths[0])
+        angle_table = hoomd.md.angle.Table(width=angle_pot_widths[0])
         for angle, fpath in zip(angles, angle_pot_files):
-            angle_pot.set_from_file(f"{angle}", f"{angle_pot_file}")
+            angle_data = np.loadtxt(fpath)
+            angle_table.params[angle] = dict(
+                    U=angle_data[:,1], tau=angle_data[:,2]
+            )
 
-        hoomd_objs = [
-                init_snap,
-                hoomd_system,
-                self.nlist(),
-                pair_pot,
-                bond_pot,
-                angle_pot,
+        hoomd_forces = [
+                pair_table,
+                bond_table,
+                angle_table,
         ]
-        return hoomd_objs 
+        return init_snap, hoomd_forces 
 
-    def _hoomd_walls(self, wall_axis, init_x, init_y, init_z):
+    def _hoomd_walls(self, wall_axis, Lx, Ly, Lz):
         """Create hoomd LJ wall potentials"""
         wall_origin = np.asarray(wall_axis) * np.array(
-                [init_x/2, init_y/2, init_z/2]
-                )
+                [Lx/2, Ly/2, Lz/2]
+        )
         normal_vector = -np.asarray(wall_axis)
         wall_origin2 = -wall_origin
         normal_vector2 = -normal_vector
-        walls = wall.group(
-            wall.plane(
-                origin=wall_origin, normal=normal_vector, inside=True
-                ),
-            wall.plane(
-                origin=wall_origin2, normal=normal_vector2, inside=True
-                ),
-        )
-        wall_force = wall.lj(walls, r_cut=2.5)
-        return wall_force, walls, normal_vector
+        wall1 = hoomd.wall.Plane(origin=wall_origin, normal=normal_vector)
+        wall2 = hoomd.wall.Plane(origin=wall_origin2, normal=normal_vector2)
+        walls = [wall1, wall2]
+        return walls
+
