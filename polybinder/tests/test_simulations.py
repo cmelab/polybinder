@@ -276,3 +276,29 @@ class TestSimulate(BaseTest):
                 shrink_steps=500,
                 shrink_period=10,
         )
+
+    def test_quench_from_restart(self, pekk_system_noH, restart_gsd):
+        simulation = simulate.Simulation(
+                pekk_system_noH, dt=0.001, mode="cpu", restart=restart_gsd
+        )
+        simulation.quench(
+            kT=2,
+            n_steps=5e2,
+            shrink_kT=None,
+            shrink_steps=0,
+            shrink_period=None,
+        )
+
+    def test_anneal_from_restart(self, pekk_system_noH, restart_gsd):
+        simulation = simulate.Simulation(
+                pekk_system_noH, dt=0.001, mode="cpu", restart=restart_gsd
+        )
+        simulation.anneal(
+            kT_init=2,
+            kT_final=4,
+            step_sequence = [5e2, 5e2],
+            shrink_kT=None,
+            shrink_steps=0,
+            shrink_period=None,
+        )
+
