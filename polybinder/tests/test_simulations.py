@@ -100,7 +100,7 @@ class TestSimulate(BaseTest):
             pressure=0.1,
             n_steps=5e2,
             init_shrink_kT=8,
-            final_shrink_kT=8,
+            final_shrink_kT=3,
             shrink_steps=1e3,
             shrink_period=1,
         )
@@ -111,7 +111,7 @@ class TestSimulate(BaseTest):
             kT=2,
             n_steps=1e3,
             init_shrink_kT=8,
-            final_shrink_kT=8,
+            final_shrink_kT=2,
             shrink_steps=5e2,
             shrink_period=1,
         )
@@ -129,7 +129,7 @@ class TestSimulate(BaseTest):
             pressure=0.1,
             step_sequence=[5e2, 5e2],
             init_shrink_kT=8,
-            final_shrink_kT=8,
+            final_shrink_kT=4,
             shrink_steps=5e2,
             shrink_period=1,
         )
