@@ -12,7 +12,7 @@ COPY setup.py ./polybinder/
 
 RUN ls -la ./polybinder
 
-RUN python -m pip install ./polybinder
+RUN pip install ./polybinder ./polybinder 
 
 RUN pytest -vx
 
