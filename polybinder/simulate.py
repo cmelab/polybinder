@@ -178,8 +178,10 @@ class Simulation:
             The dimensionless temperature at which to run the simulation
         pressure : float, default None
             The dimensionless pressure at which to run the simulation
-        shrink_kT : float, default None
-            The dimensionless temperature to use during the shrink steps
+        init_shrink_kT : float, default None
+            The initial dimensionless temperature during shrinking 
+        final_shrink_kT : float, default None
+            The final dimensionless temperature during shrinking
         shrink_steps : int, defualt 0 
             The number of steps to run during the shrink process
         shrink_period : int, default None
@@ -378,8 +380,10 @@ class Simulation:
         schedule : dict, optional, default=None
             Use this instead of kT_init, kT_final and step_sequnce to
             explicitly set the series of temperatures and steps at each to run
-        shrink_kT : float, default None
-            The dimensionless temperature to use during the shrink steps
+        init_shrink_kT : float, default None
+            The initial dimensionless temperature during shrinking 
+        final_shrink_kT : float, default None
+            The final dimensionless temperature during shrinking
         shrink_steps : int, defualt 0 
             The number of steps to run during the shrink process
         shrink_period : int, default None
