@@ -160,7 +160,8 @@ class Simulation:
         kT=None,
         pressure=None,
         shrink_steps=0,
-        shrink_kT=None,
+        init_shrink_kT=None,
+        final_shrink_kT=None,
         shrink_period=None,
         wall_axis=None,
     ):
@@ -194,10 +195,12 @@ class Simulation:
                     "Wall potentials can only be used with the NVT ensemble."
             )
         if shrink_steps != 0:
-            if [shrink_kT, shrink_period].count(None) != 0:
+            if [
+                    init_shrink_kT, final_shrink_kT, shrink_period
+                        ].count(None) != 0:
                 raise ValueError(
-                    "If shrinking, all of  shrink_kT, shrink_steps and "
-                    "shrink_period need to be given."
+                    "If shrinking, all of  init_shrink_kT, final_shrink_kT, "
+                    "shrink_steps and shrink_period need to be given."
                 )
 
         device = hoomd.device.auto_select()
@@ -243,16 +246,25 @@ class Simulation:
                     "r_extrap": 0
             }
             forcefields.append(lj_walls)
-         
+
         if shrink_steps != 0: # Set up shrinking run
+            temp_ramp = hoomd.variant.Ramp(
+                    A=init_shrink_kT,
+                    B=final_shrink_kT,
+                    t_start=sim.timestep,
+                    t_ramp=int(shrink_steps)
+            )
             integrator = hoomd.md.Integrator(dt=self.dt)
             integrator.forces = forcefields
             integrator_method = hoomd.md.methods.NVT(
-                    filter=_all, kT=shrink_kT, tau=self.tau_kt
+                    filter=_all, kT=temp_ramp, tau=self.tau_kt
             )
             integrator.methods = [integrator_method]
             sim.operations.add(integrator)
-            sim.state.thermalize_particle_momenta(filter=_all, kT=shrink_kT)
+            sim.state.thermalize_particle_momenta(
+                    filter=_all, kT=init_shrink_kT
+            )
+            # Set up box ramp
             box_resize_trigger = hoomd.trigger.Periodic(shrink_period)
             ramp = hoomd.variant.Ramp(
                 A=0, B=1, t_start=sim.timestep, t_ramp=int(shrink_steps)
@@ -292,9 +304,9 @@ class Simulation:
             assert sim.state.box == final_box
 
         if pressure is not None: # Set NPT integrator
-            if shrink_kT and shrink_steps:
+            try:
                 sim.operations.remove(integrator)
-            else:
+            except NameError:
                 integrator = hoomd.md.Integrator(dt=self.dt)
                 integrator.forces = forcefields
 
@@ -344,7 +356,8 @@ class Simulation:
         schedule=None,
         wall_axis=None,
         shrink_steps=0,
-        shrink_kT=None,
+        init_shrink_kT=None,
+        final_shrink_kT=None,
         shrink_period=None,
     ):
         """Runs a simulation through a series of temperatures in the 
@@ -382,10 +395,12 @@ class Simulation:
                 "Wall potentials can only be used with the NVT ensemble"
             )
         if shrink_steps != 0:
-            if [shrink_kT, shrink_period].count(None) != 0:
+            if [
+                init_shrink_kT, final_shrink_kT, shrink_period
+                    ].count(None) != 0:
                 raise ValueError(
-                    "If shrinking, all of  shrink_kT, shrink_steps and "
-                    "shrink_period need to be given."
+                    "If shrinking, all of  init_shrink_kT, final_shrink_kT, "
+                    "shrink_steps and shrink_period need to be given."
                 )
 
         device = hoomd.device.auto_select()
@@ -440,14 +455,24 @@ class Simulation:
             forcefields.append(lj_walls)
 
         if shrink_steps != 0: # Set up shrinking run
+            # Set up temperature ramp
+            temp_ramp = hoomd.variant.Ramp(
+                    A=init_shrink_kT,
+                    B=final_shrink_kT,
+                    t_start=sim.timestep,
+                    t_ramp=int(shrink_steps)
+            )
             integrator = hoomd.md.Integrator(dt=self.dt)
             integrator.forces = forcefields
             integrator_method = hoomd.md.methods.NVT(
-                    filter=_all, kT=shrink_kT, tau=self.tau_kt
+                    filter=_all, kT=temp_ramp, tau=self.tau_kt
             )
             integrator.methods = [integrator_method]
             sim.operations.add(integrator)
-            sim.state.thermalize_particle_momenta(filter=_all, kT=shrink_kT)
+            sim.state.thermalize_particle_momenta(
+                    filter=_all, kT=init_shrink_kT
+            )
+            # Set up box resize
             box_resize_trigger = hoomd.trigger.Periodic(shrink_period)
             ramp = hoomd.variant.Ramp(
                 A=0, B=1, t_start=sim.timestep, t_ramp=int(shrink_steps)
@@ -487,9 +512,9 @@ class Simulation:
             assert sim.state.box == final_box
 
         if pressure is not None: # Set NPT integrator
-            if shrink_steps !=0:
+            try:
                 sim.operations.remove(integrator)
-            else:
+            except NameError:
                 integrator = hoomd.md.Integrator(dt=self.dt)
                 integrator.forces = forcefields
 
@@ -501,6 +526,7 @@ class Simulation:
                     tauS=self.tau_p, 
                     couple="xyz"
             )
+            integrator.methods = [integrator_method]
             sim.operations.add(integrator)
         
         try: 

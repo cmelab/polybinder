@@ -13,12 +13,25 @@ class TestSimulate(BaseTest):
                 dt=0.0001,
                 mode="cpu"
         )
-        # Only 1 of shrink params given
+        # Only 1 of shrink params given for shrink
         with pytest.raises(ValueError):
             simulation.quench(
                 kT=2,
                 n_steps=5e2,
-                shrink_kT=5,
+                init_shrink_kT=5,
+                final_shrink_kT=2,
+                shrink_steps=1e3,
+                shrink_period=None,
+            )
+
+        # Only 1 of shrink params given for anneal
+        with pytest.raises(ValueError):
+            simulation.anneal(
+                kT_init=2,
+                kT_final=2,
+                step_sequence=[5e2, 5e2, 5e2],
+                init_shrink_kT=5,
+                final_shrink_kT=2,
                 shrink_steps=1e3,
                 shrink_period=None,
             )
@@ -86,7 +99,8 @@ class TestSimulate(BaseTest):
             kT=2,
             pressure=0.1,
             n_steps=5e2,
-            shrink_kT=8,
+            init_shrink_kT=8,
+            final_shrink_kT=8,
             shrink_steps=1e3,
             shrink_period=1,
         )
@@ -96,7 +110,8 @@ class TestSimulate(BaseTest):
         simulation.quench(
             kT=2,
             n_steps=1e3,
-            shrink_kT=8,
+            init_shrink_kT=8,
+            final_shrink_kT=8,
             shrink_steps=5e2,
             shrink_period=1,
         )
@@ -113,7 +128,8 @@ class TestSimulate(BaseTest):
             kT_final=2,
             pressure=0.1,
             step_sequence=[5e2, 5e2],
-            shrink_kT=8,
+            init_shrink_kT=8,
+            final_shrink_kT=8,
             shrink_steps=5e2,
             shrink_period=1,
         )
@@ -124,7 +140,8 @@ class TestSimulate(BaseTest):
             kT_init=4,
             kT_final=2,
             step_sequence=[5e2, 5e2],
-            shrink_kT=8,
+            init_shrink_kT=8,
+            final_shrink_kT=8,
             shrink_steps=5e2,
             shrink_period=1,
         )
@@ -134,7 +151,8 @@ class TestSimulate(BaseTest):
         simulation.quench(
             kT=2,
             n_steps=5e2,
-            shrink_kT=8,
+            init_shrink_kT=8,
+            final_shrink_kT=8,
             shrink_steps=5e2,
             shrink_period=1,
         )
@@ -145,7 +163,8 @@ class TestSimulate(BaseTest):
             kT_init=4,
             kT_final=2,
             step_sequence=[5e2, 5e2],
-            shrink_kT=8,
+            init_shrink_kT=8,
+            final_shrink_kT=8,
             shrink_steps=5e2,
             shrink_period=1,
         )
@@ -155,7 +174,8 @@ class TestSimulate(BaseTest):
         simulation.quench(
             kT=2,
             n_steps=1e2,
-            shrink_kT=6,
+            init_shrink_kT=6,
+            final_shrink_kT=6,
             shrink_steps=1e3,
             shrink_period=5,
             wall_axis=[1,0,0],
@@ -167,7 +187,8 @@ class TestSimulate(BaseTest):
             kT_init=4,
             kT_final=2,
             step_sequence=[1e2, 1e2],
-            shrink_kT=6,
+            init_shrink_kT=6,
+            final_shrink_kT=6,
             shrink_steps=1e3,
             shrink_period=5,
             wall_axis=[1,0,0],
@@ -178,7 +199,8 @@ class TestSimulate(BaseTest):
         simulation.quench(
             kT=2,
             n_steps=1e2,
-            shrink_kT=6,
+            init_shrink_kT=6,
+            final_shrink_kT=6,
             shrink_steps=1e3,
             shrink_period=5,
             wall_axis=[0,1,0],
@@ -190,7 +212,8 @@ class TestSimulate(BaseTest):
             kT_init=4,
             kT_final=2,
             step_sequence=[1e2, 1e2],
-            shrink_kT=6,
+            init_shrink_kT=6,
+            final_shrink_kT=6,
             shrink_steps=1e3,
             shrink_period=5,
             wall_axis=[0,1,0],
@@ -201,7 +224,8 @@ class TestSimulate(BaseTest):
         simulation.quench(
             kT=2,
             n_steps=1e2,
-            shrink_kT=6,
+            init_shrink_kT=6,
+            final_shrink_kT=6,
             shrink_steps=1e3,
             shrink_period=5,
             wall_axis=[0,0,1],
@@ -213,7 +237,8 @@ class TestSimulate(BaseTest):
             kT_init=4,
             kT_final=2,
             step_sequence=[1e2, 1e2],
-            shrink_kT=6,
+            init_shrink_kT=6,
+            final_shrink_kT=6,
             shrink_steps=1e3,
             shrink_period=5,
             wall_axis=[0,0,1],
@@ -272,7 +297,8 @@ class TestSimulate(BaseTest):
         simulation.quench(
                 kT=3.5,
                 n_steps=500,
-                shrink_kT=3.5,
+                init_shrink_kT=3.5,
+                final_shrink_kT=3.5,
                 shrink_steps=500,
                 shrink_period=10,
         )
@@ -284,7 +310,8 @@ class TestSimulate(BaseTest):
         simulation.quench(
             kT=2,
             n_steps=5e2,
-            shrink_kT=None,
+            init_shrink_kT=None,
+            final_shrink_kT=None,
             shrink_steps=0,
             shrink_period=None,
         )
@@ -297,7 +324,8 @@ class TestSimulate(BaseTest):
             kT_init=2,
             kT_final=4,
             step_sequence = [5e2, 5e2],
-            shrink_kT=None,
+            init_shrink_kT=None,
+            final_shrink_kT=None,
             shrink_steps=0,
             shrink_period=None,
         )
