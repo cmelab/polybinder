@@ -12,7 +12,7 @@ COPY polybinder/ ./polybinder/polybinder/
 
 COPY setup.py ./polybinder/
 
-RUN cd polybinder && /
+RUN cd polybinder && \
 	ls
 
 RUN pip install .
