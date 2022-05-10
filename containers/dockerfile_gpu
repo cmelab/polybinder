@@ -1,11 +1,11 @@
-FROM cmelab/gpuhoomdconda:latest
+FROM cmelab/gpuconda:latest
 
-# Create the environment
-COPY environment-nohoomd.yml ./
+ENV CONDA_OVERRIDE_CUDA=10.2
+COPY environment-gpu.yml ./
 
 # Install in base environment
 RUN conda install -y -n base -c conda-forge git && \
-	conda env update -n base -f environment-nohoomd.yml && \
+	conda env update -n base -f environment-gpu.yml && \
     conda clean --all --yes -f 
 
 COPY polybinder/ ./polybinder/polybinder/
