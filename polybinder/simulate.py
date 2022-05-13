@@ -208,7 +208,7 @@ class Simulation:
                 group=self._all, sim=self.sim, forcefields=self.forcefields
         )
         self.sim.operations.writers.append(gsd_writer)
-        self.sim.operations.writers.append(table_file)
+        #self.sim.operations.writers.append(table_file)
         self.integrator = hoomd.md.Integrator(dt=self.dt)
         self.integrator.forces = self.forcefields
         self.sim.operations.add(self.integrator)
@@ -396,7 +396,7 @@ class Simulation:
         else: # Add NVT integrator if not already set up
             if not self.ran_shrink:
                 self.integrator_method = hoomd.md.methods.NVT(
-                    filter=self._all, kT=kT, tau=self.tau_kt
+                    filter=self._all, kT=kT_init, tau=self.tau_kt
                 )
                 self.sim.operations.integrator.methods = [
                         self.integrator_method
@@ -510,7 +510,7 @@ class Simulation:
                 mode=f"{writemode}b",
                 dynamic=["momentum"]
         )
-
+        return gsd_writer, None
         logger = hoomd.logging.Logger(categories=["scalar", "string"])
         logger.add(sim, quantities=["timestep", "tps"])
         thermo_props = hoomd.md.compute.ThermodynamicQuantities(filter=group)
