@@ -220,7 +220,6 @@ class Simulation:
                 group=self._all, sim=self.sim, forcefields=self.forcefields
         )
         self.sim.operations.writers.append(gsd_writer)
-        #TODO: Trouble shoot table writer issues when using wall pot
         self.sim.operations.writers.append(table_file)
         self.integrator = hoomd.md.Integrator(dt=self.dt)
         self.integrator.forces = self.forcefields
@@ -324,12 +323,7 @@ class Simulation:
         if tree_nlist and isinstance(self.nlist, hoomd.md.nlist.Cell):
             self.sim.operationsintegrator.forces[0].nlist = original_nlist 
         
-    def quench(
-        self,
-        n_steps,
-        kT=None,
-        pressure=None,
-    ):
+    def quench(self, n_steps, kT=None, pressure=None):
         """Runs an NVT or NPT simulation at a single temperature
         and/or pressure. 
 
