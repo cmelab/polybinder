@@ -31,6 +31,9 @@ class Simulation:
     nlist : str, default `Cell`
         Type of neighborlist to use. Options are "Cell", "Tree", and "Stencil".
         See https://hoomd-blue.readthedocs.io/en/latest/module-md-nlist.html
+    wall_axis : array like, default None
+        Specify the axis normal to the wall potentials used during a simulation.
+        E.g. wall_axis = [1,0,0] places wall potentials on the y,z plane
     dt : float, default 0.0001
         Size of simulation timestep (in simulation time units)
     auto_scale : bool, default True
@@ -40,9 +43,9 @@ class Simulation:
     ref_values : dict, default None
         Define the reference units for distance, mass, energy.
         Set auto_scale to False to define your own reference values.
-    mode : str, default "gpu"
-        Mode flag passed to hoomd.context.initialize. Options are "cpu" and
-        "gpu".
+    mode : str, default "auto"
+        Tell hoomd which device to use (CPU or GPU).
+        mode = "auto" will auto-select the mode
     gsd_write : int, default 1e4
         Period to write simulation snapshots to gsd file.
     log_write : int, default 1e3
@@ -89,7 +92,7 @@ class Simulation:
         dt=0.0003,
         auto_scale=True,
         ref_values=None,
-        mode="gpu",
+        mode="auto",
         gsd_write=1e4,
         log_write=1e3,
         seed=42,
@@ -105,7 +108,7 @@ class Simulation:
         self.dt = dt
         self.auto_scale = auto_scale
         self.ref_values = ref_values
-        self.mode = mode
+        self.mode = mode.lower()
         self.gsd_write = gsd_write
         self.log_write = log_write
         self.seed = seed
@@ -163,7 +166,12 @@ class Simulation:
             "pressure_tensor",
         ]
 
-        self.device = hoomd.device.auto_select()
+        if self.mode == "cpu":
+            self.device = hoomd.device.CPU()
+        elif self.mode == "gpu":
+            self.device = hoomd.device.GPU()
+        else:
+            self.device = hoomd.device.auto_select()
         self.sim = hoomd.Simulation(device=self.device, seed=self.seed)
 
         # Initialize the sim state.
@@ -212,8 +220,8 @@ class Simulation:
                 group=self._all, sim=self.sim, forcefields=self.forcefields
         )
         self.sim.operations.writers.append(gsd_writer)
-        #TODO: Trouble shoot table writer issues
-        #self.sim.operations.writers.append(table_file)
+        #TODO: Trouble shoot table writer issues when using wall pot
+        self.sim.operations.writers.append(table_file)
         self.integrator = hoomd.md.Integrator(dt=self.dt)
         self.integrator.forces = self.forcefields
         self.sim.operations.add(self.integrator)
@@ -545,13 +553,15 @@ class Simulation:
                 mode=f"{writemode}b",
                 dynamic=["momentum"]
         )
-        return gsd_writer, None
+    #    return gsd_writer, None
         logger = hoomd.logging.Logger(categories=["scalar", "string"])
         logger.add(sim, quantities=["timestep", "tps"])
         thermo_props = hoomd.md.compute.ThermodynamicQuantities(filter=group)
         sim.operations.computes.append(thermo_props)
         logger.add(thermo_props, quantities=self.log_quantities)
         for f in forcefields:
+            if isinstance(f, hoomd.md.external.wall.LJ):
+                continue
             logger.add(f, quantities=["energy"])
 
         table_file = hoomd.write.Table(
