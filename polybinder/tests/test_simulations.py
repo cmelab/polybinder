@@ -11,30 +11,10 @@ class TestSimulate(BaseTest):
                 peek_system,
                 tau_p=0.1,
                 dt=0.0001,
+                wall_axis=[1,0,0],
                 mode="cpu"
         )
-        # Only 1 of shrink params given for shrink
-        with pytest.raises(ValueError):
-            simulation.quench(
-                kT=2,
-                n_steps=5e2,
-                init_shrink_kT=5,
-                final_shrink_kT=2,
-                shrink_steps=1e3,
-                shrink_period=None,
-            )
 
-        # Only 1 of shrink params given for anneal
-        with pytest.raises(ValueError):
-            simulation.anneal(
-                kT_init=2,
-                kT_final=2,
-                step_sequence=[5e2, 5e2, 5e2],
-                init_shrink_kT=5,
-                final_shrink_kT=2,
-                shrink_steps=1e3,
-                shrink_period=None,
-            )
         # Pressure and walls quench
         with pytest.raises(ValueError):
             simulation.quench(
@@ -71,7 +51,7 @@ class TestSimulate(BaseTest):
             kT=2, pressure=0.1, n_steps=5e2,
         )
 
-    def test_quench_no_shrink(self, peek_system):
+    def test_quench_npt_no_shrink(self, peek_system):
         simulation = simulate.Simulation(
                 peek_system,
                 tau_p=0.1,
@@ -82,56 +62,55 @@ class TestSimulate(BaseTest):
             kT=2, pressure=0.1, n_steps=5e2,
         )
 
-    def test_anneal_no_shrink(self, peek_system):
-        simulation = simulate.Simulation(peek_system, dt=0.0001, mode="cpu")
-        simulation.anneal(
-            kT_init=4, kT_final=2, step_sequence=[5e2, 5e2]
-        )
-
-    def test_quench_npt(self, peek_system):
+    def test_quench_nvt_no_shrink(self, peek_system):
         simulation = simulate.Simulation(
                 peek_system,
                 tau_p=0.1,
                 dt=0.0001,
                 mode="cpu"
         )
-        simulation.quench(
-            kT=2,
-            pressure=0.1,
-            n_steps=5e2,
-            init_shrink_kT=8,
-            final_shrink_kT=3,
-            shrink_steps=1e3,
-            shrink_period=1,
+        simulation.quench(kT=2, n_steps=5e2)
+
+    def test_anneal_npt_no_shrink(self, peek_system):
+        simulation = simulate.Simulation(peek_system, tau_p=0.5, dt=0.0001, mode="cpu")
+        simulation.anneal(
+            kT_init=4, kT_final=2, pressure=0.0001, step_sequence=[5e2, 5e2]
         )
 
-    def test_quench_nvt(self, peek_system):
+    def test_anneal_nvt_no_shrink(self, peek_system):
         simulation = simulate.Simulation(peek_system, dt=0.0001, mode="cpu")
-        simulation.quench(
-            kT=2,
-            n_steps=1e3,
-            init_shrink_kT=8,
-            final_shrink_kT=2,
-            shrink_steps=5e2,
-            shrink_period=1,
+        simulation.anneal(
+            kT_init=4, kT_final=2, step_sequence=[5e2, 5e2]
         )
 
-    def test_anneal_npt(self, pekk_system):
+    def test_quench_npt_shrink(self, peek_system):
+        simulation = simulate.Simulation(
+                peek_system,
+                tau_p=0.1,
+                dt=0.0001,
+                mode="cpu"
+        )
+        simulation.shrink(n_steps=5e2, kT_init=2, kT_final=2, period=1)
+        simulation.quench(kT=2, pressure=0.1, n_steps=5e2)
+
+    def test_quench_nvt_shrink(self, peek_system):
+        simulation = simulate.Simulation(peek_system, dt=0.0001, mode="cpu")
+        simulation.shrink(n_steps=5e2, kT_init=2, kT_final=2, period=1)
+        simulation.quench(kT=2, n_steps=1e3)
+
+    def test_anneal_npt_shrink(self, pekk_system):
         simulation = simulate.Simulation(
                 pekk_system,
                 dt=0.0001,
                 tau_p=0.1,
                 mode="cpu"
         )
+        simulation.shrink(n_steps=5e2, kT_init=4, kT_final=4, period=1)
         simulation.anneal(
-            kT_init=4,
-            kT_final=2,
-            pressure=0.1,
-            step_sequence=[5e2, 5e2],
-            init_shrink_kT=8,
-            final_shrink_kT=4,
-            shrink_steps=5e2,
-            shrink_period=1,
+                kT_init=4,
+                kT_final=2,
+                pressure=0.1,
+                step_sequence=[5e2, 5e2],
         )
 
     def test_anneal_nvt(self, pekk_system):
