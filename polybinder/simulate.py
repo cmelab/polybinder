@@ -83,7 +83,7 @@ class Simulation:
         tau_p=None,
         nlist="Cell",
         wall_axis=None,
-        dt=0.0001,
+        dt=0.0003,
         auto_scale=True,
         ref_values=None,
         mode="gpu",
@@ -111,10 +111,10 @@ class Simulation:
         self.system = system.system
         self.ran_shrink = False
 
-        # Coarsed-grained related parameters, system is a str (file path of GSD)
+        # Coarsed-grained related parameters, system is a str (path to a GSD)
         if isinstance(self.system, str):
             assert ref_values != None, (
-                        "Autoscaling is not supported for coarse-grain sims."
+                        "Autoscaling is not supported for coarse-grain sims. "
                         "Provide the relevant reference units"
             )
             self.cg_system = True
@@ -122,6 +122,7 @@ class Simulation:
                 self.cg_ff_path = FF_DIR
             else:
                 self.cg_ff_path = f"{FF_DIR}/{cg_potentials_dir}"
+
             self.ref_energy = ref_values["energy"]
             self.ref_distance = ref_values["distance"]
             self.ref_mass = ref_values["mass"]
@@ -201,7 +202,7 @@ class Simulation:
             self.forcefields[0].nlist = self.nlist(buffer=0.4)
             self.forcefields[0].nlist.exclusions = ["bond", "1-3", "1-4"]
         
-        # Set up remaining sim objects 
+        # Set up remaining hoomd objects 
         self._all = hoomd.filter.All()
         gsd_writer, table_file, = self._hoomd_writers(
                 group=self._all, sim=self.sim, forcefields=self.forcefields
@@ -220,6 +221,13 @@ class Simulation:
             period,
             tree_nlist=True
     ):
+        # Set up temperature ramp during shrinking
+        temp_ramp = hoomd.variant.Ramp(
+                A=kT_init,
+                B=kT_final,
+                t_start=self.sim.timestep,
+                t_ramp=int(n_steps)
+        )
         self.integrator_method = hoomd.md.methods.NVT(
                 filter=self._all, kT=temp_ramp, tau=self.tau_kt
         )
@@ -230,7 +238,7 @@ class Simulation:
                 filter=self._all, kT=kT_init
         )
 
-        # Set up box ramp
+        # Set up box shrinking ramp
         box_resize_trigger = hoomd.trigger.Periodic(period)
         ramp = hoomd.variant.Ramp(
             A=0, B=1, t_start=self.sim.timestep, t_ramp=int(n_steps)
@@ -266,7 +274,7 @@ class Simulation:
                         "r_extrap": 0
                 }
                 self.sim.operations.integrator.forces.append(self.lj_walls)
-        # Run shrink steps without updating walls
+        # Run shrink sim without updating wall potentials
         else:
             self.sim.run(n_steps + 1)
         assert self.sim.state.box == final_box
@@ -297,8 +305,7 @@ class Simulation:
             raise ValueError(
                     "Wall potentials can only be used with the NVT ensemble."
             )
-        # Set up NPT Integrator
-        if pressure:
+        if pressure: # Set up NPT Integrator
             self.integrator_method = hoomd.md.methods.NPT(
                     filter=self._all,
                     kT=kT,
@@ -308,8 +315,7 @@ class Simulation:
                     couple="xyz"
             )
             self.sim.operations.integrator.methods = [self.integrator_method]
-        # Update, or set up NVT integrator
-        else:
+        else: # Set up (or update) NVT integrator
             if self.ran_shrink:
                 self.sim.operations.integrator.methods[0].kT = kT
             else:
@@ -337,7 +343,7 @@ class Simulation:
         finally:
             hoomd.write.GSD.write(
                     state=self.sim.state, mode='wb', filename="restart.gsd"
-            )
+            ) 
 		
     def anneal(
         self,
@@ -377,8 +383,7 @@ class Simulation:
             temps = [np.round(t, 1) for t in temps]
             schedule = dict(zip(temps, step_sequence))
 
-        # Set up NPT Integrator
-        if pressure:
+        if pressure: # Set up NPT Integrator
             self.integrator_method = hoomd.md.methods.NPT(
                     filter=self._all,
                     kT=kT,
@@ -388,11 +393,8 @@ class Simulation:
                     couple="xyz"
             )
             self.sim.operations.integrator.methods = [self.integrator_method]
-        # Update, or set up NVT integrator
-        else:
-            if self.ran_shrink:
-                self.sim.operations.integrator.methods[0].kT = temps[0]
-            else:
+        else: # Add NVT integrator if not already set up
+            if not self.ran_shrink:
                 self.integrator_method = hoomd.md.methods.NVT(
                     filter=self._all, kT=kT, tau=self.tau_kt
                 )
@@ -642,5 +644,4 @@ class Simulation:
         normal_vector2 = -normal_vector
         wall1 = hoomd.wall.Plane(origin=wall_origin, normal=normal_vector)
         wall2 = hoomd.wall.Plane(origin=wall_origin2, normal=normal_vector2)
-        walls = [wall1, wall2]
-        return walls
+        return [wall1, wall2] 
