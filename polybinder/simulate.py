@@ -386,7 +386,7 @@ class Simulation:
         if pressure: # Set up NPT Integrator
             self.integrator_method = hoomd.md.methods.NPT(
                     filter=self._all,
-                    kT=kT,
+                    kT=kT_init,
                     tau=self.tau_kt,
                     S=pressure,
                     tauS=self.tau_p, 
@@ -467,7 +467,7 @@ class Simulation:
         fix_left = hoomd.filter.Tags(left_tags.astype(np.uint32))
         fix_right = hoomd.filter.Tags(right_tags.astype(np.uint32))
         all_fixed = hoomd.filter.Union(fix_left, fix_right)
-        integrate_group = hoomd.filter.SetDifference(_all, all_fixed)
+        integrate_group = hoomd.filter.SetDifference(self._all, all_fixed)
 
         # Finish setting up simulation
         self.integrator_method = hoomd.md.methods.NVE(filter=integrate_group)
@@ -479,8 +479,7 @@ class Simulation:
                 filter=all_fixed
         )
         self.sim.operations.updaters.append(box_resize)
-        self.integrator.methods = [integrator_method]
-        sim.operations.add(integrator)
+        self.integrator.methods = [self.integrator_method]
         self.sim.state.thermalize_particle_momenta(
                 filter=integrate_group, kT=kT
         )
