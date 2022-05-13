@@ -32,6 +32,7 @@ class TestSimulate(BaseTest):
                 pressure=0.1,
                 wall_axis=[1, 0 , 0],
             )
+        # Coarse-grain and auto scale
         with pytest.raises(AssertionError):
             sim = simulate.Simulation(
                     system=cg_system,
@@ -113,124 +114,70 @@ class TestSimulate(BaseTest):
                 step_sequence=[5e2, 5e2],
         )
 
-    def test_anneal_nvt(self, pekk_system):
-        simulation = simulate.Simulation(pekk_system, dt=0.0001, mode="cpu")
-        simulation.anneal(
-            kT_init=4,
-            kT_final=2,
-            step_sequence=[5e2, 5e2],
-            init_shrink_kT=8,
-            final_shrink_kT=8,
-            shrink_steps=5e2,
-            shrink_period=1,
-        )
+    def test_quench_ua(self, pekk_system_noH):
+        simulation = simulate.Simulation(pekk_system_noH, mode="cpu")
+        simulation.quench(kT=2, n_steps=5e2)
 
-    def test_quench_noH(self, pekk_system_noH):
-        simulation = simulate.Simulation(pekk_system_noH, dt=0.001, mode="cpu")
-        simulation.quench(
-            kT=2,
-            n_steps=5e2,
-            init_shrink_kT=8,
-            final_shrink_kT=8,
-            shrink_steps=5e2,
-            shrink_period=1,
-        )
-
-    def test_anneal_noH(self, peek_system_noH):
-        simulation = simulate.Simulation(peek_system_noH, dt=0.001, mode="cpu")
+    def test_anneal_ua(self, peek_system_noH):
+        simulation = simulate.Simulation(peek_system_noH, mode="cpu")
         simulation.anneal(
-            kT_init=4,
-            kT_final=2,
-            step_sequence=[5e2, 5e2],
-            init_shrink_kT=8,
-            final_shrink_kT=8,
-            shrink_steps=5e2,
-            shrink_period=1,
+            kT_init=4, kT_final=2, step_sequence=[5e2, 5e2],
         )
 
     def test_walls_x_quench(self, peek_system_noH):
-        simulation = simulate.Simulation(peek_system_noH, dt=0.001, mode="cpu")
-        simulation.quench(
-            kT=2,
-            n_steps=1e2,
-            init_shrink_kT=6,
-            final_shrink_kT=6,
-            shrink_steps=1e3,
-            shrink_period=5,
-            wall_axis=[1,0,0],
+        simulation = simulate.Simulation(
+                peek_system_noH, dt=0.001, wall_axis=[1,0,0], mode="cpu"
         )
+        simulation.shrink(kT_init=4, kT_final=2, n_steps=1e3, shirnk_period=5)
+        simulation.quench(kT=2, n_steps=1e2)
 
     def test_walls_x_anneal(self, peek_system_noH):
-        simulation = simulate.Simulation(peek_system_noH, dt=0.001, mode="cpu")
-        simulation.anneal(
-            kT_init=4,
-            kT_final=2,
-            step_sequence=[1e2, 1e2],
-            init_shrink_kT=6,
-            final_shrink_kT=6,
-            shrink_steps=1e3,
-            shrink_period=5,
-            wall_axis=[1,0,0],
+        simulation = simulate.Simulation(
+                peek_system_noH, dt=0.001, wall_axis=[1,0,0], mode="cpu"
         )
+        simulation.shrink(kT_init=4, kT_final=2, n_steps=1e3, shirnk_period=5)
+        simulation.anneal(kT_init=2,, kT_final=4, step_sequence=[1e2, 1e2, 1e2])
 
     def test_walls_y_quench(self, peek_system_noH):
-        simulation = simulate.Simulation(peek_system_noH, dt=0.001, mode="cpu")
-        simulation.quench(
-            kT=2,
-            n_steps=1e2,
-            init_shrink_kT=6,
-            final_shrink_kT=6,
-            shrink_steps=1e3,
-            shrink_period=5,
-            wall_axis=[0,1,0],
+        simulation = simulate.Simulation(
+                peek_system_noH, dt=0.001, wall_axis=[0,1,0], mode="cpu"
         )
+        simulation.shrink(kT_init=4, kT_final=2, n_steps=1e3, shirnk_period=5)
+        simulation.quench(kT=2, n_steps=1e2)
 
     def test_walls_y_anneal(self, peek_system_noH):
-        simulation = simulate.Simulation(peek_system_noH, dt=0.001, mode="cpu")
-        simulation.anneal(
-            kT_init=4,
-            kT_final=2,
-            step_sequence=[1e2, 1e2],
-            init_shrink_kT=6,
-            final_shrink_kT=6,
-            shrink_steps=1e3,
-            shrink_period=5,
-            wall_axis=[0,1,0],
+        simulation = simulate.Simulation(
+                peek_system_noH, dt=0.001, wall_axis=[0,1,0], mode="cpu"
         )
+        simulation.shrink(kT_init=4, kT_final=2, n_steps=1e3, shirnk_period=5)
+        simulation.anneal(kT_init=2,, kT_final=4, step_sequence=[1e2, 1e2, 1e2])
 
     def test_walls_z_quench(self, peek_system_noH):
-        simulation = simulate.Simulation(peek_system_noH, dt=0.001, mode="cpu")
-        simulation.quench(
-            kT=2,
-            n_steps=1e2,
-            init_shrink_kT=6,
-            final_shrink_kT=6,
-            shrink_steps=1e3,
-            shrink_period=5,
-            wall_axis=[0,0,1],
+        simulation = simulate.Simulation(
+                peek_system_noH, dt=0.001, wall_axis=[0,0,1], mode="cpu"
         )
+        simulation.shrink(kT_init=4, kT_final=2, n_steps=1e3, shirnk_period=5)
+        simulation.quench(kT=2, n_steps=1e2)
 
     def test_walls_z_anneal(self, peek_system_noH):
-        simulation = simulate.Simulation(peek_system_noH, dt=0.001, mode="cpu")
-        simulation.anneal(
-            kT_init=4,
-            kT_final=2,
-            step_sequence=[1e2, 1e2],
-            init_shrink_kT=6,
-            final_shrink_kT=6,
-            shrink_steps=1e3,
-            shrink_period=5,
-            wall_axis=[0,0,1],
+        simulation = simulate.Simulation(
+                peek_system_noH, dt=0.001, wall_axis=[0,0,1], mode="cpu"
         )
+        simulation.shrink(kT_init=4, kT_final=2, n_steps=1e3, shirnk_period=5)
+        simulation.anneal(kT_init=2,, kT_final=4, step_sequence=[1e2, 1e2, 1e2])
 
     def test_weld_quench(self, test_interface_x):
-        simulation = simulate.Simulation(test_interface_x, dt=0.0001, mode="cpu")
-        simulation.quench(kT=2, n_steps=5e2, wall_axis=[1,0,0])
+        simulation = simulate.Simulation(
+                test_interface_x, dt=0.0001, mode="cpu", wall_axis=[1,0,0]
+        )
+        simulation.quench(kT=2, n_steps=5e2)
 
     def test_weld_anneal(self, test_interface_y):
-        simulation = simulate.Simulation(test_interface_y, dt=0.0001, mode="cpu")
+        simulation = simulate.Simulation(
+                test_interface_y, dt=0.0001, mode="cpu", wall_axis[0,1,0]
+        )
         simulation.anneal(
-            kT_init=4, kT_final=2, step_sequence=[5e2, 5e2, 5e2], wall_axis=[0,1,0]
+            kT_init=4, kT_final=2, step_sequence=[5e2, 5e2, 5e2]
         )
 
     def test_tensile_x(self, test_interface_x):
@@ -286,26 +233,10 @@ class TestSimulate(BaseTest):
         simulation = simulate.Simulation(
                 pekk_system_noH, dt=0.001, mode="cpu", restart=restart_gsd
         )
-        simulation.quench(
-            kT=2,
-            n_steps=5e2,
-            init_shrink_kT=None,
-            final_shrink_kT=None,
-            shrink_steps=0,
-            shrink_period=None,
-        )
+        simulation.quench(kT=2, n_steps=5e2)
 
     def test_anneal_from_restart(self, pekk_system_noH, restart_gsd):
         simulation = simulate.Simulation(
                 pekk_system_noH, dt=0.001, mode="cpu", restart=restart_gsd
         )
-        simulation.anneal(
-            kT_init=2,
-            kT_final=4,
-            step_sequence = [5e2, 5e2],
-            init_shrink_kT=None,
-            final_shrink_kT=None,
-            shrink_steps=0,
-            shrink_period=None,
-        )
-
+        simulation.anneal(kT_init=2, kT_final=4, step_sequence = [5e2, 5e2])
