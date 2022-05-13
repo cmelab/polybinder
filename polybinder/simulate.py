@@ -63,6 +63,9 @@ class Simulation:
     
     Methods
     -------
+    shrink: Runs a hoomd simulation
+        Shrinks the simulation volume to the target box set in
+        polybinder.system.System()
     quench: Runs a hoomd simulation
         Run a simulation at a single temperature in NVT or a single
         temperature and pressure in NPT
@@ -199,8 +202,9 @@ class Simulation:
 
         # Default nlist is Cell, change to Tree if needed
         if isinstance(self.nlist, hoomd.md.nlist.Tree):
+            exclusions = self.forcefields[0].nlist.exclusions
             self.forcefields[0].nlist = self.nlist(buffer=0.4)
-            self.forcefields[0].nlist.exclusions = ["bond", "1-3", "1-4"]
+            self.forcefields[0].nlist.exclusions = exclusions 
         
         # Set up remaining hoomd objects 
         self._all = hoomd.filter.All()
@@ -208,6 +212,7 @@ class Simulation:
                 group=self._all, sim=self.sim, forcefields=self.forcefields
         )
         self.sim.operations.writers.append(gsd_writer)
+        #TODO: Trouble shoot table writer issues
         #self.sim.operations.writers.append(table_file)
         self.integrator = hoomd.md.Integrator(dt=self.dt)
         self.integrator.forces = self.forcefields
@@ -218,9 +223,39 @@ class Simulation:
             n_steps,
             kT_init,
             kT_final,
-            period,
-            tree_nlist=True
+            period=10,
+            tree_nlist=False
     ):
+        """Runs a simulation while shrinking the simulation volume
+        to a target volume. Call this simulation method before
+        quench() or anneal() if your initial configuraiton is at a lower
+        density.
+
+        Uses a linear temperature ramp from kT_init to kT_final
+        in order to allow temperature annealing during the shrink.
+
+        Parameters
+        ----------
+        n_steps : int, required
+            The number of simulation steps to run during shrinking
+        kT_init : float, required
+            The temperature at the beginning of the shrink simulation
+        kT_final : float, required
+            The tempearture at the end of the shrink simulation
+        period : int, optional, default 1
+            The number of steps to run between box updates
+        tree_nlist : bool, optional, default False 
+            Use a tree neighborlist during shrinking.
+            Useful when starting with very low density systems
+
+        """
+        # Create Tree nlist for shrink if self.nlist is Cell
+        if tree_nlist and isinstance(self.nlist, hoomd.md.nlist.Cell):
+            original_nlist = self.forcefields[0].nlist
+            shrink_nlist = hoomd.md.nlist.Tree(buffer=0.4)
+            shrink_nlist.exclusions = self.forcefields[0].nlist.exclusions
+            self.sim.operations.integrator.forces[0].nlist = shrink_nlist
+
         # Set up temperature ramp during shrinking
         temp_ramp = hoomd.variant.Ramp(
                 A=kT_init,
@@ -232,8 +267,6 @@ class Simulation:
                 filter=self._all, kT=temp_ramp, tau=self.tau_kt
         )
         self.sim.operations.integrator.methods = [self.integrator_method]
-        #self.integrator.methods = [self.integrator_method]
-        #self.sim.operations.add(self.integrator)
         self.sim.state.thermalize_particle_momenta(
                 filter=self._all, kT=kT_init
         )
@@ -279,6 +312,9 @@ class Simulation:
             self.sim.run(n_steps + 1)
         assert self.sim.state.box == final_box
         self.ran_shrink = True
+
+        if tree_nlist and isinstance(self.nlist, hoomd.md.nlist.Cell):
+            self.sim.operationsintegrator.forces[0].nlist = original_nlist 
         
     def quench(
         self,

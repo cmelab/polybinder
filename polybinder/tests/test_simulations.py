@@ -82,6 +82,22 @@ class TestSimulate(BaseTest):
             kT_init=4, kT_final=2, step_sequence=[5e2, 5e2]
         )
 
+    def test_shrink_tree_nlist(self, peek_system):
+        simulation = simulate.Simulation(
+                peek_system,
+                tau_p=0.1,
+                dt=0.0001,
+                mode="cpu"
+        )
+        simulation.shrink(
+                n_steps=5e2,
+                kT_init=2,
+                kT_final=2,
+                period=1,
+                tree_nlist=True
+        )
+        simulation.quench(kT=2, pressure=0.1, n_steps=5e2)
+
     def test_quench_npt_shrink(self, peek_system):
         simulation = simulate.Simulation(
                 peek_system,
