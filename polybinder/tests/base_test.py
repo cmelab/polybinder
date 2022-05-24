@@ -54,17 +54,17 @@ class BaseTest:
                 system_type="pack",
                 forcefield=None,
                 remove_hydrogens=True
-                )
+        )
         pekk_sys.coarse_grain_system(
                 ref_distance=3.39, ref_mass=15.99
         )
         return pekk_sys
 
     @pytest.fixture
-    def peek_system(self):
+    def pps_system(self):
         system_parms = System(
-                molecule="PEEK",
-                para_weight=0.50,
+                molecule="PPS",
+                para_weight=1.0,
                 density=0.8,
                 n_compounds=[10],
                 polymer_lengths=[3],
@@ -74,7 +74,24 @@ class BaseTest:
                 system_type="pack",
                 forcefield="gaff",
                 remove_hydrogens=False
-                )
+        )
+        return peek_sys
+
+    @pytest.fixture
+    def peek_system(self):
+        system_parms = System(
+                molecule="PEEK",
+                para_weight=1.0,
+                density=0.8,
+                n_compounds=[10],
+                polymer_lengths=[3],
+        )
+        peek_sys = Initializer(
+                system_parms,
+                system_type="pack",
+                forcefield="gaff",
+                remove_hydrogens=False
+        )
         return peek_sys
 
     @pytest.fixture
@@ -91,14 +108,14 @@ class BaseTest:
                 system_type="pack",
                 forcefield="gaff",
                 remove_hydrogens=False
-                )
+        )
         return pekk_sys
 
     @pytest.fixture
     def peek_system_noH(self):
         system_parms = System(
                 molecule="PEEK",
-                para_weight=0.50,
+                para_weight=1.0,
                 density=0.8,
                 n_compounds=[10],
                 polymer_lengths=[3],
@@ -108,7 +125,24 @@ class BaseTest:
                 system_type="pack",
                 forcefield="gaff",
                 remove_hydrogens=True
-                )
+        )
+        return peek_sys
+
+    @pytest.fixture
+    def pps_system_noH(self):
+        system_parms = System(
+                molecule="PPS",
+                para_weight=1.0,
+                density=0.8,
+                n_compounds=[10],
+                polymer_lengths=[3],
+        )
+        peek_sys = Initializer(
+                system_parms,
+                system_type="pack",
+                forcefield="gaff",
+                remove_hydrogens=True
+        )
         return peek_sys
 
     @pytest.fixture
@@ -125,7 +159,7 @@ class BaseTest:
                 system_type="pack",
                 forcefield="gaff",
                 remove_hydrogens=True
-                )
+        )
         return pekk_sys
 
     @pytest.fixture
