@@ -98,7 +98,7 @@ class System:
         self.molecule_sequences = []
         
         if self.molecule != "PEKK":
-            if para_weight not in [1.0, None] or "M" in monomer_sequence:
+            if para_weight not in [1.0, None] or "M" in str(monomer_sequence):
                 raise ValueError("The meta backbone bonding configuraiton "
                         "is only supported for the PEKK molecule. "
                         f"Since you are using {self.molecule} either use "

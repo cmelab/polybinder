@@ -71,7 +71,7 @@ class TestSystems(BaseTest):
             system_params = System(
                         density=0.7,
                         molecule="PEEK",
-                        para_weight=0.50,
+                        para_weight=1.0,
                         n_compounds=10,
                         polymer_lengths=[5, 5],
                     )
@@ -83,7 +83,7 @@ class TestSystems(BaseTest):
         with pytest.raises(ValueError):
             system_params = System(
                         density=0.7,
-                        molecule="PEEK",
+                        molecule="PEKK",
                         para_weight=0.50,
                         n_compounds=10,
                         polymer_lengths=5,
@@ -95,7 +95,7 @@ class TestSystems(BaseTest):
     def test_pack(self):
         system_parms = System(
                 molecule="PEEK",
-                para_weight=0.50,
+                para_weight=1.0,
                 density=0.7,
                 n_compounds=[10],
                 polymer_lengths=[5],
@@ -107,7 +107,7 @@ class TestSystems(BaseTest):
 
     def test_stack(self):
         system_parms = System(
-                molecule="PEEK",
+                molecule="PEKK",
                 para_weight=0.50,
                 density=0.7,
                 n_compounds=[10],
@@ -146,7 +146,7 @@ class TestSystems(BaseTest):
 
     def test_coarse_grain(self):
         system_parms = System(
-                molecule="PEEK",
+                molecule="PEKK",
                 para_weight=0.50,
                 density=0.7,
                 n_compounds=[10],
@@ -163,7 +163,7 @@ class TestSystems(BaseTest):
 
     def test_coarse_grain_with_ff(self):
         system_parms = System(
-                molecule="PEEK",
+                molecule="PEKK",
                 para_weight=0.50,
                 density=0.7,
                 n_compounds=[10],
@@ -199,7 +199,7 @@ class TestSystems(BaseTest):
     def test_monomer_sequence(self):
         with pytest.warns(UserWarning):
             system_parms = System(
-                    molecule="PEEK",
+                    molecule="PEKK",
                     monomer_sequence="PM",
                     para_weight=0.5,
                     n_compounds = [1],
@@ -208,7 +208,7 @@ class TestSystems(BaseTest):
                     )
 
         system_parms_even = System(
-                molecule="PEEK",
+                molecule="PEKK",
                 monomer_sequence="PM",
                 n_compounds = [1],
                 polymer_lengths=[4],
@@ -220,7 +220,7 @@ class TestSystems(BaseTest):
         assert system_parms_even.molecule_sequences[0] == "PMPM"
 
         system_parms = System(
-                molecule="PEEK",
+                molecule="PEKK",
                 monomer_sequence="PM",
                 n_compounds = [1],
                 polymer_lengths=[5],
@@ -234,7 +234,7 @@ class TestSystems(BaseTest):
         assert system_parms.molecule_sequences[0] == "PMPMP"
 
         system_parms = System(
-                molecule="PEEK",
+                molecule="PEKK",
                 monomer_sequence="PMPMPMPMPM",
                 n_compounds = [1],
                 polymer_lengths=[4],
@@ -260,7 +260,7 @@ class TestSystems(BaseTest):
     
     def test_weighted_sequence(self):
         para_monomers = System(
-                molecule="PEEK",
+                molecule="PEKK",
                 para_weight = 1.0,
                 n_compounds = [1],
                 polymer_lengths=[10],
@@ -270,7 +270,7 @@ class TestSystems(BaseTest):
         assert para_monomers.molecule_sequences[0] == "P"*10
 
         random_monomers = System(
-                molecule="PEEK",
+                molecule="PEKK",
                 para_weight = 0.40,
                 n_compounds = [1],
                 polymer_lengths=[20],
@@ -285,7 +285,7 @@ class TestSystems(BaseTest):
     def test_load_forcefiled(self):
         system_parms = System(
             molecule="PEEK",
-            para_weight=0.60,
+            para_weight=1.0,
             density=.1,
             n_compounds=[1],
             polymer_lengths=[2],
@@ -297,7 +297,7 @@ class TestSystems(BaseTest):
     def test_remove_hydrogens(self):
         system_parms = System(
             molecule="PEEK",
-            para_weight=0.60,
+            para_weight=1.0,
             density=.1,
             n_compounds=[1],
             polymer_lengths=[2],
@@ -310,7 +310,7 @@ class TestSystems(BaseTest):
 
     def test_multiple_compounds(self):
         system_parms = System(
-            molecule="PEEK",
+            molecule="PEKK",
             para_weight=0.60,
             density=.1,
             n_compounds=[5, 4, 3, 2, 1],
@@ -323,7 +323,7 @@ class TestSystems(BaseTest):
     def test_pdi_mw(self):
         system_parms = System(
             molecule="PEEK",
-            para_weight=0.60,
+            para_weight=1.0,
             density=0.1,
             n_compounds=3,
             sample_pdi=True,
@@ -335,7 +335,7 @@ class TestSystems(BaseTest):
 
     def test_pdi_mn(self):
         system_parms = System(
-            molecule="PEEK",
+            molecule="PEKK",
             para_weight=0.60,
             density=0.1,
             n_compounds=3,
@@ -349,7 +349,7 @@ class TestSystems(BaseTest):
     def test_mw_mn(self):
         system_parms = System(
             molecule="PEEK",
-            para_weight=0.60,
+            para_weight=1.0,
             density=0.1,
             n_compounds=3,
             sample_pdi=True,
@@ -361,7 +361,7 @@ class TestSystems(BaseTest):
 
     def test_pdi_mn_mw(self):
         system_parms = System(
-            molecule="PEEK",
+            molecule="PEKK",
             para_weight=0.60,
             density=0.1,
             n_compounds=3,
@@ -376,7 +376,7 @@ class TestSystems(BaseTest):
     def test_too_few_pdi_vals(self):
         with pytest.raises(AssertionError):
             system_parms = System(
-                molecule="PEEK",
+                molecule="PEKK",
                 para_weight=0.60,
                 density=0.1,
                 n_compounds=3,
@@ -389,7 +389,7 @@ class TestSystems(BaseTest):
         with pytest.raises(AssertionError):
             system_parms = System(
                 molecule="PEEK",
-                para_weight=0.60,
+                para_weight=1.0,
                 density=0.1,
                 n_compounds=3,
                 sample_pdi=True,
@@ -402,7 +402,7 @@ class TestSystems(BaseTest):
         with pytest.raises(TypeError):
             system_parms = System(
                 molecule="PEEK",
-                para_weight=0.60,
+                para_weight=1.0,
                 density=0.1,
                 n_compounds=[3, 3],
                 sample_pdi=True,
