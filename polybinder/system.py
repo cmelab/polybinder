@@ -49,12 +49,12 @@ class System:
             Requires units of grams per cubic centimeter.
         molecule : str, required
             The type of molecule to be used.
-            Supported types are "PEEK" and "PEKK".
+            Supported types are "PEEK", "PEKK", and "PPS".
             See the .json files in 'library/compounds'
         n_compounds : int or list of int, required
             The number of molecules in the system.
             If using `polymer_lengths` as well `n_compounds`
-            and `polymer_lengths` should be equal length.
+            then `polymer_lengths` should be equal length.
             If sampling from a PDI, `n_compounds` should be
             a single value.
         polymer_lengths : int or list of int, optional
@@ -84,6 +84,7 @@ class System:
             The mean molecular mass of the poly dispersity distribution
         seed : int, optional, default=24
             Used to generate random co-polymer sequences
+
         """
         self.molecule = molecule
         self.n_compounds = n_compounds
@@ -95,6 +96,14 @@ class System:
         self.para = 0
         self.meta = 0
         self.molecule_sequences = []
+        
+        if self.molecule != "PEKK":
+            if para_weight not in [1.0, None] or "M" in monomer_sequence:
+                raise ValueError("The meta backbone bonding configuraiton "
+                        "is only supported for the PEKK molecule. "
+                        f"Since you are using {self.molecule} either use "
+                        "para_weight = 1.0 or monomer_sequence = 'P'."
+                )
 
         if self.monomer_sequence and self.para_weight:
             warn(
@@ -770,7 +779,6 @@ def build_molecule(molecule, length, sequence, para_weight, smiles=False):
         The monomer sequence to be used when building a polymer.
         Example) "AB" or "AAB"
         If you want a sequence to be generated randomly, use sequence="random"
-
     para_weight : float, limited to values between 0 and 1
         The relative amount of para configurations compared to meta.
         Passed into random_sequence() to determine the monomer sequence of the
@@ -819,7 +827,8 @@ def build_molecule(molecule, length, sequence, para_weight, smiles=False):
     else:
         try:
             para = mb.load(os.path.join(COMPOUND_DIR, mol_dict["para_file"]))
-            meta = mb.load(os.path.join(COMPOUND_DIR, mol_dict["meta_file"]))
+            if "M" in monomer_sequence:
+                meta = mb.load(os.path.join(COMPOUND_DIR, mol_dict["meta_file"]))
         except KeyError:
             print("No file is available for this compound")
 
