@@ -75,6 +75,23 @@ class TestSystems(BaseTest):
                     )
             system = Initializer(system_params, system_type="wrong")
 
+    def test_bad_para_weight(self):
+        with pytest.raises(ValueError):
+            system_params = System(
+                    density=0.7,
+                    molecule="PEEK",
+                    para_weight=0.50,
+                    n_compounds=10
+            )
+
+        with pytest.raises(ValueError):
+            system_params = System(
+                    density=0.7,
+                    molecule="PPS",
+                    para_weight=0.50,
+                    n_compounds=10
+            )
+
     def test_bad_system_type(self):
         with pytest.raises(ValueError):
             system_params = System(
