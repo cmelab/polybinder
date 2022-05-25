@@ -616,7 +616,7 @@ class Initializer:
         elif self.forcefield == "opls":
             forcefield = foyer.Forcefield(name="oplsaa")
 
-        typed_system = forcefield.apply(untyped_system)
+        typed_system = forcefield.apply(untyped_system, assert_dihedral_params=False)
         if self.remove_hydrogens:
             typed_system.strip(
                     [a.atomic_number == 1 for a in typed_system.atoms]
