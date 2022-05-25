@@ -1,9 +1,6 @@
 {"para_smiles": "Oc1ccc(Oc2ccc(C(=O)c3ccccc3)cc2)cc1",
- "meta_smiles": "Oc1cc(Oc2ccc(C(=O)c3ccccc3)cc2)ccc1",
  "para_file": "peek_para.mol2",
- "meta_file": "peek_meta.mol2",
  "para_bond_indices": [35, 34],
- "meta_bond_indices": [35, 34],
  "bond_orientation": [[-1,0,0], [1,0,0]],
  "bond_distance": 0.1376,
  "monomer_mass": 288.302
