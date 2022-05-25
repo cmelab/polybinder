@@ -116,34 +116,34 @@ class BaseTest:
         system_parms = System(
                 molecule="PEEK",
                 para_weight=1.0,
-                density=0.8,
+                density=0.5,
                 n_compounds=[10],
-                polymer_lengths=[3],
+                polymer_lengths=[9],
         )
-        peek_sys = Initializer(
+        pps_sys = Initializer(
                 system_parms,
                 system_type="pack",
                 forcefield="gaff",
                 remove_hydrogens=True
         )
-        return peek_sys
+        return pps_sys
 
     @pytest.fixture
     def pps_system_noH(self):
         system_parms = System(
                 molecule="PPS",
                 para_weight=1.0,
-                density=0.8,
+                density=0.5,
                 n_compounds=[10],
-                polymer_lengths=[3],
+                polymer_lengths=[9],
         )
-        peek_sys = Initializer(
+        pps_sys = Initializer(
                 system_parms,
                 system_type="pack",
                 forcefield="gaff",
                 remove_hydrogens=True
         )
-        return peek_sys
+        return pps_sys
 
     @pytest.fixture
     def pekk_system_noH(self):

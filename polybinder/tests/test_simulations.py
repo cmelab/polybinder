@@ -61,9 +61,9 @@ class TestSimulate(BaseTest):
             kT=2, pressure=0.1, n_steps=5e2,
         )
 
-    def test_quench_nvt_no_shrink(self, peek_system):
+    def test_quench_nvt_no_shrink(self, pps_system):
         simulation = simulate.Simulation(
-                peek_system,
+                pps_system,
                 tau_p=0.1,
                 dt=0.0001,
                 mode="cpu"
@@ -127,6 +127,10 @@ class TestSimulate(BaseTest):
                 pressure=0.1,
                 step_sequence=[5e2, 5e2],
         )
+
+    def test_shrink_ua(self, pps_system_noH):
+        simulation = simulate.Simulation(pps_system_noH, mode="cpu")
+        simulation.shrink(kT_init=2, kT_final=1, n_steps=5e2)
 
     def test_quench_ua(self, pekk_system_noH):
         simulation = simulate.Simulation(pekk_system_noH, mode="cpu")
