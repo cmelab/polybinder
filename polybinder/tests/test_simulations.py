@@ -61,9 +61,9 @@ class TestSimulate(BaseTest):
             kT=2, pressure=0.1, n_steps=5e2,
         )
 
-    def test_quench_nvt_no_shrink(self, peek_system):
+    def test_quench_nvt_no_shrink(self, pps_system):
         simulation = simulate.Simulation(
-                peek_system,
+                pps_system,
                 tau_p=0.1,
                 dt=0.0001,
                 mode="cpu"
@@ -128,6 +128,10 @@ class TestSimulate(BaseTest):
                 step_sequence=[5e2, 5e2],
         )
 
+    def test_shrink_ua(self, pps_system_noH):
+        simulation = simulate.Simulation(pps_system_noH, mode="cpu")
+        simulation.shrink(kT_init=2, kT_final=1, n_steps=5e2)
+
     def test_quench_ua(self, pekk_system_noH):
         simulation = simulate.Simulation(pekk_system_noH, mode="cpu")
         simulation.quench(kT=2, n_steps=5e2)
@@ -138,44 +142,44 @@ class TestSimulate(BaseTest):
             kT_init=4, kT_final=2, step_sequence=[5e2, 5e2],
         )
 
-    def test_walls_x_quench(self, peek_system_noH):
+    def test_walls_x_quench(self, pekk_system_noH):
         simulation = simulate.Simulation(
-                peek_system_noH, dt=0.001, wall_axis=[1,0,0], mode="cpu"
+                pekk_system_noH, dt=0.0003, wall_axis=[1,0,0], mode="cpu"
         )
         simulation.shrink(kT_init=4, kT_final=2, n_steps=1e3, period=5)
         simulation.quench(kT=2, n_steps=1e2)
 
-    def test_walls_x_anneal(self, peek_system_noH):
+    def test_walls_x_anneal(self, pps_system_noH):
         simulation = simulate.Simulation(
-                peek_system_noH, dt=0.001, wall_axis=[1,0,0], mode="cpu"
+                pps_system_noH, dt=0.0003, wall_axis=[1,0,0], mode="cpu"
         )
         simulation.shrink(kT_init=4, kT_final=2, n_steps=1e3, period=5)
         simulation.anneal(kT_init=2, kT_final=4, step_sequence=[1e2, 1e2, 1e2])
 
     def test_walls_y_quench(self, peek_system_noH):
         simulation = simulate.Simulation(
-                peek_system_noH, dt=0.001, wall_axis=[0,1,0], mode="cpu"
+                peek_system_noH, dt=0.0003, wall_axis=[0,1,0], mode="cpu"
         )
         simulation.shrink(kT_init=4, kT_final=2, n_steps=1e3, period=5)
         simulation.quench(kT=2, n_steps=1e2)
 
     def test_walls_y_anneal(self, peek_system_noH):
         simulation = simulate.Simulation(
-                peek_system_noH, dt=0.001, wall_axis=[0,1,0], mode="cpu"
+                peek_system_noH, dt=0.0003, wall_axis=[0,1,0], mode="cpu"
         )
         simulation.shrink(kT_init=4, kT_final=2, n_steps=1e3, period=5)
         simulation.anneal(kT_init=2, kT_final=4, step_sequence=[1e2, 1e2, 1e2])
 
     def test_walls_z_quench(self, peek_system_noH):
         simulation = simulate.Simulation(
-                peek_system_noH, dt=0.001, wall_axis=[0,0,1], mode="cpu"
+                peek_system_noH, dt=0.0003, wall_axis=[0,0,1], mode="cpu"
         )
         simulation.shrink(kT_init=4, kT_final=2, n_steps=1e3, period=5)
         simulation.quench(kT=2, n_steps=1e2)
 
     def test_walls_z_anneal(self, peek_system_noH):
         simulation = simulate.Simulation(
-                peek_system_noH, dt=0.001, wall_axis=[0,0,1], mode="cpu"
+                peek_system_noH, dt=0.0003, wall_axis=[0,0,1], mode="cpu"
         )
         simulation.shrink(kT_init=4, kT_final=2, n_steps=1e3, period=5)
         simulation.anneal(kT_init=2, kT_final=4, step_sequence=[1e2, 1e2, 1e2])
