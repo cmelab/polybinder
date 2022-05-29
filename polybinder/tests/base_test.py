@@ -69,13 +69,13 @@ class BaseTest:
                 n_compounds=[10],
                 polymer_lengths=[3],
         )
-        peek_sys = Initializer(
+        pps_sys = Initializer(
                 system_parms,
                 system_type="pack",
                 forcefield="gaff",
                 remove_hydrogens=False
         )
-        return peek_sys
+        return pps_sys
 
     @pytest.fixture
     def peek_system(self):
