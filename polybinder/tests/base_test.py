@@ -67,7 +67,7 @@ class BaseTest:
                 para_weight=1.0,
                 density=0.8,
                 n_compounds=[10],
-                polymer_lengths=[3],
+                polymer_lengths=[9],
         )
         pps_sys = Initializer(
                 system_parms,
@@ -118,15 +118,15 @@ class BaseTest:
                 para_weight=1.0,
                 density=0.5,
                 n_compounds=[10],
-                polymer_lengths=[9],
+                polymer_lengths=[3],
         )
-        pps_sys = Initializer(
+        peek_sys = Initializer(
                 system_parms,
                 system_type="pack",
                 forcefield="gaff",
                 remove_hydrogens=True
         )
-        return pps_sys
+        return peek_sys
 
     @pytest.fixture
     def pps_system_noH(self):
