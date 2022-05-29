@@ -144,42 +144,42 @@ class TestSimulate(BaseTest):
 
     def test_walls_x_quench(self, peek_system_noH):
         simulation = simulate.Simulation(
-                peek_system_noH, dt=0.001, wall_axis=[1,0,0], mode="cpu"
+                peek_system_noH, dt=0.0003, wall_axis=[1,0,0], mode="cpu"
         )
         simulation.shrink(kT_init=4, kT_final=2, n_steps=1e3, period=5)
         simulation.quench(kT=2, n_steps=1e2)
 
     def test_walls_x_anneal(self, peek_system_noH):
         simulation = simulate.Simulation(
-                peek_system_noH, dt=0.001, wall_axis=[1,0,0], mode="cpu"
+                peek_system_noH, dt=0.0003, wall_axis=[1,0,0], mode="cpu"
         )
         simulation.shrink(kT_init=4, kT_final=2, n_steps=1e3, period=5)
         simulation.anneal(kT_init=2, kT_final=4, step_sequence=[1e2, 1e2, 1e2])
 
     def test_walls_y_quench(self, peek_system_noH):
         simulation = simulate.Simulation(
-                peek_system_noH, dt=0.001, wall_axis=[0,1,0], mode="cpu"
+                peek_system_noH, dt=0.0003, wall_axis=[0,1,0], mode="cpu"
         )
         simulation.shrink(kT_init=4, kT_final=2, n_steps=1e3, period=5)
         simulation.quench(kT=2, n_steps=1e2)
 
     def test_walls_y_anneal(self, peek_system_noH):
         simulation = simulate.Simulation(
-                peek_system_noH, dt=0.001, wall_axis=[0,1,0], mode="cpu"
+                peek_system_noH, dt=0.0003, wall_axis=[0,1,0], mode="cpu"
         )
         simulation.shrink(kT_init=4, kT_final=2, n_steps=1e3, period=5)
         simulation.anneal(kT_init=2, kT_final=4, step_sequence=[1e2, 1e2, 1e2])
 
     def test_walls_z_quench(self, peek_system_noH):
         simulation = simulate.Simulation(
-                peek_system_noH, dt=0.001, wall_axis=[0,0,1], mode="cpu"
+                peek_system_noH, dt=0.0003, wall_axis=[0,0,1], mode="cpu"
         )
         simulation.shrink(kT_init=4, kT_final=2, n_steps=1e3, period=5)
         simulation.quench(kT=2, n_steps=1e2)
 
     def test_walls_z_anneal(self, peek_system_noH):
         simulation = simulate.Simulation(
-                peek_system_noH, dt=0.001, wall_axis=[0,0,1], mode="cpu"
+                peek_system_noH, dt=0.0003, wall_axis=[0,0,1], mode="cpu"
         )
         simulation.shrink(kT_init=4, kT_final=2, n_steps=1e3, period=5)
         simulation.anneal(kT_init=2, kT_final=4, step_sequence=[1e2, 1e2, 1e2])
