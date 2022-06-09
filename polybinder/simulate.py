@@ -446,6 +446,10 @@ class Simulation:
             n_steps = schedule[kT]
             self.sim.run(n_steps) 
 
+        hoomd.write.GSD.write(
+                state=self.sim.state, mode='wb', filename="restart.gsd"
+        ) 
+
     def tensile(self,
             kT,
             strain,
