@@ -1,3 +1,4 @@
+import hoomd
 from polybinder import simulate
 from base_test import BaseTest
 
@@ -89,12 +90,20 @@ class TestSimulate(BaseTest):
                 dt=0.0001,
                 mode="cpu"
         )
+        assert isinstance(
+                simulation.sim.operations.integrator.forces[0].nlist,
+                hoomd.md.nlist.Cell
+        )
         simulation.shrink(
                 n_steps=5e2,
                 kT_init=2,
                 kT_final=2,
                 period=1,
                 tree_nlist=True
+        )
+        assert isinstance(
+                simulation.sim.operations.integrator.forces[0].nlist,
+                hoomd.md.nlist.Cell
         )
         simulation.quench(kT=2, pressure=0.1, n_steps=5e2)
 

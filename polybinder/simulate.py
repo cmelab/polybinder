@@ -321,7 +321,7 @@ class Simulation:
         self.ran_shrink = True
 
         if tree_nlist and isinstance(self.nlist, hoomd.md.nlist.Cell):
-            self.sim.operationsintegrator.forces[0].nlist = original_nlist 
+            self.sim.operations.integrator.forces[0].nlist = original_nlist 
         
     def quench(self, n_steps, kT=None, pressure=None):
         """Runs an NVT or NPT simulation at a single temperature
