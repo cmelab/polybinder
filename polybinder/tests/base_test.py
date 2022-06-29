@@ -67,7 +67,7 @@ class BaseTest:
                 para_weight=1.0,
                 density=0.8,
                 n_compounds=[10],
-                polymer_lengths=[9],
+                polymer_lengths=[2],
         )
         pps_sys = Initializer(
                 system_parms,
@@ -135,7 +135,7 @@ class BaseTest:
                 para_weight=1.0,
                 density=0.5,
                 n_compounds=[10],
-                polymer_lengths=[9],
+                polymer_lengths=[2],
         )
         pps_sys = Initializer(
                 system_parms,
