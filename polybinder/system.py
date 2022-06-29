@@ -390,8 +390,8 @@ class Initializer:
 
         bounding_box = np.array(crystal.get_boundingbox().lengths)
         target_z = bounding_box[-1] * z_adjust
-        bounding_box[0] *= 1.25
-        bounding_box[1] *= 1.25
+        bounding_box[0] *= 1.02
+        bounding_box[1] *= 1.02
         bounding_box[2] *= 1.05
         self.set_target_box(z_constraint=target_z)
         crystal.box = mb.box.Box(bounding_box)
