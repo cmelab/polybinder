@@ -1,8 +1,8 @@
 {"para_smiles": "c1ccc(S)cc1",
  "para_file": "pps.mol2",
- "para_bond_indices": [7, 10],
- "bond_orientation": [null, [0.1759, -0.00139, 0.03300]],
- "bond_distance": 0.17895,
+ "para_bond_indices": [44, 45],
+ "bond_orientation": [[0,0,1], [0,0,-1]],
+ "bond_distance": 0.176,
  "monomer_mass": 110.174
 }
 
