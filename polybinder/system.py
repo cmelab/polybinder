@@ -3,6 +3,7 @@ import os
 import random
 from warnings import warn
 
+import antefoyer
 import ele
 import foyer
 import gsd
@@ -215,6 +216,7 @@ class Initializer:
             system,
             system_type,
             forcefield="gaff",
+            use_antefoyer=True,
             remove_hydrogens=False,
             **kwargs
     ):
@@ -280,7 +282,9 @@ class Initializer:
             self.set_target_box()
 
         if self.forcefield:
-            self.system = self._apply_ff(system_init)
+            self.system = self._apply_ff(
+                    untyped_system=system_init, use_antefoyer=use_antefoyer
+            )
         else:
             self.system = system_init
 
@@ -607,7 +611,7 @@ class Initializer:
             self.system_mass += mass  # amu
         return mb_compounds
 
-    def _apply_ff(self, untyped_system):
+    def _apply_ff(self, untyped_system, use_antefoyer=False):
         """Use foyer to type the system and store forcefield parameters.
         Returns a Parmed structure object.
         """
@@ -618,10 +622,12 @@ class Initializer:
             forcefield = foyer.Forcefield(name="oplsaa")
 
         typed_system = forcefield.apply(untyped_system, assert_dihedral_params=False)
+        if use_antefoyer:
+            typed_system = antefoyer.ante_charges(typed, 'bcc')
         if self.remove_hydrogens:
             typed_system.strip(
                     [a.atomic_number == 1 for a in typed_system.atoms]
-                    )
+            )
         return typed_system
 
 class Fused:
