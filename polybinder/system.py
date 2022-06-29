@@ -865,6 +865,8 @@ def build_molecule(molecule, length, sequence, para_weight, smiles=False):
             )
 
     compound.build(n=1, sequence=monomer_sequence, add_hydrogens=True)
+    # Rotate to align with z-axis; important for initializing ordered systems
+    # Rotations are hard-coded based on the mol2 files in the library
     if molecule == "PEKK":
         compound.rotate(around=[0,1,0], theta=-0.33)
         compound.rotate(around=[1,0,0], theta=0.12)
