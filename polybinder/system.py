@@ -865,8 +865,12 @@ def build_molecule(molecule, length, sequence, para_weight, smiles=False):
             )
 
     compound.build(n=1, sequence=monomer_sequence, add_hydrogens=True)
-    compound.rotate(around=[0,1,0], theta=-0.33)
-    compound.rotate(around=[1,0,0], theta=0.12)
+    if molecule == "PEKK":
+        compound.rotate(around=[0,1,0], theta=-0.33)
+        compound.rotate(around=[1,0,0], theta=0.12)
+    if molecule == "PPS":
+        compound.rotate(around=[0,1,0], theta=0.05)
+        compound.rotate(around=[1,0,0], theta=-0.010)
     return compound, monomer_sequence
 
 
