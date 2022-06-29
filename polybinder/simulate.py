@@ -547,7 +547,9 @@ class Simulation:
             writemode = "w"
         gsd_writer = hoomd.write.GSD(
                 filename="sim_traj.gsd",
-                trigger=hoomd.trigger.Periodic(int(self.gsd_write)),
+                trigger=hoomd.trigger.Periodic(
+                    period=int(self.gsd_write), phase=0
+                ),
                 mode=f"{writemode}b",
                 dynamic=["momentum"]
         )
@@ -564,7 +566,9 @@ class Simulation:
 
         table_file = hoomd.write.Table(
             output=open("sim_traj.txt", mode=f"{writemode}", newline="\n"),
-            trigger=hoomd.trigger.Periodic(period=int(self.log_write)),
+            trigger=hoomd.trigger.Periodic(
+                period=int(self.log_write), phase=0
+            ),
             logger=logger,
             max_header_len=None,
         )
