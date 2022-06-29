@@ -377,8 +377,6 @@ class Initializer:
                 try:
                     comp_1 = self.mb_compounds[next_idx]
                     comp_2 = self.mb_compounds[next_idx+1]
-                    z_axis_transform(comp_1)
-                    z_axis_transform(comp_2)
                     translate_by = np.array(vector)*(b, a, 0)
                     comp_2.translate(translate_by)
                     unit_cell= mb.Compound(subcompounds=[comp_1, comp_2])
@@ -392,8 +390,11 @@ class Initializer:
 
         bounding_box = np.array(crystal.get_boundingbox().lengths)
         target_z = bounding_box[-1] * z_adjust
+        bounding_box[0] *= 1.02
+        bounding_box[1] *= 1.02
+        bounding_box[2] *= 1.05
         self.set_target_box(z_constraint=target_z)
-        crystal.box = mb.box.Box(bounding_box*1.05)
+        crystal.box = mb.box.Box(bounding_box)
         # Center in the box
         crystal.translate_to(
                 (crystal.box.Lx / 2,
@@ -864,6 +865,14 @@ def build_molecule(molecule, length, sequence, para_weight, smiles=False):
             )
 
     compound.build(n=1, sequence=monomer_sequence, add_hydrogens=True)
+    # Rotate to align with z-axis; important for initializing ordered systems
+    # Rotations are hard-coded based on the mol2 files in the library
+    if molecule == "PEKK":
+        compound.rotate(around=[0,1,0], theta=-0.33)
+        compound.rotate(around=[1,0,0], theta=0.12)
+    if molecule == "PPS":
+        compound.rotate(around=[0,1,0], theta=0.05)
+        compound.rotate(around=[1,0,0], theta=-0.010)
     return compound, monomer_sequence
 
 
