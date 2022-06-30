@@ -216,7 +216,7 @@ class Initializer:
             system,
             system_type,
             forcefield="gaff",
-            use_antefoyer=True,
+            charges="antefoyer",
             remove_hydrogens=False,
             **kwargs
     ):
@@ -256,8 +256,9 @@ class Initializer:
         self.remove_hydrogens = remove_hydrogens
         self.system_mass = 0
         self.target_box = None
+        self.charges = charges
 
-        self.mb_compounds = self._generate_compounds()
+        self.mb_compounds = self._generate_compounds(charges=self.charges)
         if self.system_type == "pack":
             system_init = self.pack(**kwargs)
         elif self.system_type == "stack":
@@ -282,9 +283,7 @@ class Initializer:
             self.set_target_box()
 
         if self.forcefield:
-            self.system = self._apply_ff(
-                    untyped_system=system_init, use_antefoyer=use_antefoyer
-            )
+            self.system = self._apply_ff(untyped_system=system_init)
         else:
             self.system = system_init
 
@@ -556,7 +555,7 @@ class Initializer:
         L *= units["cm_to_nm"]  # convert cm to nm
         return L
 
-    def _generate_compounds(self):
+    def _generate_compounds(self, charges):
         """Generates a list of mbuild.Compound objects
         from the number and lengths given by the
         system parameters.
@@ -579,7 +578,8 @@ class Initializer:
                     self.system_parms.molecule,
                     length,
                     sequence,
-                    self.system_parms.para_weight
+                    self.system_parms.para_weight,
+                    charges
                 )
                 polymer.name = f"{mol_sequence}_{length}mer"
                 mb_compounds.append(polymer)
@@ -595,10 +595,11 @@ class Initializer:
             elif sequence == "random":
                 for i in range(n):
                     polymer, mol_sequence = build_molecule(
-                        self.system_parms.molecule,
-                        length,
-                        sequence,
-                        self.system_parms.para_weight
+                        molecule=self.system_parms.molecule,
+                        length=length,
+                        sequence=sequence,
+                        para_weight=self.system_parms.para_weight,
+                        charges=charges
                     )
                     mb_compounds.append(polymer)
                     self.system_parms.molecule_sequences.append(mol_sequence)
@@ -611,7 +612,7 @@ class Initializer:
             self.system_mass += mass  # amu
         return mb_compounds
 
-    def _apply_ff(self, untyped_system, use_antefoyer=False):
+    def _apply_ff(self, untyped_system):
         """Use foyer to type the system and store forcefield parameters.
         Returns a Parmed structure object.
         """
@@ -622,8 +623,22 @@ class Initializer:
             forcefield = foyer.Forcefield(name="oplsaa")
 
         typed_system = forcefield.apply(untyped_system, assert_dihedral_params=False)
-        if use_antefoyer:
-            typed_system = antefoyer.ante_charges(typed, 'bcc')
+        # Add charges to parmed struc from mbuild comp
+        if self.charges:
+            net_charge = sum([p.charge for p in untyped_system.particles()])
+            abs_net = sum([abs(p.charge) for p in untyped_system.particles()])
+            n_particles = untyped_system.n_particles
+            adjust = abs(net_charge) / n_particles
+            print(f"Net charge of {net_charge} for {n_particles} particles")
+            print(f"Adjusting each charge by +/- {adjust}")
+            for p, a in zip(untyped_system.particles(), typed_system.atoms):
+                charge = p.charge
+                charge = charge - (abs(charge) * (net_charge/abs_net))
+                assert np.sign(charge) == np.sign(p.charge)
+                a.charge = charge
+            net_charge = sum([a.charge for a in typed_system.atoms])
+            print(f"Resulting net charge of {net_charge}")
+
         if self.remove_hydrogens:
             typed_system.strip(
                     [a.atomic_number == 1 for a in typed_system.atoms]
@@ -768,7 +783,14 @@ def _gsd_to_mbuild(gsd_file, ref_distance):
     return comp
 
 
-def build_molecule(molecule, length, sequence, para_weight, smiles=False):
+def build_molecule(
+        molecule,
+        length,
+        sequence,
+        para_weight,
+        smiles=False,
+        charges=None
+):
     """`build_molecule` uses SMILES strings to build up a polymer from monomers.
     The configuration of each monomer is determined by para_weight and the
     random_sequence() function.
@@ -834,6 +856,10 @@ def build_molecule(molecule, length, sequence, para_weight, smiles=False):
     else:
         try:
             para = mb.load(os.path.join(COMPOUND_DIR, mol_dict["para_file"]))
+            if charges:
+                charge_dict = mol_dict["antefoyer_charges"]
+                for idx, p in enumerate(para.particles()):
+                    p.charge = charge_dict[str(idx)]
             if "M" in monomer_sequence:
                 meta = mb.load(os.path.join(COMPOUND_DIR, mol_dict["meta_file"]))
         except KeyError:
