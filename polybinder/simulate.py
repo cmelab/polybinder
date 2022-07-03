@@ -224,6 +224,68 @@ class Simulation:
         self.integrator = hoomd.md.Integrator(dt=self.dt)
         self.integrator.forces = self.forcefields
         self.sim.operations.add(self.integrator)
+    
+    def temp_ramp(
+            self,
+            n_steps,
+            kT_init,
+            kT_final,
+            period=10,
+            pressure=None,
+            wall_axix=None
+    ):
+        """
+        """
+        _temp_ramp = hoomd.variant.Ramp(
+                A=kT_init,
+                B=kT_final,
+                t_start=self.sim.timestep,
+                t_ramp=int(n_steps)
+        )
+
+        if self.wall_axis and pressure is not None:
+            raise ValueError(
+                    "Wall potentials can only be used with the NVT ensemble."
+            )
+        if pressure: # Set up NPT Integrator
+            self.integrator_method = hoomd.md.methods.NPT(
+                    filter=self._all,
+                    kT=_temp_ramp,
+                    tau=self.tau_kt,
+                    S=pressure,
+                    tauS=self.tau_p, 
+                    couple="xyz"
+            )
+            self.sim.operations.integrator.methods = [self.integrator_method]
+        else: # Set up (or update) NVT integrator
+            if self.ran_shrink:
+                self.sim.operations.integrator.methods[0].kT = _temp_ramp 
+            else:
+                self.integrator_method = hoomd.md.methods.NVT(
+                    filter=self._all, kT=_temp_ramp, tau=self.tau_kt
+                )
+                self.sim.operations.integrator.methods = [
+                        self.integrator_method
+                ]
+        self.sim.state.thermalize_particle_momenta(filter=self._all, kT=kT_init)
+
+        try:
+            current_timestep = self.sim.timestep
+            while self.sim.timestep < n_steps + current_timestep + 1:
+                self.sim.run(
+                        min(
+                            10000,
+                            n_steps + current_timestep + 1 - self.sim.timestep
+                        )
+                )
+                if self.wall_time_limit:
+                    if (self.sim.device.communicator.walltime + self.sim.walltime >=
+                            self.wall_time_limit):
+                        break
+        finally:
+            hoomd.write.GSD.write(
+                    state=self.sim.state, mode='wb', filename="restart.gsd"
+            ) 
 
     def shrink(
             self,
@@ -264,14 +326,14 @@ class Simulation:
             self.sim.operations.integrator.forces[0].nlist = shrink_nlist
 
         # Set up temperature ramp during shrinking
-        temp_ramp = hoomd.variant.Ramp(
+        _temp_ramp = hoomd.variant.Ramp(
                 A=kT_init,
                 B=kT_final,
                 t_start=self.sim.timestep,
                 t_ramp=int(n_steps)
         )
         self.integrator_method = hoomd.md.methods.NVT(
-                filter=self._all, kT=temp_ramp, tau=self.tau_kt
+                filter=self._all, kT=_temp_ramp, tau=self.tau_kt
         )
         self.sim.operations.integrator.methods = [self.integrator_method]
         self.sim.state.thermalize_particle_momenta(
