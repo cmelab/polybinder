@@ -625,7 +625,7 @@ class Initializer:
         typed_system = forcefield.apply(
                 untyped_system,
                 verbose=True,
-                assert_dihedral_params=True
+                assert_dihedral_params=False
         )
         # Add charges to parmed struc from mbuild comp
         if self.charges:
