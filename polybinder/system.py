@@ -393,9 +393,9 @@ class Initializer:
 
         bounding_box = np.array(crystal.get_boundingbox().lengths)
         target_z = bounding_box[-1] * z_adjust
-        bounding_box[0] *= 1.02
-        bounding_box[1] *= 1.02
-        bounding_box[2] *= 1.05
+        bounding_box[0] *= 1.015
+        bounding_box[1] *= 1.015
+        bounding_box[2] *= 1.1
         self.set_target_box(z_constraint=target_z)
         crystal.box = mb.box.Box(bounding_box)
         # Center in the box
@@ -622,7 +622,11 @@ class Initializer:
         elif self.forcefield == "opls":
             forcefield = foyer.Forcefield(name="oplsaa")
 
-        typed_system = forcefield.apply(untyped_system, assert_dihedral_params=False)
+        typed_system = forcefield.apply(
+                untyped_system,
+                verbose=True,
+                assert_dihedral_params=True
+        )
         # Add charges to parmed struc from mbuild comp
         if self.charges:
             net_charge = sum([p.charge for p in untyped_system.particles()])

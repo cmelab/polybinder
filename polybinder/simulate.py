@@ -183,6 +183,7 @@ class Simulation:
                     ref_mass=self.ref_mass,
                     ref_energy=self.ref_energy,
                     auto_scale=self.auto_scale,
+                    pppm_kwargs = {"Nx": 16, "Ny": 16, "Nz": 16, }
             )
             if self.restart:
                 self.sim.create_state_from_gsd(self.restart)
