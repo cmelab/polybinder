@@ -867,11 +867,14 @@ def build_molecule(
         try:
             para = mb.load(os.path.join(COMPOUND_DIR, mol_dict["para_file"]))
             if charges:
-                charge_dict = mol_dict["charges"][charges]
+                charge_dict = mol_dict["para_charges"][charges]
                 for idx, p in enumerate(para.particles()):
                     p.charge = charge_dict[str(idx)]
             if "M" in monomer_sequence:
                 meta = mb.load(os.path.join(COMPOUND_DIR, mol_dict["meta_file"]))
+                charge_dict = mol_dict["meta_charges"][charges]
+                for idx, p in enumerate(meta.particles()):
+                    p.charge = charge_dict[str(idx)]
         except KeyError:
             print("No file is available for this compound")
 
