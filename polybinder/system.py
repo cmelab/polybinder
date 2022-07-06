@@ -872,9 +872,10 @@ def build_molecule(
                     p.charge = charge_dict[str(idx)]
             if "M" in monomer_sequence:
                 meta = mb.load(os.path.join(COMPOUND_DIR, mol_dict["meta_file"]))
-                charge_dict = mol_dict["meta_charges"][charges]
-                for idx, p in enumerate(meta.particles()):
-                    p.charge = charge_dict[str(idx)]
+                if charges:
+                    charge_dict = mol_dict["meta_charges"][charges]
+                    for idx, p in enumerate(meta.particles()):
+                        p.charge = charge_dict[str(idx)]
         except KeyError:
             print("No file is available for this compound")
 
@@ -913,8 +914,8 @@ def build_molecule(
     # Rotate to align with z-axis; important for initializing ordered systems
     # Rotations are hard-coded based on the mol2 files in the library
     if molecule == "PEKK":
-        compound.rotate(around=[0,1,0], theta=-0.33)
-        compound.rotate(around=[1,0,0], theta=0.12)
+        compound.rotate(around=[0,1,0], theta=-0.20)
+        compound.rotate(around=[1,0,0], theta=0.15)
     if molecule == "PPS":
         compound.rotate(around=[0,1,0], theta=0.05)
         compound.rotate(around=[1,0,0], theta=-0.010)
