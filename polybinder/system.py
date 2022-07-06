@@ -398,7 +398,7 @@ class Initializer:
         target_z = bounding_box[-1] * z_adjust
         bounding_box[0] *= 1.05
         bounding_box[1] *= 1.05
-        bounding_box[2] *= 1.05
+        bounding_box[2] *= 1.10
         self.set_target_box(z_constraint=target_z)
         crystal.box = mb.box.Box(bounding_box)
         # Center in the box
