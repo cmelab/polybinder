@@ -216,7 +216,7 @@ class Initializer:
             system,
             system_type,
             forcefield="gaff",
-            charges="antefoyer",
+            charges=None,
             remove_hydrogens=False,
             **kwargs
     ):
@@ -244,6 +244,9 @@ class Initializer:
         forcefield : str, optional, default="gaff"
             The type of foyer compatible forcefield to use.
             As of now, only gaff is supported.
+        charges : str, defualt = None
+            Specifies the charges dict to use. See the .JSON file for the
+            molecule of interest.
         remove_hydrogens : bool, optional, default=False
             If True, hydrogen atoms are removed from the system.
         kwargs : dict, optional
@@ -258,7 +261,7 @@ class Initializer:
         self.target_box = None
         self.charges = charges
 
-        self.mb_compounds = self._generate_compounds(charges=self.charges)
+        self.mb_compounds = self._generate_compounds()
         if self.system_type == "pack":
             system_init = self.pack(**kwargs)
         elif self.system_type == "stack":
@@ -555,7 +558,7 @@ class Initializer:
         L *= units["cm_to_nm"]  # convert cm to nm
         return L
 
-    def _generate_compounds(self, charges):
+    def _generate_compounds(self):
         """Generates a list of mbuild.Compound objects
         from the number and lengths given by the
         system parameters.
@@ -575,11 +578,11 @@ class Initializer:
         ):
             if sequence != "random":
                 polymer, mol_sequence = build_molecule(
-                    self.system_parms.molecule,
-                    length,
-                    sequence,
-                    self.system_parms.para_weight,
-                    charges
+                    molecule=self.system_parms.molecule,
+                    length=length,
+                    sequence=sequence,
+                    para_weight=self.system_parms.para_weight,
+                    charges=self.charges
                 )
                 polymer.name = f"{mol_sequence}_{length}mer"
                 mb_compounds.append(polymer)
@@ -599,7 +602,7 @@ class Initializer:
                         length=length,
                         sequence=sequence,
                         para_weight=self.system_parms.para_weight,
-                        charges=charges
+                        charges=self.charges
                     )
                     mb_compounds.append(polymer)
                     self.system_parms.molecule_sequences.append(mol_sequence)
@@ -820,6 +823,9 @@ def build_molecule(
     smiles : bool, optional, default False
         Set to True if you want to load the molecules from SMILES strings
         If left False, the molecule will be loaded from their .mol2 files
+    charges : str, default None
+        The value to use in the moleucle's JSON file
+        This applies the specified partial charges to each atom
 
     Notes
     -----
@@ -861,7 +867,7 @@ def build_molecule(
         try:
             para = mb.load(os.path.join(COMPOUND_DIR, mol_dict["para_file"]))
             if charges:
-                charge_dict = mol_dict["antefoyer_charges"]
+                charge_dict = mol_dict["charges"][charges]
                 for idx, p in enumerate(para.particles()):
                     p.charge = charge_dict[str(idx)]
             if "M" in monomer_sequence:
