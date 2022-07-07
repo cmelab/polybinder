@@ -11,6 +11,54 @@ from base_test import BaseTest
 
 
 class TestSystems(BaseTest):
+    def test_pps_iff(self):
+        sys_parms = System(
+                density=1.20,
+                molecule="PPS",
+                para_weight=1.0,
+                polymer_lengths=1,
+                n_compounds=5
+        )
+        system = Initializer(
+            sys_parms,
+            system_type = "pack",
+            forcefield="opls",
+            charges="iff",
+            remove_hydrogens=False
+        )
+
+    def test_pps_antefoyer(self):
+        sys_parms = System(
+                density=1.20,
+                molecule="PPS",
+                para_weight=1.0,
+                polymer_lengths=1,
+                n_compounds=5
+        )
+        system = Initializer(
+            sys_parms,
+            system_type = "pack",
+            forcefield="opls",
+            charges="antefoyer",
+            remove_hydrogens=False
+        )
+
+    def test_pekk_antefoyer(self):
+        sys_parms = System(
+                density=1.20,
+                molecule="PEKK",
+                para_weight=0.8,
+                polymer_lengths=2,
+                n_compounds=5
+        )
+        system = Initializer(
+            sys_parms,
+            system_type = "pack",
+            forcefield="gaff",
+            charges="antefoyer",
+            remove_hydrogens=False
+        )
+
     def test_fused(self):
         fused = Fused(
                 gsd_file=os.path.join(ASSETS_DIR, "test_slab_xwall.gsd"),

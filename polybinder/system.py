@@ -100,7 +100,8 @@ class System:
         
         if self.molecule != "PEKK":
             if para_weight not in [1.0, None] or "M" in str(monomer_sequence):
-                raise ValueError("The meta backbone bonding configuraiton "
+                raise ValueError(
+                        "The meta backbone bonding configuraiton "
                         "is only supported for the PEKK molecule. "
                         f"Since you are using {self.molecule} either use "
                         "para_weight = 1.0 or monomer_sequence = 'P'."
@@ -117,11 +118,8 @@ class System:
 
         if sample_pdi:
             self.sample_from_pdi(
-                    n_compounds,
-                    pdi,
-                    Mn,
-                    Mw,
-        )
+                    n_compounds, pdi, Mn, Mw,
+            )
         elif not sample_pdi and n_compounds != None:
             if not isinstance(n_compounds, list):
                 self.n_compounds = [n_compounds]
@@ -135,8 +133,8 @@ class System:
 
             if len(self.n_compounds) != len(self.polymer_lengths):
                 raise ValueError(
-                        "n_compounds and polymer_lengths should be equal length"
-                        )
+                        "n_compounds and polymer_lengths must be equal length"
+                )
 
     def sample_from_pdi(
             self,
@@ -194,6 +192,7 @@ class System:
     def _recover_mass_dist(self):
         """This function takes in two of the three quantities [Mn, Mw, PDI],
         and fits a Weibull distribution of molar masses to them.
+
         """
         a = scipy.optimize.root(self._weibull_k_expression, x0=1.0)
         recovered_k = a["x"]
