@@ -3,7 +3,6 @@ import os
 import random
 from warnings import warn
 
-import antefoyer
 import ele
 import foyer
 import gsd
