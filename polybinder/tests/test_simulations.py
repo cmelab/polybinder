@@ -8,7 +8,7 @@ import pytest
 class TestSimulate(BaseTest):
     def test_charges_sim(self, pps_system_charges):
         simulation = simulate.Simulation(
-                pps_system,
+                pps_system_charges,
                 tau_p=0.1,
                 dt=0.0001,
                 mode="cpu"
