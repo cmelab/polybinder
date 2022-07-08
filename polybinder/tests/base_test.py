@@ -77,6 +77,23 @@ class BaseTest:
         )
         return pps_sys
 
+    def pps_system_charges(self):
+        system_parms = System(
+                density=1.20,
+                molecule="PPS",
+                para_weight=1.0,
+                polymer_lengths=1,
+                n_compounds=5
+        )
+        pps_sys = Initializer(
+            sys_parms,
+            system_type = "pack",
+            forcefield="opls",
+            charges="antechamber",
+            remove_hydrogens=False
+        )
+		return pps_sys
+
     @pytest.fixture
     def peek_system(self):
         system_parms = System(

@@ -6,6 +6,17 @@ import pytest
 
 
 class TestSimulate(BaseTest):
+    def test_charges_sim(self, pps_system_charges):
+        simulation = simulate.Simulation(
+                pps_system,
+                tau_p=0.1,
+                dt=0.0001,
+                mode="cpu"
+        )
+        simulation.temp_ramp(
+                kT_init=0.5, kT_final=1.5, n_steps=5e2, pressure=0.003
+        )
+
     def test_temp_ramp_npt(self, pps_system):
         simulation = simulate.Simulation(
                 pps_system,
