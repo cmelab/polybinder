@@ -621,7 +621,9 @@ class Initializer:
             ff_path = f"{FF_DIR}/gaff.xml"
             forcefield = foyer.Forcefield(forcefield_files=ff_path)
         elif self.forcefield == "opls":
-            forcefield = foyer.Forcefield(name="oplsaa")
+            ff_path = f"{FF_DIR}/oplsaa.xml"
+            forcefield = foyer.Forcefield(forcefield_files=ff_path)
+            #forcefield = foyer.Forcefield(name="oplsaa")
 
         typed_system = forcefield.apply(
                 untyped_system,
