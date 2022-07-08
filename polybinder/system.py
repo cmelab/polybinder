@@ -99,7 +99,8 @@ class System:
         
         if self.molecule != "PEKK":
             if para_weight not in [1.0, None] or "M" in str(monomer_sequence):
-                raise ValueError("The meta backbone bonding configuraiton "
+                raise ValueError(
+                        "The meta backbone bonding configuraiton "
                         "is only supported for the PEKK molecule. "
                         f"Since you are using {self.molecule} either use "
                         "para_weight = 1.0 or monomer_sequence = 'P'."
@@ -116,11 +117,8 @@ class System:
 
         if sample_pdi:
             self.sample_from_pdi(
-                    n_compounds,
-                    pdi,
-                    Mn,
-                    Mw,
-        )
+                    n_compounds, pdi, Mn, Mw,
+            )
         elif not sample_pdi and n_compounds != None:
             if not isinstance(n_compounds, list):
                 self.n_compounds = [n_compounds]
@@ -134,8 +132,8 @@ class System:
 
             if len(self.n_compounds) != len(self.polymer_lengths):
                 raise ValueError(
-                        "n_compounds and polymer_lengths should be equal length"
-                        )
+                        "n_compounds and polymer_lengths must be equal length"
+                )
 
     def sample_from_pdi(
             self,
@@ -193,6 +191,7 @@ class System:
     def _recover_mass_dist(self):
         """This function takes in two of the three quantities [Mn, Mw, PDI],
         and fits a Weibull distribution of molar masses to them.
+
         """
         a = scipy.optimize.root(self._weibull_k_expression, x0=1.0)
         recovered_k = a["x"]
@@ -215,6 +214,7 @@ class Initializer:
             system,
             system_type,
             forcefield="gaff",
+            charges=None,
             remove_hydrogens=False,
             **kwargs
     ):
@@ -242,6 +242,9 @@ class Initializer:
         forcefield : str, optional, default="gaff"
             The type of foyer compatible forcefield to use.
             As of now, only gaff is supported.
+        charges : str, defualt = None
+            Specifies the charges dict to use. See the .JSON file for the
+            molecule of interest.
         remove_hydrogens : bool, optional, default=False
             If True, hydrogen atoms are removed from the system.
         kwargs : dict, optional
@@ -254,6 +257,7 @@ class Initializer:
         self.remove_hydrogens = remove_hydrogens
         self.system_mass = 0
         self.target_box = None
+        self.charges = charges
 
         self.mb_compounds = self._generate_compounds()
         if self.system_type == "pack":
@@ -280,7 +284,7 @@ class Initializer:
             self.set_target_box()
 
         if self.forcefield:
-            self.system = self._apply_ff(system_init)
+            self.system = self._apply_ff(untyped_system=system_init)
         else:
             self.system = system_init
 
@@ -390,9 +394,9 @@ class Initializer:
 
         bounding_box = np.array(crystal.get_boundingbox().lengths)
         target_z = bounding_box[-1] * z_adjust
-        bounding_box[0] *= 1.02
-        bounding_box[1] *= 1.02
-        bounding_box[2] *= 1.05
+        bounding_box[0] *= 1.05
+        bounding_box[1] *= 1.05
+        bounding_box[2] *= 1.10
         self.set_target_box(z_constraint=target_z)
         crystal.box = mb.box.Box(bounding_box)
         # Center in the box
@@ -572,10 +576,11 @@ class Initializer:
         ):
             if sequence != "random":
                 polymer, mol_sequence = build_molecule(
-                    self.system_parms.molecule,
-                    length,
-                    sequence,
-                    self.system_parms.para_weight
+                    molecule=self.system_parms.molecule,
+                    length=length,
+                    sequence=sequence,
+                    para_weight=self.system_parms.para_weight,
+                    charges=self.charges
                 )
                 polymer.name = f"{mol_sequence}_{length}mer"
                 mb_compounds.append(polymer)
@@ -591,10 +596,11 @@ class Initializer:
             elif sequence == "random":
                 for i in range(n):
                     polymer, mol_sequence = build_molecule(
-                        self.system_parms.molecule,
-                        length,
-                        sequence,
-                        self.system_parms.para_weight
+                        molecule=self.system_parms.molecule,
+                        length=length,
+                        sequence=sequence,
+                        para_weight=self.system_parms.para_weight,
+                        charges=self.charges
                     )
                     mb_compounds.append(polymer)
                     self.system_parms.molecule_sequences.append(mol_sequence)
@@ -615,13 +621,34 @@ class Initializer:
             ff_path = f"{FF_DIR}/gaff.xml"
             forcefield = foyer.Forcefield(forcefield_files=ff_path)
         elif self.forcefield == "opls":
-            forcefield = foyer.Forcefield(name="oplsaa")
+            ff_path = f"{FF_DIR}/oplsaa.xml"
+            forcefield = foyer.Forcefield(forcefield_files=ff_path)
 
-        typed_system = forcefield.apply(untyped_system, assert_dihedral_params=False)
+        typed_system = forcefield.apply(
+                untyped_system,
+                verbose=True,
+                assert_dihedral_params=False
+        )
+        # Add charges to parmed struc from mbuild comp
+        if self.charges:
+            net_charge = sum([p.charge for p in untyped_system.particles()])
+            abs_net = sum([abs(p.charge) for p in untyped_system.particles()])
+            n_particles = untyped_system.n_particles
+            adjust = abs(net_charge) / n_particles
+            print(f"Net charge of {net_charge} for {n_particles} particles")
+            print(f"Adjusting each charge by +/- {adjust}")
+            for p, a in zip(untyped_system.particles(), typed_system.atoms):
+                charge = p.charge
+                charge = charge - (abs(charge) * (net_charge/abs_net))
+                assert np.sign(charge) == np.sign(p.charge)
+                a.charge = charge
+            net_charge = sum([a.charge for a in typed_system.atoms])
+            print(f"Resulting net charge of {net_charge}")
+
         if self.remove_hydrogens:
             typed_system.strip(
                     [a.atomic_number == 1 for a in typed_system.atoms]
-                    )
+            )
         return typed_system
 
 class Fused:
@@ -762,7 +789,14 @@ def _gsd_to_mbuild(gsd_file, ref_distance):
     return comp
 
 
-def build_molecule(molecule, length, sequence, para_weight, smiles=False):
+def build_molecule(
+        molecule,
+        length,
+        sequence,
+        para_weight,
+        smiles=False,
+        charges=None
+):
     """`build_molecule` uses SMILES strings to build up a polymer from monomers.
     The configuration of each monomer is determined by para_weight and the
     random_sequence() function.
@@ -788,6 +822,9 @@ def build_molecule(molecule, length, sequence, para_weight, smiles=False):
     smiles : bool, optional, default False
         Set to True if you want to load the molecules from SMILES strings
         If left False, the molecule will be loaded from their .mol2 files
+    charges : str, default None
+        The value to use in the moleucle's JSON file
+        This applies the specified partial charges to each atom
 
     Notes
     -----
@@ -828,8 +865,16 @@ def build_molecule(molecule, length, sequence, para_weight, smiles=False):
     else:
         try:
             para = mb.load(os.path.join(COMPOUND_DIR, mol_dict["para_file"]))
+            if charges:
+                charge_dict = mol_dict["para_charges"][charges]
+                for idx, p in enumerate(para.particles()):
+                    p.charge = charge_dict[str(idx)]
             if "M" in monomer_sequence:
                 meta = mb.load(os.path.join(COMPOUND_DIR, mol_dict["meta_file"]))
+                if charges:
+                    charge_dict = mol_dict["meta_charges"][charges]
+                    for idx, p in enumerate(meta.particles()):
+                        p.charge = charge_dict[str(idx)]
         except KeyError:
             print("No file is available for this compound")
 
@@ -868,8 +913,8 @@ def build_molecule(molecule, length, sequence, para_weight, smiles=False):
     # Rotate to align with z-axis; important for initializing ordered systems
     # Rotations are hard-coded based on the mol2 files in the library
     if molecule == "PEKK":
-        compound.rotate(around=[0,1,0], theta=-0.33)
-        compound.rotate(around=[1,0,0], theta=0.12)
+        compound.rotate(around=[0,1,0], theta=-0.20)
+        compound.rotate(around=[1,0,0], theta=0.15)
     if molecule == "PPS":
         compound.rotate(around=[0,1,0], theta=0.05)
         compound.rotate(around=[1,0,0], theta=-0.010)
