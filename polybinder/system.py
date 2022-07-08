@@ -623,7 +623,6 @@ class Initializer:
         elif self.forcefield == "opls":
             ff_path = f"{FF_DIR}/oplsaa.xml"
             forcefield = foyer.Forcefield(forcefield_files=ff_path)
-            #forcefield = foyer.Forcefield(name="oplsaa")
 
         typed_system = forcefield.apply(
                 untyped_system,
