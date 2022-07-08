@@ -644,6 +644,9 @@ class Initializer:
                 a.charge = charge
             net_charge = sum([a.charge for a in typed_system.atoms])
             print(f"Resulting net charge of {net_charge}")
+        elif not self.charges and self.forcefield == "opls":
+            for a in typed_system.atoms:
+                a.charge = 0
 
         if self.remove_hydrogens:
             typed_system.strip(

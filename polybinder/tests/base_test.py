@@ -72,7 +72,7 @@ class BaseTest:
         pps_sys = Initializer(
                 system_parms,
                 system_type="pack",
-                forcefield="gaff",
+                forcefield="opls",
                 remove_hydrogens=False
         )
         return pps_sys
