@@ -17,6 +17,19 @@ class TestSimulate(BaseTest):
                 kT_init=0.5, kT_final=1.5, n_steps=5e2, pressure=0.003
         )
 
+    def test_temp_ramp_npt_walls(self, pps_system):
+        with pytest.raises(ValueError):
+            simulation = simulate.Simulation(
+                    pps_system,
+                    tau_p=0.1,
+                    dt=0.0001,
+                    mode="cpu",
+                    wall_axis=[1,0,0]
+            )
+            simulation.temp_ramp(
+                    kT_init=0.5, kT_final=1.5, n_steps=5e2, pressure=0.003
+            )
+
     def test_temp_ramp_npt(self, pps_system):
         simulation = simulate.Simulation(
                 pps_system,
@@ -36,6 +49,7 @@ class TestSimulate(BaseTest):
                 mode="cpu"
         )
         simulation.temp_ramp(kT_init=0.5, kT_final=1.5, n_steps=5e2)
+
     def test_temp_ramp_nvt(self, pps_system):
         simulation = simulate.Simulation(
                 pps_system,
