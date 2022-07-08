@@ -27,7 +27,7 @@ class TestSystems(BaseTest):
             remove_hydrogens=False
         )
 
-    def test_pps_antefoyer(self):
+    def test_pps_antechamber(self):
         sys_parms = System(
                 density=1.20,
                 molecule="PPS",
@@ -39,11 +39,11 @@ class TestSystems(BaseTest):
             sys_parms,
             system_type = "pack",
             forcefield="opls",
-            charges="antefoyer",
+            charges="antechamber",
             remove_hydrogens=False
         )
 
-    def test_pekk_antefoyer(self):
+    def test_pekk_antechamber(self):
         sys_parms = System(
                 density=1.20,
                 molecule="PEKK",
@@ -55,7 +55,7 @@ class TestSystems(BaseTest):
             sys_parms,
             system_type = "pack",
             forcefield="gaff",
-            charges="antefoyer",
+            charges="antechamber",
             remove_hydrogens=False
         )
 
