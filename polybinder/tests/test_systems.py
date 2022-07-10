@@ -11,6 +11,41 @@ from base_test import BaseTest
 
 
 class TestSystems(BaseTest):
+    def test_compound_lists(self):
+        sys_parms = System(
+                density=1.0,
+                molecule="PPS",
+                para_weight=1.0,
+                n_compounds = [5, 5],
+                polymer_lengths=[2, 3]
+        )
+        system = Initializer(
+                sys_parms,
+                system_type="pack",
+                forcefield="opls",
+                charges=None,
+                remove_hydrogens=False
+        )
+
+    def test_compounds_lists_error(self):
+        with pytest.raises(ValueError):
+            sys_parms = System(
+                    density=1.0,
+                    molecule="PPS",
+                    para_weight=1.0,
+                    n_compounds = [5, 5],
+                    polymer_lengths=[3]
+            )
+        with pytest.raises(ValueError):
+            sys_parms = System(
+                    density=1.0,
+                    molecule="PPS",
+                    para_weight=1.0,
+                    n_compounds = [5],
+                    polymer_lengths=[3, 5]
+            )
+
+
     def test_pps_iff(self):
         sys_parms = System(
                 density=1.20,
@@ -21,7 +56,7 @@ class TestSystems(BaseTest):
         )
         system = Initializer(
             sys_parms,
-            system_type = "pack",
+            system_type="pack",
             forcefield="opls",
             charges="iff",
             remove_hydrogens=False
@@ -407,7 +442,6 @@ class TestSystems(BaseTest):
         )
         system = Initializer(system_parms, "pack")
 
-
     def test_mw_mn(self):
         system_parms = System(
             molecule="PEEK",
@@ -419,7 +453,6 @@ class TestSystems(BaseTest):
             Mw=6.0,
         )
         system = Initializer(system_parms, "pack")
-
 
     def test_pdi_mn_mw(self):
         system_parms = System(
