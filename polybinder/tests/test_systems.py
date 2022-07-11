@@ -45,7 +45,6 @@ class TestSystems(BaseTest):
                     polymer_lengths=[3, 5]
             )
 
-
     def test_pps_iff(self):
         sys_parms = System(
                 density=1.20,
