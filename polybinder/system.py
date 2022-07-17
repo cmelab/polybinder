@@ -9,6 +9,7 @@ import gsd
 import gsd.hoomd
 import mbuild as mb
 import numpy as np
+import parmed
 import scipy.optimize
 from foyer import Forcefield
 from mbuild.lib.recipes import Polymer
@@ -285,6 +286,8 @@ class Initializer:
 
         if self.forcefield:
             self.system = self._apply_ff(untyped_system=system_init)
+            if self.remove_hydrogens:
+                self._remove_hydrogens()
         else:
             self.system = system_init
 
@@ -536,6 +539,14 @@ class Initializer:
             Lx, Ly, Lz = constraints
         self.target_box = np.array([Lx, Ly, Lz])
 
+    @property
+    def net_charge(self):
+        if isinstance(self.system, parmed.structure.Structure):
+            return sum([a.charge for a in self.system.atoms])
+        elif isinstance(self.system, mb.Compound):
+            warn("A forcefield wasn't applied to the system. No charges exist")
+            return 0
+
     def _calculate_L(self, fixed_L=None):
         """Calculates the required box length(s) given the
         mass of a sytem and the target density.
@@ -635,6 +646,8 @@ class Initializer:
             abs_net = sum([abs(p.charge) for p in untyped_system.particles()])
             n_particles = untyped_system.n_particles
             adjust = abs(net_charge) / n_particles
+            print("Applying a focefield:")
+            print("-----------------------------------------------------------")
             print(f"Net charge of {net_charge} for {n_particles} particles")
             print(f"Adjusting each charge by +/- {adjust}")
             for p, a in zip(untyped_system.particles(), typed_system.atoms):
@@ -644,15 +657,29 @@ class Initializer:
                 a.charge = charge
             net_charge = sum([a.charge for a in typed_system.atoms])
             print(f"Resulting net charge of {net_charge}")
+            print("-----------------------------------------------------------")
+            print()
         elif not self.charges and self.forcefield == "opls":
             for a in typed_system.atoms:
                 a.charge = 0
-
-        if self.remove_hydrogens:
-            typed_system.strip(
-                    [a.atomic_number == 1 for a in typed_system.atoms]
-            )
         return typed_system
+
+    def _remove_hydrogens(self):
+        # Adjust mass and charge of heavy atoms:
+        print("Removing hydrogens and adjusting heavy atoms")
+        print("---------------------------------------------------------------")
+        init_net_charge = self.net_charge
+        hydrogens = [a for a in self.system.atoms if a.element == 1]
+        for h in hydrogens:
+            bonded_atom = h.bond_partners[0]
+            bonded_atom.mass += h.mass
+            bonded_atom.charge += h.charge
+
+        self.system.strip(
+                [a.atomic_number == 1 for a in self.system.atoms]
+        )
+        assert np.allclose(init_net_charge, self.net_charge, atol=1e-4)
+
 
 class Fused:
     def __init__(
