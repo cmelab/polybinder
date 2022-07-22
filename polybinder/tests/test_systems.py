@@ -11,6 +11,46 @@ from base_test import BaseTest
 
 
 class TestSystems(BaseTest):
+    def test_net_charge(self, pps_system_charges):
+        net_charge = pps_system_charges.net_charge
+        assert np.allclose(0, net_charge, atol=1e-8)
+        
+        sys_parms = System(
+                density=1.20,
+                molecule="PPS",
+                para_weight=1.0,
+                polymer_lengths=1,
+                n_compounds=5
+        )
+
+        system = Initializer(
+            sys_parms,
+            system_type = "pack",
+            forcefield=None,
+            charges=None,
+            remove_hydrogens=False
+        )
+        with pytest.warns(UserWarning):
+            system.net_charge
+
+    def test_removeH_noFF(self):
+        with pytest.warns(UserWarning):
+            sys_parms = System(
+                    density=1.20,
+                    molecule="PPS",
+                    para_weight=1.0,
+                    polymer_lengths=1,
+                    n_compounds=5
+            )
+
+            system = Initializer(
+                sys_parms,
+                system_type = "pack",
+                forcefield=None,
+                charges="iff",
+                remove_hydrogens=True
+            )
+
     def test_pps_iff(self):
         sys_parms = System(
                 density=1.20,
