@@ -443,8 +443,10 @@ class Initializer:
                     " when initializing the system."
             )
         if self.remove_hydrogens:
-            for h in self.system.particles_by_element("H"):
-                self.system.remove(H)
+            hydrogens = [h for h in self.system.particles_by_element("H")]
+            for h in hydrogens:
+                self.system.remove(h)
+
         aa_snap, refs = to_hoomdsnapshot(
                 self.system, ref_distance=ref_distance, ref_mass=ref_mass
         )
@@ -456,10 +458,11 @@ class Initializer:
         # Create a gsd.hoomd.Snapshot() of the atomistic system
         sim = hoomd.Simulation(device=hoomd.device.auto_select())
         sim.create_state_from_snapshot(aa_snap)
-        hoomd.write.GSD.write(state=sim.state, file_name="atomistic_gsd.gsd")
+        hoomd.write.GSD.write(state=sim.state, filename="atomistic_gsd.gsd")
         # Use polybinderCG to create a coarse-grained snapshot
-        cg_sys = cg.System(
-                gsd_file="atomistic_gsd.gsd", compound=self.molecule
+        cg_system = cg.System(
+                gsd_file="atomistic_gsd.gsd",
+                compound=self.system_parms.molecule
         )
         for idx, mol in enumerate(cg_system.molecules):
             mol.sequence = self.system_parms.molecule_sequences[idx]
@@ -490,7 +493,7 @@ class Initializer:
             use_segments = False
             use_components = False
         
-        cg_snap = cg_sys.coarse_grain_snap(
+        cg_snap = cg_system.coarse_grain_snap(
                 use_monomers=use_monomers,
                 use_segments=use_segments,
                 use_components=use_components
