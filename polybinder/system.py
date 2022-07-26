@@ -453,6 +453,7 @@ class Initializer:
         sorted_bond_array = bond_array[bond_array[:, 0].argsort()]
         for idx, bond_group in enumerate(sorted_bond_array):
             aa_snap.bonds.group[idx] = bond_group 
+        # Create a gsd.hoomd.Snapshot() of the atomistic system
         sim = hoomd.Simulation(device=hoomd.device.auto_select())
         sim.create_state_from_snapshot(aa_snap)
         hoomd.write.GSD.write(state=sim.state, file_name="atomistic_gsd.gsd")
