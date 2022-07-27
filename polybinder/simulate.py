@@ -595,8 +595,9 @@ class Simulation:
 
         try:
             last_length = init_length
-            while self.sim.timestep < n_steps + self.sim.timestep:
-                self.sim.run(expand_period + 1)
+            last_step = self.sim.timestep
+            while self.sim.timestep < last_step:
+                self.sim.run(expand_period)
                 current_length = getattr(self.sim.state.box, f"L{tensile_axis}")
                 diff = current_length - last_length
                 snap = self.sim.state.get_snapshot()
@@ -604,6 +605,7 @@ class Simulation:
                 snap.particles.position[fix_right.tags]+=(shift_array*(diff/2))
                 self.sim.state.set_snapshot(snap)
                 last_length = current_length
+                last_step += expand_period
 
                 if self.wall_time_limit:
                     if (self.sim.device.communicator.walltime +
@@ -615,12 +617,6 @@ class Simulation:
                     state=self.sim.state, mode='wb', filename="restart.gsd"
             )
     
-    def state_snapshot(self):
-        if isinstance(self.device, hoomd.device.GPU):
-            return self.sim.state.gpu_local_snapshot
-        elif isinstance(self.device, hoomd.device.CPU):
-            return self.sim.state.cpu_local_snapshot
-
     def _hoomd_writers(self, group, forcefields, sim):
         # GSD and Logging:
         if self.restart:
