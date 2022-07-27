@@ -425,86 +425,80 @@ class Initializer:
         ref_mass : float, required
             The reference mass to scale particle masses by.
             Enter the mass in amu.
+        bead_mapping : str, optional
+            One of the mapping options available in polybinderCG
+            Use this if your coarse-grain mapping is at the component level
+            Provides instructions on how to map beads to atoms
+        segment_length : int, optional
+            The number of monomers in 1 segment
+            Use this if your coarse-grain mapping is at the segment level
 
         """
-        try:
-            from polybinderCG.coarse_grain import System
-        except ImportError:
-            raise ImportError(
-                "polybinderCG must be installed to use coarse-graining features"
-            )
+        import hoomd
+        import polybinderCG.coarse_grain as cg
 
         if self.forcefield is not None:
             raise ValueError(
                     "If you want to coarse grain, set forcefield=None"
                     " when initializing the system."
             )
-        pmd_system = self.system.to_parmed(residues=[self.residues])
         if self.remove_hydrogens:
-            pmd_system.strip([a.atomic_number == 1 for a in pmd_system.atoms])
-        mb.formats.gsdwriter.write_gsd(
-                pmd_system, "atomistic_gsd.gsd", ref_distance, ref_mass
+            hydrogens = [h for h in self.system.particles_by_element("H")]
+            for h in hydrogens:
+                self.system.remove(h)
+
+        aa_snap, refs = to_hoomdsnapshot(
+                self.system, ref_distance=ref_distance, ref_mass=ref_mass
         )
         # Order the bond group; required by CGing package
-        with gsd.hoomd.open("atomistic_gsd.gsd", "rb") as f:
-            snap = f[0]
-            bond_array = snap.bonds.group
-            sorted_bond_array = bond_array[bond_array[:, 0].argsort()]
-            snap.bonds.group = sorted_bond_array
-        with gsd.hoomd.open("atomistic_gsd.gsd", "wb") as f:
-            f.append(snap)
-        if bead_mapping is None:
-            if self.system_parms.molecule == "PEEK":
-                atoms_per_monomer = 36
-                if self.remove_hydrogens:
-                    atoms_per_monomer -= 14
-            elif self.system_parms.molecule == "PEKK":
-                atoms_per_monomer = 37
-                if self.remove_hydrogens:
-                    atoms_per_monomer -= 14
-            cg_system = System(
-                            atoms_per_monomer=atoms_per_monomer,
-                            gsd_file="atomistic_gsd.gsd"
-            )
-            for idx, mol in enumerate(cg_system.molecules):
-                mol.sequence = self.system_parms.molecule_sequences[idx]
-                mol.assign_types()
-
-            use_monomers = True
-            use_segments = False
-            use_components = False
-
-        elif bead_mapping:
-            cg_system = System(
-                    compound=self.system_parms.molecule,
-                    gsd_file="atomistic_gsd.gsd"
-            )
+        bond_array = aa_snap.bonds.group
+        sorted_bond_array = bond_array[bond_array[:, 0].argsort()]
+        for idx, bond_group in enumerate(sorted_bond_array):
+            aa_snap.bonds.group[idx] = bond_group 
+        # Create a gsd.hoomd.Snapshot() of the atomistic system
+        sim = hoomd.Simulation(device=hoomd.device.auto_select())
+        sim.create_state_from_snapshot(aa_snap)
+        hoomd.write.GSD.write(state=sim.state, filename="atomistic_gsd.gsd")
+        # Use polybinderCG to create a coarse-grained snapshot
+        cg_system = cg.System(
+                gsd_file="atomistic_gsd.gsd",
+                compound=self.system_parms.molecule
+        )
+        for idx, mol in enumerate(cg_system.molecules):
+            mol.sequence = self.system_parms.molecule_sequences[idx]
+            mol.assign_types()
+        if bead_mapping:
             try:
                 for mon in cg_system.monomers():
                     mon.generate_components(bead_mapping)
             except KeyError:
                     raise ValueError(
                             f"The index mapping scheme {bead_mapping} for "
-                            "{self.system_parms.molecule} is not found in "
+                            f"{self.system_parms.molecule} is not found in "
                             "polybinderCG."
                     )
             use_monomers = False
             use_segments = False
             use_components = True
 
-        if segment_length is not None:
+        elif segment_length:
             raise ValueError(
                     "Coarse-graining using segments is not yet supported"
             )
-
-        with gsd.hoomd.open("cg_system.gsd", "wb") as f:
-            cg_snap = cg_system.coarse_grain_snap(
-                    use_monomers=use_monomers,
-                    use_segments=use_segments,
-                    use_components=use_components
-            )
-            f.append(cg_snap)
-        self.system = os.path.abspath("cg_system.gsd")
+            use_monomers = False
+            use_segments = True 
+            use_components = False 
+        else:
+            use_monomers = True
+            use_segments = False
+            use_components = False
+        
+        cg_snap = cg_system.coarse_grain_snap(
+                use_monomers=use_monomers,
+                use_segments=use_segments,
+                use_components=use_components
+        )
+        self.system = cg_snap 
 
     def set_target_box(
             self,

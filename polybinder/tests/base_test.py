@@ -41,7 +41,29 @@ class BaseTest:
         return slab
 
     @pytest.fixture
-    def cg_system(self):
+    def cg_system_components(self):
+        system_parms = System(
+                molecule="PEKK",
+                para_weight=1.0,
+                density=0.08,
+                n_compounds=[10],
+                polymer_lengths=[3],
+        )
+        pekk_sys = Initializer(
+                system_parms,
+                system_type="pack",
+                forcefield=None,
+                remove_hydrogens=True
+        )
+        pekk_sys.coarse_grain_system(
+                ref_distance=3.39,
+                ref_mass=15.99,
+                bead_mapping="ring_plus_linkage_UA"
+        )
+        return pekk_sys
+
+    @pytest.fixture
+    def cg_system_monomers(self):
         system_parms = System(
                 molecule="PEKK",
                 para_weight=1.0,

@@ -117,8 +117,8 @@ class Simulation:
         self.system = system.system
         self.ran_shrink = False
 
-        # Coarsed-grained related parameters, system is a str (path to a GSD)
-        if isinstance(self.system, str):
+        # Coarsed-grained related parameters, system is a gsd.hoomd.Snapshot 
+        if isinstance(self.system, gsd.hoomd.Snapshot):
             assert ref_values != None, (
                         "Autoscaling is not supported for coarse-grain sims. "
                         "Provide the relevant reference units"
@@ -647,9 +647,8 @@ class Simulation:
         coarse-grained systems.
 
         """
-        if self.restart is None:
-            with gsd.hoomd.open(self.system, "rb") as f:
-                init_snap = f[0]
+        if self.restart is None and self.cg_system:
+            init_snap = self.system
         else:
             with gsd.hoomd.open(self.restart) as f:
                 init_snap = f[-1]
@@ -684,7 +683,8 @@ class Simulation:
             try:
                 assert os.path.exists(bond_pot_file)
             except AssertionError:
-                raise RuntimeError(f"The potential file {bond_pot_file} "
+                raise RuntimeError(
+                    f"The potential file {bond_pot_file} "
                     f"for bond {bond} does not exist in {self.cg_ff_path}."
                 )
             bonds.append(bond)
@@ -707,7 +707,6 @@ class Simulation:
                     U=bond_data[:,1],
                     F=bond_data[:,2]
             )
-        
         # Repeat same process for Angles 
         angles = []
         angle_pot_files = []
@@ -718,7 +717,8 @@ class Simulation:
             try:
                 assert os.path.exists(angle_pot_file)
             except AssertionError:
-                raise RuntimeError(f"The potential file {angle_pot_file} "
+                raise RuntimeError(
+                    f"The potential file {angle_pot_file} "
                     f"for angle {angle} does not exist in {self.cg_ff_path}."
                 )
             angles.append(angle)
@@ -727,7 +727,7 @@ class Simulation:
 
         if not all([i == angle_pot_widths[0] for i in angle_pot_widths]):
             raise RuntimeError(
-                "All bond potential files must have the same length"    
+                "All angle potential files must have the same length"    
             )
 
         angle_table = hoomd.md.angle.Table(width=angle_pot_widths[0])
