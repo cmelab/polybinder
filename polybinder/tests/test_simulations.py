@@ -291,15 +291,36 @@ class TestSimulate(BaseTest):
                 expand_period=10
         )
 
-    def test_cg_sim(self, cg_system):
+    def test_cg_sim_monomers(self, cg_system_monomers):
         simulation = simulate.Simulation(
-                cg_system,
+                cg_system_monomers,
                 r_cut=2.5,
                 mode="cpu",
                 ref_values = {"distance": 3.3997, "energy": 0.21, "mass": 15.99},
                 cg_potentials_dir = "test_potentials"
         )
         simulation.quench(kT=3.5, n_steps=500)
+
+    def test_cg_sim_components(self, cg_system_components):
+        simulation = simulate.Simulation(
+                cg_system_components,
+                r_cut=2.5,
+                mode="cpu",
+                ref_values = {"distance": 3.3997, "energy": 0.21, "mass": 15.99},
+                cg_potentials_dir = "test_potentials"
+        )
+        simulation.quench(kT=3.5, n_steps=500)
+
+    def test_cg_sim_no_files(self, cg_system_monomers):
+        with pytest.raises(RuntimeError):
+            simulation = simulate.Simulation(
+                    cg_system_monomers,
+                    r_cut=2.5,
+                    mode="cpu",
+                    ref_values = {"distance": 3.3997, "energy": 0.21, "mass": 15.99},
+                    cg_potentials_dir = "bad_dir"
+            )
+            simulation.quench(kT=3.5, n_steps=500)
 
     def test_quench_from_restart(self, pekk_system_noH, restart_gsd):
         simulation = simulate.Simulation(

@@ -474,7 +474,7 @@ class Initializer:
             except KeyError:
                     raise ValueError(
                             f"The index mapping scheme {bead_mapping} for "
-                            "{self.system_parms.molecule} is not found in "
+                            f"{self.system_parms.molecule} is not found in "
                             "polybinderCG."
                     )
             use_monomers = False
