@@ -554,6 +554,10 @@ class Simulation:
             A=0, B=1, t_start=self.sim.timestep, t_ramp=int(n_steps)
 		)
         
+        # Need correct array for updating particle positions
+        axis_dict = {"x": [1,0,0], "y": [0,1,0], "z": [0,0,1]}
+        shift_array = np.array(axis_dict[tensile_axis])
+        
         # Set up the walls of fixed particles
         box_max = getattr(init_box, f"L{tensile_axis}")/2
         box_min = -box_max
@@ -581,7 +585,7 @@ class Simulation:
                 box2=final_box,
                 variant=ramp,
                 trigger=box_resize_trigger,
-                filter=all_fixed
+                filter=hoomd.filter.Null()
         )
         self.sim.operations.updaters.append(box_resize)
         self.integrator.methods = [self.integrator_method]
@@ -596,8 +600,8 @@ class Simulation:
                 current_length = getattr(self.sim.state.box, f"L{tensile_axis}")
                 diff = current_length = last_length
                 with self.state_snapshot() as snap:
-                    snap.particles.position(fix_left)-=(adjust_axis*(diff/2))
-                    snap.particles.position(fix_right)+=(adjust_axis*(diff/2))
+                    snap.particles.position[fix_left.tags]-=(shift_array*(diff/2))
+                    snap.particles.position[fix_right.tags]+=(shift_array*(diff/2))
                 last_length = current_length
 
                 if self.wall_time_limit:
