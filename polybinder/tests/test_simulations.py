@@ -59,7 +59,7 @@ class TestSimulate(BaseTest):
         )
         simulation.temp_ramp(kT_init=0.5, kT_final=1.5, n_steps=5e2)
 
-    def test_bad_inputs(self, peek_system, cg_system):
+    def test_bad_inputs(self, peek_system, cg_system_monomers):
         simulation = simulate.Simulation(
                 peek_system,
                 tau_p=0.1,
@@ -86,7 +86,7 @@ class TestSimulate(BaseTest):
         # Coarse-grain and auto scale
         with pytest.raises(AssertionError):
             sim = simulate.Simulation(
-                    system=cg_system,
+                    system=cg_system_monomers,
                     auto_scale=True,
                     ref_values=None
             )
