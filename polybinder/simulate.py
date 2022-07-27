@@ -595,8 +595,8 @@ class Simulation:
 
         try:
             last_length = init_length
-            while self.sim.timestep < n_steps + 1:
-                self.sim.run(expand_period)
+            while self.sim.timestep < n_steps + self.sim.timestep:
+                self.sim.run(expand_period + 1)
                 current_length = getattr(self.sim.state.box, f"L{tensile_axis}")
                 diff = current_length = last_length
                 with self.state_snapshot() as snap:
