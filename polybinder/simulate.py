@@ -598,7 +598,7 @@ class Simulation:
             while self.sim.timestep < n_steps + self.sim.timestep:
                 self.sim.run(expand_period + 1)
                 current_length = getattr(self.sim.state.box, f"L{tensile_axis}")
-                diff = current_length = last_length
+                diff = current_length - last_length
                 with self.state_snapshot() as snap:
                     snap.particles.position[fix_left.tags]-=(shift_array*(diff/2))
                     snap.particles.position[fix_right.tags]+=(shift_array*(diff/2))
