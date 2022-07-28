@@ -436,7 +436,7 @@ class Initializer:
         self.target_box[2] += fiber_box.Lz
         # Create box filled with polymer chains
         pack_box = mb.box.Box(
-                [fiber_box.Lx, fiber_box.Ly, fiber_box.Lz*expand_factor]
+                [fiber_box.Lx, fiber_box.Ly, self.target_box[2]*expand_factor]
         )
         polymers = mb.fill_box(
                 compound=self.mb_compounds,
@@ -451,12 +451,10 @@ class Initializer:
         system = mb.Compound()
         system.add(fiber)
         system.add(polymers)
-        system.box = mb.box.Box(self.target_box)
-        system.translate_to((
-            system.box.Lx / 2,
-            system.box.Ly / 2,
-            system.box.Lz / 2
-        ))
+        system.box = pack_box 
+        system.translate_to(
+                (system.box.Lx/2, system.box.Ly/2, system.box.Lz/2)
+        )
         return system
 
 
