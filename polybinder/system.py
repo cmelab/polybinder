@@ -413,6 +413,8 @@ class Initializer:
         return crystal
     
     def carbon_fiber(self, x, y, n_layers, expand_factor=5):
+        """
+        """
         spacings = [0.425, 0.246, 0.35]
         angles = [90, 90, 90]
         points = [[1/6,0,0],[1/2,0,0],[0, 0.5, 0],[2/3, 1/2, 0]]
@@ -449,11 +451,13 @@ class Initializer:
         system = mb.Compound()
         system.add(fiber)
         system.add(polymers)
-        system.translate_to([0,0,0])
+        system.box = mb.box.Box(self.target_box)
+        system.translate_to((
+            system.box.Lx / 2,
+            system.box.Ly / 2,
+            system.box.Lz / 2
+        ))
         return system
-
-
-
 
 
     def coarse_grain_system(
