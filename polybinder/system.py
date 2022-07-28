@@ -444,7 +444,8 @@ class Initializer:
         # Combine polymers and fiber
         fiber.translate_to([0,0,0])
         polymers.translate_to([0,0,0])
-        polymers.translate([0,0,fiber_box.Lz])
+        shift_by = polymers.get_boundingbox().Lz/2 + fiber_box.Lz + spacings[-1]
+        polymers.translate([0,0,shift_by])
         system = mb.Compound()
         system.add(fiber)
         system.add(polymers)
