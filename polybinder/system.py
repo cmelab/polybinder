@@ -412,7 +412,7 @@ class Initializer:
         )
         return crystal
     
-    def carbon_fiber(self, x, y, n_layers, expand_factor=5):
+    def carbon_fiber(self, x, y, n_layers, expand_factor=3):
         """
         """
         spacings = [0.425, 0.246, 0.35]
@@ -441,22 +441,38 @@ class Initializer:
         polymers = mb.fill_box(
                 compound=self.mb_compounds,
                 n_compounds=[1 for i in self.mb_compounds],
-                box=pack_box
+                box=pack_box,
+                edge=0.5,
         )
         # Combine polymers and fiber
-        fiber.translate_to([0,0,0])
-        polymers.translate_to([0,0,0])
-        shift_by = polymers.get_boundingbox().Lz/2 + fiber_box.Lz + spacings[-1]
-        polymers.translate([0,0,shift_by])
+        shift_by = polymers.get_boundingbox().Lz/2 + fiber_box.Lz + 0.2  
         system = mb.Compound()
+        system.box = mb.box.Box(
+                [
+                    pack_box.Lx,
+                    pack_box.Ly,
+                    pack_box.Lz + fiber_box.Lz + spacings[-1]*2
+                ]
+        )
         system.add(fiber)
         system.add(polymers)
-        system.box = pack_box 
-        system.translate_to(
-                (system.box.Lx/2, system.box.Ly/2, system.box.Lz/2)
+        fiber.translate_to([0,0,0])
+        polymers.translate_to([0,0,0])
+        fiber.translate(
+            [
+                system.box.Lx/2,
+                system.box.Ly/2,
+                fiber_box.Lz/2 
+            ]
+        )
+        polymers.translate(
+            [
+                system.box.Lx/2,
+                system.box.Ly/2,
+                shift_by 
+            ]
         )
         return system
-
 
     def coarse_grain_system(
             self,
