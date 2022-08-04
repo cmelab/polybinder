@@ -268,10 +268,14 @@ class Initializer:
         self.save_parmed = save_parmed
         if self.save_parmed:
             os.makedirs(parmed_dir, exist_ok=True)
-            self.pmd_pickle_path = os.path.join(parmed_dir,
-                                                'pmd_{}_n{}_l{}'.format(self.system_parms.molecule,
-                                                                        self.system_parms.n_compounds,
-                                                                        self.system_parms.polymer_lengths))
+            self.pmd_pickle_path = os.path.join(
+                    parmed_dir,
+                    'pmd_{}_n{}_l{}'.format(
+                        self.system_parms.molecule,
+                        self.system_parms.n_compounds,
+                        self.system_parms.polymer_lengths
+                    )
+            )
 
         self.mb_compounds = self._generate_compounds()
         if self.system_type == "pack":
