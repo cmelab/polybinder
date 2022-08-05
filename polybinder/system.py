@@ -2,7 +2,7 @@ import json
 import os
 import random
 from warnings import warn
-
+import pickle
 import ele
 import foyer
 import gsd
@@ -217,6 +217,8 @@ class Initializer:
             forcefield="gaff",
             charges=None,
             remove_hydrogens=False,
+            save_parmed=True,
+            parmed_dir="pmd_structures",
             **kwargs
     ):
         """
@@ -248,6 +250,10 @@ class Initializer:
             molecule of interest.
         remove_hydrogens : bool, optional, default=False
             If True, hydrogen atoms are removed from the system.
+        save_parmed : bool, optional, default=True
+            If True, the parmed structure is saved to the file.
+        parmed_dir: str, optional, default="pmd_structures"
+            Directory for saving the parmed structures.
         kwargs : dict, optional
             The kwargs for each of the system initialization functions.
             See the doc strings for each function for allowable args.
@@ -259,6 +265,17 @@ class Initializer:
         self.system_mass = 0
         self.target_box = None
         self.charges = charges
+        self.save_parmed = save_parmed
+        if self.save_parmed:
+            os.makedirs(parmed_dir, exist_ok=True)
+            self.pmd_pickle_path = os.path.join(
+                    parmed_dir,
+                    'pmd_{}_n{}_l{}'.format(
+                        self.system_parms.molecule,
+                        self.system_parms.n_compounds,
+                        self.system_parms.polymer_lengths
+                    )
+            )
 
         self.mb_compounds = self._generate_compounds()
         if self.system_type == "pack":
@@ -276,6 +293,13 @@ class Initializer:
                     f"You passed in {system_type}"
             )
 
+        if self.forcefield:
+            self._load_parmed_structure(untyped_system=system_init)
+            if self.remove_hydrogens:
+                self._remove_hydrogens()
+        else:
+            self.system = system_init
+
         if self.target_box is None:
             warn("A target box has not been set for this system. "
                  "The default cubic volume (Lx=Ly=Lz) will be used. "
@@ -283,13 +307,6 @@ class Initializer:
                  "target box."
             )
             self.set_target_box()
-
-        if self.forcefield:
-            self.system = self._apply_ff(untyped_system=system_init)
-            if self.remove_hydrogens:
-                self._remove_hydrogens()
-        else:
-            self.system = system_init
 
     def pack(self, expand_factor=7):
         """Uses PACKMOL via mBuild to randomlly fill a box
@@ -657,6 +674,22 @@ class Initializer:
             for a in typed_system.atoms:
                 a.charge = 0
         return typed_system
+
+    def _load_parmed_structure(self, untyped_system):
+        """Loads the parmed structure from file, if exists.
+        Otherwise, creates the parmed structure and saves it to file using pickle.
+        """
+        if self.pmd_pickle_path and os.path.exists(self.pmd_pickle_path):
+                # load parmed from file
+                f = open(self.pmd_pickle_path, "rb")
+                self.system = pickle.load(f)
+                f.close()
+        else:
+            self.system = self._apply_ff(untyped_system)
+            if self.pmd_pickle_path:
+                f = open(self.pmd_pickle_path, "wb")
+                pickle.dump(self.system, f)
+                f.close()
 
     def _remove_hydrogens(self):
         # Adjust mass and charge of heavy atoms:
