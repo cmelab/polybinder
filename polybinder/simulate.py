@@ -554,6 +554,10 @@ class Simulation:
             A=0, B=1, t_start=self.sim.timestep, t_ramp=int(n_steps)
 		)
         
+        # Need correct array for updating particle positions
+        axis_dict = {"x": [1,0,0], "y": [0,1,0], "z": [0,0,1]}
+        shift_array = np.array(axis_dict[tensile_axis])
+        
         # Set up the walls of fixed particles
         box_max = getattr(init_box, f"L{tensile_axis}")/2
         box_min = -box_max
@@ -581,7 +585,7 @@ class Simulation:
                 box2=final_box,
                 variant=ramp,
                 trigger=box_resize_trigger,
-                filter=all_fixed
+                filter=hoomd.filter.Null()
         )
         self.sim.operations.updaters.append(box_resize)
         self.integrator.methods = [self.integrator_method]
@@ -590,8 +594,19 @@ class Simulation:
         )
 
         try:
-            while self.sim.timestep < n_steps + 1:
-                self.sim.run(min(10000, n_steps + 1 - self.sim.timestep))
+            last_length = init_length
+            last_step = self.sim.timestep
+            while self.sim.timestep < last_step:
+                self.sim.run(expand_period)
+                current_length = getattr(self.sim.state.box, f"L{tensile_axis}")
+                diff = current_length - last_length
+                snap = self.sim.state.get_snapshot()
+                snap.particles.position[fix_left.tags]-=(shift_array*(diff/2))
+                snap.particles.position[fix_right.tags]+=(shift_array*(diff/2))
+                self.sim.state.set_snapshot(snap)
+                last_length = current_length
+                last_step += expand_period
+
                 if self.wall_time_limit:
                     if (self.sim.device.communicator.walltime +
                             self.sim.walltime >=
@@ -601,7 +616,7 @@ class Simulation:
             hoomd.write.GSD.write(
                     state=self.sim.state, mode='wb', filename="restart.gsd"
             )
-        
+    
     def _hoomd_writers(self, group, forcefields, sim):
         # GSD and Logging:
         if self.restart:
