@@ -97,7 +97,7 @@ class System:
         self.para = 0
         self.meta = 0
         self.molecule_sequences = []
-        
+
         if self.molecule != "PEKK":
             if para_weight not in [1.0, None] or "M" in str(monomer_sequence):
                 raise ValueError(
@@ -274,12 +274,7 @@ class Initializer:
         if self.save_parmed:
             os.makedirs(parmed_dir, exist_ok=True)
             self.pmd_pickle_path = os.path.join(
-                    parmed_dir,
-                    'pmd_{}_n{}_l{}'.format(
-                        self.system_parms.molecule,
-                        self.system_parms.n_compounds,
-                        self.system_parms.polymer_lengths
-                    )
+                    parmed_dir,'parmed.pickle'
             )
 
         self.mb_compounds = self._generate_compounds()
@@ -419,9 +414,9 @@ class Initializer:
 
         bounding_box = np.array(crystal.get_boundingbox().lengths)
         target_z = bounding_box[-1] * z_adjust
-        bounding_box[0] *= 1.05
-        bounding_box[1] *= 1.05
-        bounding_box[2] *= 1.10
+        bounding_box[0] *= 1.04
+        bounding_box[1] *= 1.04
+        bounding_box[2] *= 1.01
         self.set_target_box(z_constraint=target_z)
         crystal.box = mb.box.Box(bounding_box)
         # Center in the box
@@ -476,7 +471,7 @@ class Initializer:
         bond_array = aa_snap.bonds.group
         sorted_bond_array = bond_array[bond_array[:, 0].argsort()]
         for idx, bond_group in enumerate(sorted_bond_array):
-            aa_snap.bonds.group[idx] = bond_group 
+            aa_snap.bonds.group[idx] = bond_group
         # Create a gsd.hoomd.Snapshot() of the atomistic system
         sim = hoomd.Simulation(device=hoomd.device.auto_select())
         sim.create_state_from_snapshot(aa_snap)
@@ -508,19 +503,19 @@ class Initializer:
                     "Coarse-graining using segments is not yet supported"
             )
             use_monomers = False
-            use_segments = True 
-            use_components = False 
+            use_segments = True
+            use_components = False
         else:
             use_monomers = True
             use_segments = False
             use_components = False
-        
+
         cg_snap = cg_system.coarse_grain_snap(
                 use_monomers=use_monomers,
                 use_segments=use_segments,
                 use_components=use_components
         )
-        self.system = cg_snap 
+        self.system = cg_snap
 
     def set_target_box(
             self,
