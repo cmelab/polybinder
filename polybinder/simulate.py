@@ -255,7 +255,7 @@ class Simulation:
                     tau=self.tau_kt,
                     S=pressure,
                     tauS=self.tau_p,
-                    couple=None
+                    couple="none"
             )
             self.sim.operations.integrator.methods = [self.integrator_method]
         else: # Set up (or update) NVT integrator
@@ -413,7 +413,7 @@ class Simulation:
                     tau=self.tau_kt,
                     S=pressure,
                     tauS=self.tau_p,
-                    couple=None
+                    couple="none"
             )
             self.sim.operations.integrator.methods = [self.integrator_method]
         else: # Set up (or update) NVT integrator
@@ -435,7 +435,8 @@ class Simulation:
                         min(
                             10000,
                             n_steps + current_timestep + 1 - self.sim.timestep
-                        )
+                        ),
+                        write_at_start=True
                 )
                 if self.wall_time_limit:
                     if (self.sim.device.communicator.walltime + self.sim.walltime >=
@@ -491,7 +492,7 @@ class Simulation:
                     tau=self.tau_kt,
                     S=pressure,
                     tauS=self.tau_p,
-                    couple="xyz"
+                    couple="none"
             )
             self.sim.operations.integrator.methods = [self.integrator_method]
         else: # Add NVT integrator if not already set up
