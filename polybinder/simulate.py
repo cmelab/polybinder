@@ -728,8 +728,12 @@ class Simulation:
         angle_pot_files = []
         angle_pot_widths = []
         for angle in init_snap.angles.types:
-            fname = f"{angle}_angle.txt"
-            angle_pot_file = f"{self.cg_ff_path}/{fname}"
+            if angle == "E-K-K":
+                fname = f"{angle}_angle_{ekk_weight}.txt"
+                angle_pot_file = f"{self.cg_ff_path}/{fname}"
+            elif angle == "K-E-K":
+                fname = f"{angle}_angle_{kek_weight}.txt"
+                angle_pot_file = f"{self.cg_ff_path}/{fname}"
             try:
                 assert os.path.exists(angle_pot_file)
             except AssertionError:
