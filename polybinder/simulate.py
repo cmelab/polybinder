@@ -98,7 +98,8 @@ class Simulation:
         seed=42,
         cg_potentials_dir=None,
         restart=None,
-        wall_time_limit=None
+        wall_time_limit=None,
+        **kwargs,
     ):
         self.r_cut = r_cut
         self.tau_kt = tau_kt
@@ -190,7 +191,7 @@ class Simulation:
             else:
                 self.sim.create_state_from_snapshot(self.init_snap)
         else:
-            self.init_snap, self.forcefields = self._create_hoomd_sim_from_snapshot()
+            self.init_snap, self.forcefields = self._create_hoomd_sim_from_snapshot(**kwargs)
             self.sim.create_state_from_snapshot(self.init_snap)
 
         # Set up wall potentials
@@ -652,7 +653,7 @@ class Simulation:
         )
         return gsd_writer, table_file 
 
-    def _create_hoomd_sim_from_snapshot(self):
+    def _create_hoomd_sim_from_snapshot(self, ekk_weight, kek_weight):
         """Creates needed hoomd objects.
 
         Similar to the `create_hoomd_forcefield` function
@@ -673,7 +674,7 @@ class Simulation:
         pair_table = hoomd.md.pair.Table(nlist=nlist)
         for pair in [list(i) for i in combo(init_snap.particles.types, r=2)]:
             _pair = "-".join(sorted(pair))
-            pair_pot_file = f"{self.cg_ff_path}/{_pair}.txt"
+            pair_pot_file = f"{self.cg_ff_path}/{_pair}_pair.txt"
             try:
                 assert os.path.exists(pair_pot_file)
             except AssertionError:
