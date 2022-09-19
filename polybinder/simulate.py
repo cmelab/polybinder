@@ -653,7 +653,7 @@ class Simulation:
         )
         return gsd_writer, table_file 
 
-    def _create_hoomd_sim_from_snapshot(self, ekk_weight, kek_weight):
+    def _create_hoomd_sim_from_snapshot(self, ekk_weight, kek_weight, pair_scale=1.0):
         """Creates needed hoomd objects.
 
         Similar to the `create_hoomd_forcefield` function
@@ -684,8 +684,10 @@ class Simulation:
             pair_data = np.loadtxt(pair_pot_file)
             r_min = pair_data[:,0][0]
             r_cut = pair_data[:,0][-1]
+            pair_U = pair_data[:,1] * pair_scale
+            pair_F = -1.0 * np.gradient(pair_U, (r_cut / (len(pair_U) - 1)))
             pair_table.params[tuple(sorted(pair))] = dict(
-                    r_min=r_min, U=pair_data[:,1], F=pair_data[:,2]
+                    r_min=r_min, U=pair_U, F=pair_F
             )
             pair_table.r_cut[tuple(sorted(pair))] = r_cut
 
