@@ -653,7 +653,13 @@ class Simulation:
         )
         return gsd_writer, table_file 
 
-    def _create_hoomd_sim_from_snapshot(self, ekk_weight, kek_weight, pair_scale=1.0):
+    def _create_hoomd_sim_from_snapshot(
+            self,
+            ekk_weight,
+            kek_weight,
+            dihedral_kwargs,
+            pair_scale=1.0,
+    ):
         """Creates needed hoomd objects.
 
         Similar to the `create_hoomd_forcefield` function
@@ -758,11 +764,22 @@ class Simulation:
             angle_table.params[angle] = dict(
                     U=angle_data[:,1], tau=angle_data[:,2]
             )
+        # Repeat same process for Dihedrals
+        harmonic_dihedral = hoomd.md.dihedral.Harmonic()
+        for dihedral in init_snap.dihedral.types:
+            harmonic_dihedral.params[dihedral] = dihedral_kwargs[dihedral]
+            #harmonic_dihedral.params[dihedral] = dict(
+            #        k=dihedral_kwargs["k"],
+            #        d=dihedral_kwargs["d"],
+            #        n=dihedral_kwargs["n"],
+            #        phi0=dihedral_kwargs["phi0"],
+            #)
 
         hoomd_forces = [
                 pair_table,
                 bond_table,
                 angle_table,
+                harmonic_dihedral
         ]
         return init_snap, hoomd_forces 
 
