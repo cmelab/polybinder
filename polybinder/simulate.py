@@ -766,7 +766,7 @@ class Simulation:
             )
         # Repeat same process for Dihedrals
         harmonic_dihedral = hoomd.md.dihedral.Harmonic()
-        for dihedral in init_snap.dihedral.types:
+        for dihedral in init_snap.dihedrals.types:
             harmonic_dihedral.params[dihedral] = dihedral_kwargs[dihedral]
             #harmonic_dihedral.params[dihedral] = dict(
             #        k=dihedral_kwargs["k"],
