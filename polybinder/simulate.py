@@ -659,6 +659,7 @@ class Simulation:
             kek_weight,
             dihedral_kwargs,
             pair_scale=1.0,
+            scale_cut=2.5,
     ):
         """Creates needed hoomd objects.
 
@@ -690,7 +691,9 @@ class Simulation:
             pair_data = np.loadtxt(pair_pot_file)
             r_min = pair_data[:,0][0]
             r_cut = pair_data[:,0][-1]
-            pair_U = pair_data[:,1] * pair_scale
+            #pair_U = pair_data[:,1] * pair_scale
+            scale_indices = np.where(pair_U <= 0)[0]
+            pair_U[scale_indices] *= pair_scale
             pair_F = -1.0 * np.gradient(pair_U, (r_cut / (len(pair_U) - 1)))
             pair_table.params[tuple(sorted(pair))] = dict(
                     r_min=r_min, U=pair_U, F=pair_F
