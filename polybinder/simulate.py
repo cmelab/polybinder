@@ -63,7 +63,7 @@ class Simulation:
     wall_time_limit : int, default None
         Set a maximum amount of time in seconds a simulation is allowed
         to run even if it hasn't ran to completion.
-    
+
     Methods
     -------
     shrink: Runs a hoomd simulation
@@ -77,8 +77,8 @@ class Simulation:
         course of the simulation. Can be used in NVT or NPT at a single
         pressure.
     tensile: Runs a hoomd simulation
-        Use this simulation method to perform a tensile test on the 
-        simulation volume. 
+        Use this simulation method to perform a tensile test on the
+        simulation volume.
 
     """
     def __init__(
@@ -118,7 +118,7 @@ class Simulation:
         self.system = system.system
         self.ran_shrink = False
 
-        # Coarsed-grained related parameters, system is a gsd.hoomd.Snapshot 
+        # Coarsed-grained related parameters, system is a gsd.hoomd.Snapshot
         if isinstance(self.system, gsd.hoomd.Snapshot):
             assert ref_values != None, (
                         "Autoscaling is not supported for coarse-grain sims. "
@@ -134,7 +134,7 @@ class Simulation:
             self.ref_distance = ref_values["distance"]
             self.ref_mass = ref_values["mass"]
 
-        # Non coarse-grained related parameters, system is a pmd.Structure 
+        # Non coarse-grained related parameters, system is a pmd.Structure
         elif isinstance(self.system, pmd.Structure):
             self.cg_system = False
             if ref_values and not auto_scale:
@@ -155,7 +155,7 @@ class Simulation:
 
         # Set target volume used during shrinking
         if system.system_type != "interface":
-            # Conv from nm (mBuild) to ang (parmed) and set to reduced length 
+            # Conv from nm (mBuild) to ang (parmed) and set to reduced length
             self.target_box = system.target_box * 10 / self.ref_distance
 
         self.log_quantities = [
@@ -214,9 +214,9 @@ class Simulation:
         if isinstance(self.nlist, hoomd.md.nlist.Tree):
             exclusions = self.forcefields[0].nlist.exclusions
             self.forcefields[0].nlist = self.nlist(buffer=0.4)
-            self.forcefields[0].nlist.exclusions = exclusions 
-        
-        # Set up remaining hoomd objects 
+            self.forcefields[0].nlist.exclusions = exclusions
+
+        # Set up remaining hoomd objects
         self._all = hoomd.filter.All()
         gsd_writer, table_file, = self._hoomd_writers(
                 group=self._all, sim=self.sim, forcefields=self.forcefields
@@ -226,7 +226,7 @@ class Simulation:
         self.integrator = hoomd.md.Integrator(dt=self.dt)
         self.integrator.forces = self.forcefields
         self.sim.operations.add(self.integrator)
-    
+
     def temp_ramp(
             self,
             n_steps,
@@ -255,13 +255,13 @@ class Simulation:
                     kT=_temp_ramp,
                     tau=self.tau_kt,
                     S=pressure,
-                    tauS=self.tau_p, 
+                    tauS=self.tau_p,
                     couple="xyz"
             )
             self.sim.operations.integrator.methods = [self.integrator_method]
         else: # Set up (or update) NVT integrator
             if self.ran_shrink:
-                self.sim.operations.integrator.methods[0].kT = _temp_ramp 
+                self.sim.operations.integrator.methods[0].kT = _temp_ramp
             else:
                 self.integrator_method = hoomd.md.methods.NVT(
                     filter=self._all, kT=_temp_ramp, tau=self.tau_kt
@@ -287,7 +287,7 @@ class Simulation:
         finally:
             hoomd.write.GSD.write(
                     state=self.sim.state, mode='wb', filename="restart.gsd"
-            ) 
+            )
 
     def shrink(
             self,
@@ -315,7 +315,7 @@ class Simulation:
             The tempearture at the end of the shrink simulation
         period : int, optional, default 1
             The number of steps to run between box updates
-        tree_nlist : bool, optional, default False 
+        tree_nlist : bool, optional, default False
             Use a tree neighborlist during shrinking.
             Useful when starting with very low density systems
 
@@ -346,7 +346,7 @@ class Simulation:
         box_resize_trigger = hoomd.trigger.Periodic(period)
         ramp = hoomd.variant.Ramp(
             A=0, B=1, t_start=self.sim.timestep, t_ramp=int(n_steps)
-        ) 
+        )
         initial_box = self.sim.state.box
         final_box = hoomd.Box(
                 Lx=self.target_box[0],
@@ -360,8 +360,8 @@ class Simulation:
                 trigger=box_resize_trigger
         )
         self.sim.operations.updaters.append(box_resize)
-        
-        # Run shrink sim while updating wall potentials 
+
+        # Run shrink sim while updating wall potentials
         if self.wall_axis is not None:
             while self.sim.timestep < n_steps + 1:
                 self.sim.run(period)
@@ -385,11 +385,11 @@ class Simulation:
         self.ran_shrink = True
 
         if tree_nlist and isinstance(self.nlist, hoomd.md.nlist.Cell):
-            self.sim.operations.integrator.forces[0].nlist = original_nlist 
-        
+            self.sim.operations.integrator.forces[0].nlist = original_nlist
+
     def quench(self, n_steps, kT=None, pressure=None):
         """Runs an NVT or NPT simulation at a single temperature
-        and/or pressure. 
+        and/or pressure.
 
         Call this funciton after initializing the Simulation class.
 
@@ -413,7 +413,7 @@ class Simulation:
                     kT=kT,
                     tau=self.tau_kt,
                     S=pressure,
-                    tauS=self.tau_p, 
+                    tauS=self.tau_p,
                     couple="xyz"
             )
             self.sim.operations.integrator.methods = [self.integrator_method]
@@ -445,8 +445,8 @@ class Simulation:
         finally:
             hoomd.write.GSD.write(
                     state=self.sim.state, mode='wb', filename="restart.gsd"
-            ) 
-		
+            )
+
     def anneal(
         self,
         kT_init=None,
@@ -455,9 +455,9 @@ class Simulation:
         step_sequence=None,
         schedule=None,
     ):
-        """Runs a simulation through a series of temperatures in the 
+        """Runs a simulation through a series of temperatures in the
         NVT or NPT ensemble.
-        You can define the annealing sequence by specifying an 
+        You can define the annealing sequence by specifying an
         initial and final temperature and a series of steps, or
         you can pass in a dicitonary of kT:n_steps.
 
@@ -491,7 +491,7 @@ class Simulation:
                     kT=kT_init,
                     tau=self.tau_kt,
                     S=pressure,
-                    tauS=self.tau_p, 
+                    tauS=self.tau_p,
                     couple="xyz"
             )
             self.sim.operations.integrator.methods = [self.integrator_method]
@@ -508,11 +508,11 @@ class Simulation:
             self.sim.operations.integrator.methods[0].kT = kT
             self.sim.state.thermalize_particle_momenta(filter=self._all, kT=kT)
             n_steps = schedule[kT]
-            self.sim.run(n_steps) 
+            self.sim.run(n_steps)
 
         hoomd.write.GSD.write(
                 state=self.sim.state, mode='wb', filename="restart.gsd"
-        ) 
+        )
 
     def tensile(self,
             kT,
@@ -540,7 +540,7 @@ class Simulation:
             is used for the distance on each side.
 
         """
-        
+
         # Set up target volume, tensile axis, etc.
         init_box = self.sim.state.box
         final_box = hoomd.Box(
@@ -554,11 +554,11 @@ class Simulation:
         ramp = hoomd.variant.Ramp(
             A=0, B=1, t_start=self.sim.timestep, t_ramp=int(n_steps)
 		)
-        
+
         # Need correct array for updating particle positions
         axis_dict = {"x": [1,0,0], "y": [0,1,0], "z": [0,0,1]}
         shift_array = np.array(axis_dict[tensile_axis])
-        
+
         # Set up the walls of fixed particles
         box_max = getattr(init_box, f"L{tensile_axis}")/2
         box_min = -box_max
@@ -571,7 +571,7 @@ class Simulation:
         elif tensile_axis == "z":
             positions = self.init_snap.particles.position[:,2]
             final_box.Lz = target_length
-            
+
         left_tags = np.where(positions < (box_min + fix_length))[0]
         right_tags = np.where(positions > (box_max - fix_length))[0]
         fix_left = hoomd.filter.Tags(left_tags.astype(np.uint32))
@@ -617,7 +617,7 @@ class Simulation:
             hoomd.write.GSD.write(
                     state=self.sim.state, mode='wb', filename="restart.gsd"
             )
-    
+
     def _hoomd_writers(self, group, forcefields, sim):
         # GSD and Logging:
         if self.restart:
@@ -651,7 +651,7 @@ class Simulation:
             logger=logger,
             max_header_len=None,
         )
-        return gsd_writer, table_file 
+        return gsd_writer, table_file
 
     def _create_hoomd_sim_from_snapshot(
             self,
@@ -691,7 +691,7 @@ class Simulation:
             pair_data = np.loadtxt(pair_pot_file)
             r_min = pair_data[:,0][0]
             r_cut = pair_data[:,0][-1]
-            #pair_U = pair_data[:,1] * pair_scale
+            pair_U = pair_data[:,1] * pair_scale
             scale_indices = np.where(pair_U <= 0)[0]
             pair_U[scale_indices] *= pair_scale
             pair_F = -1.0 * np.gradient(pair_U, (r_cut / (len(pair_U) - 1)))
@@ -700,7 +700,7 @@ class Simulation:
             )
             pair_table.r_cut[tuple(sorted(pair))] = r_cut
 
-        # Repeat same process for Bonds 
+        # Repeat same process for Bonds
         bonds = []
         bond_pot_files = []
         bond_pot_widths = []
@@ -720,7 +720,7 @@ class Simulation:
 
         if not all([i == bond_pot_widths[0] for i in bond_pot_widths]):
             raise RuntimeError(
-                "All bond potential files must have the same length"    
+                "All bond potential files must have the same length"
             )
 
         bond_table = hoomd.md.bond.Table(width=bond_pot_widths[0])
@@ -734,7 +734,7 @@ class Simulation:
                     U=bond_data[:,1],
                     F=bond_data[:,2]
             )
-        # Repeat same process for Angles 
+        # Repeat same process for Angles
         angles = []
         angle_pot_files = []
         angle_pot_widths = []
@@ -758,7 +758,7 @@ class Simulation:
 
         if not all([i == angle_pot_widths[0] for i in angle_pot_widths]):
             raise RuntimeError(
-                "All angle potential files must have the same length"    
+                "All angle potential files must have the same length"
             )
 
         angle_table = hoomd.md.angle.Table(width=angle_pot_widths[0])
@@ -784,7 +784,7 @@ class Simulation:
                 angle_table,
                 harmonic_dihedral
         ]
-        return init_snap, hoomd_forces 
+        return init_snap, hoomd_forces
 
     def _hoomd_walls(self, Lx, Ly, Lz):
         """Create hoomd LJ wall potentials"""
@@ -796,4 +796,4 @@ class Simulation:
         normal_vector2 = -normal_vector
         wall1 = hoomd.wall.Plane(origin=wall_origin, normal=normal_vector)
         wall2 = hoomd.wall.Plane(origin=wall_origin2, normal=normal_vector2)
-        return [wall1, wall2] 
+        return [wall1, wall2]
