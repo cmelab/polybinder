@@ -771,12 +771,6 @@ class Simulation:
         harmonic_dihedral = hoomd.md.dihedral.Harmonic()
         for dihedral in init_snap.dihedrals.types:
             harmonic_dihedral.params[dihedral] = dihedral_kwargs[dihedral]
-            #harmonic_dihedral.params[dihedral] = dict(
-            #        k=dihedral_kwargs["k"],
-            #        d=dihedral_kwargs["d"],
-            #        n=dihedral_kwargs["n"],
-            #        phi0=dihedral_kwargs["phi0"],
-            #)
 
         hoomd_forces = [
                 pair_table,
