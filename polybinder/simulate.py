@@ -660,6 +660,7 @@ class Simulation:
             dihedral_kwargs,
             pair_scale=1.0,
             scale_cut=0.0,
+            nlist_exclusions=("bond", "1-3", "1-4")
     ):
         """Creates needed hoomd objects.
 
@@ -678,6 +679,7 @@ class Simulation:
                 print("Simulation initialized from restart file")
         # Create pair table potentials
         nlist = self.nlist(buffer=0.4)
+        nlist.exclusions = nlist_exclusions
         pair_table = hoomd.md.pair.Table(nlist=nlist)
         for pair in [list(i) for i in combo(init_snap.particles.types, r=2)]:
             _pair = "-".join(sorted(pair))
