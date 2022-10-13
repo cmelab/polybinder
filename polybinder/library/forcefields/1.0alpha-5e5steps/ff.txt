@@ -1,6 +1,0 @@
-This forcefield uses the CG table potentials learned from MSIBI.
-
-Notes:
-- The E-E and E-K bond stretching potentials were obtained from single chain, T/I = 1.0 simulations
-- The pair potentials were obtained using 4 states, all evenly weighted with an alpha of 1.0
-- the pair potentials were optimized using 5e5 steps per iteration
