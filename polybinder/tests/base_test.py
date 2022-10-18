@@ -68,8 +68,8 @@ class BaseTest:
                 molecule="PEKK",
                 para_weight=1.0,
                 density=0.08,
-                n_compounds=[10],
-                polymer_lengths=[3],
+                n_compounds=[5],
+                polymer_lengths=[6],
         )
         pekk_sys = Initializer(
                 system_parms,
@@ -78,7 +78,9 @@ class BaseTest:
                 remove_hydrogens=True
         )
         pekk_sys.coarse_grain_system(
-                ref_distance=3.39, ref_mass=15.99
+                ref_distance=3.39,
+                ref_mass=15.99,
+                bead_mapping=None
         )
         return pekk_sys
 
