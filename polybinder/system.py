@@ -346,7 +346,7 @@ class Initializer:
         system = mb.Compound()
         for idx, comp in enumerate(self.mb_compounds):
             z_axis_transform(comp)
-            comp.translate(np.array([separation,0,0])*idx)
+            comp.translate(np.array([0,0,separation])*idx)
             system.add(comp)
 
         system.box = mb.box.Box(self.target_box)
