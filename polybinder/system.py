@@ -175,6 +175,11 @@ class System:
         mass_sampler = mass_distribution_dict["sampler"]
         mass_distribution = mass_distribution_dict["functional_form"]
         samples = np.round(mass_sampler(n_compounds)).astype(int)
+        if len(samples[samples == 0]) > 0:
+            samples[samples == 0] = 1
+            warn("Polymer lengths of 0 were returned from sampling. "
+                "They were replaced a length of 1"
+            )
         self.polymer_lengths = sorted(list(set(samples)))
         self.n_compounds = [
                 list(samples).count(x) for x in self.polymer_lengths
@@ -348,7 +353,7 @@ class Initializer:
         system = mb.Compound()
         for idx, comp in enumerate(self.mb_compounds):
             z_axis_transform(comp)
-            comp.translate(np.array([separation,0,0])*idx)
+            comp.translate(np.array([0,0,separation])*idx)
             system.add(comp)
 
         system.box = mb.box.Box(self.target_box)

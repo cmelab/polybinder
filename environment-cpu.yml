@@ -3,7 +3,6 @@ channels:
   - jaimergp/label/unsupported-cudatoolkit-shim
   - conda-forge
 dependencies:
-  - cmeutils
   - foyer=0.11.0
   - freud=2.8.0
   - gsd=2.5.1
@@ -19,3 +18,4 @@ dependencies:
   - signac-flow=0.18.1
   - pip:
       - git+https://github.com/chrisjonesBSU/polybinderCG.git@main
+      - git+https://github.com/cmelab/cmeutils.git@master
