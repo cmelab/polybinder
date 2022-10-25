@@ -202,6 +202,24 @@ class TestSystems(BaseTest):
         system = Initializer(system_parms, system_type="pack", expand_factor=10)
 
 
+    def test_carbon_fiber(self):
+        system_parms = System(
+                molecule="PPS",
+                para_weight=1.0,
+                density=0.7,
+                n_compounds=[10],
+                polymer_lengths=[3],
+        )
+        system = Initializer(
+                system_parms,
+                system_type="fiber",
+                x=8,
+                y=8,
+                n_layers=3,
+                expand_factor=10,
+                forcefield=None
+        )
+
     def test_stack(self):
         system_parms = System(
                 molecule="PEKK",
