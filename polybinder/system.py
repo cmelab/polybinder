@@ -293,11 +293,8 @@ class Initializer:
             system_init = self.carbon_fiber(**kwargs)
         else:
             raise ValueError(
-                    "Valid system types are:"
-                    "'pack'"
-                    "'stack'"
-                    "'crystal'"
-                    f"You passed in {system_type}"
+                    "Valid system types are: "
+                    "'pack', 'stack', 'crystal', 'fiber' "
             )
 
         if self.forcefield:
@@ -467,7 +464,7 @@ class Initializer:
                 edge=0.5,
         )
         # Combine polymers and fiber
-        shift_by = polymers.get_boundingbox().Lz/2 + fiber_box.Lz + 0.2  
+        shift_by = polymers.get_boundingbox().Lz/2 + fiber_box.Lz + 1.0  
         system = mb.Compound()
         system.box = mb.box.Box(
                 [
