@@ -1,0 +1,10 @@
+The pair potential for this was taken from an MSIBI run using a cutoff of 4.0, and a much smaller gsd-write out period
+
+Location:
+/home/erjank_project/chrisjones/pekk-msibi/model-2/msibi-runs/two-chain-state-pot-smoothing-better-sampling/workspace/e3705834a7ef4f014410910bfec439b8
+
+I used the potential from the last iteraiton
+
+This cg potential dir contains updated angle potentials
+derived from a second round of MSIBI on angles
+where the entire CG forcefield was used during MSIBI
