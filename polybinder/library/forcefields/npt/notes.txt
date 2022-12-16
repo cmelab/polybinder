@@ -1,2 +1,0 @@
-These pair potentials were taken from the MSIBI runs performed using NPT
-Path: /home/chris/cme/projects/pekk-msibi/model-2/msibi-runs/pairs/msibi-npt/workspace/24adab3429e5ae7da77f934b26168aff 
