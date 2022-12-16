@@ -96,7 +96,7 @@ class BaseTest:
         pps_sys = Initializer(
                 system_parms,
                 system_type="pack",
-                forcefield="opls",
+                forcefield="pps_opls",
                 remove_hydrogens=False
         )
         return pps_sys
@@ -113,7 +113,7 @@ class BaseTest:
         pps_sys = Initializer(
             system_parms,
             system_type = "pack",
-            forcefield="opls",
+            forcefield="pps_opls",
             charges="antechamber",
             remove_hydrogens=False
         )
@@ -182,7 +182,7 @@ class BaseTest:
         pps_sys = Initializer(
                 system_parms,
                 system_type="pack",
-                forcefield="gaff",
+                forcefield="pps_opls",
                 remove_hydrogens=True
         )
         return pps_sys

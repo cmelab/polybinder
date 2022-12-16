@@ -15,7 +15,7 @@
 		<Bond class1="SH" class2="CA" length="0.174" k="209200.0"/>
 	</HarmonicBondForce>
 	<HarmonicAngleForce>
-		<Angle class1="CA" class2="S" class3="CA" angle="1.72490889974599" k="627.6"/>
+		<Angle class1="CA" class2="S" class3="CA" angle="1.805" k="627.6"/>
 		<Angle class1="CA" class2="SH" class3="HS" angle="1.67551608191" k="418.4"/>
 		<Angle class1="CA" class2="CA" class3="S" angle="2.08392312688" k="711.28"/>
 		<Angle class1="CA" class2="CA" class3="CA" angle="2.09439510239" k="527.184"/>
