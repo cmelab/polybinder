@@ -924,12 +924,16 @@ def build_molecule(
             para = mb.load(os.path.join(COMPOUND_DIR, mol_dict["para_file"]))
             if charges:
                 charge_dict = mol_dict["para_charges"][charges]
+                para_head_charge = charge_dict[str(para.n_particles - 2)]
+                para_tail_charge = charge_dict[str(para.n_particles - 1)]
                 for idx, p in enumerate(para.particles()):
                     p.charge = charge_dict[str(idx)]
             if "M" in monomer_sequence:
                 meta = mb.load(os.path.join(COMPOUND_DIR, mol_dict["meta_file"]))
                 if charges:
                     charge_dict = mol_dict["meta_charges"][charges]
+                    meta_head_charge = charge_dict[str(para.n_particles - 2)]
+                    meta_tail_charge = charge_dict[str(para.n_particles - 1)]
                     for idx, p in enumerate(meta.particles()):
                         p.charge = charge_dict[str(idx)]
         except KeyError:
@@ -967,6 +971,15 @@ def build_molecule(
             )
 
     compound.build(n=1, sequence=monomer_sequence, add_hydrogens=True)
+    if charges:
+        if monomer_sequence[0] == "P":
+            compound[-2].charge = para_head_charge
+        elif monomer_sequence[0] == "M":
+            compound[-2].charge = meta_head_charge
+        if monomer_sequence[-1] == "P":
+            compound[-1].charge = para_tail_charge
+        elif monomer_sequence[-1] == "M":
+            compound[-1].charge = meta_tail_charge
     # Rotate to align with z-axis; important for initializing ordered systems
     # Rotations are hard-coded based on the mol2 files in the library
     if molecule == "PEKK":
