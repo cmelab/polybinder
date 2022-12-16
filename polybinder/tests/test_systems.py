@@ -62,7 +62,7 @@ class TestSystems(BaseTest):
         system = Initializer(
             sys_parms,
             system_type = "pack",
-            forcefield="opls",
+            forcefield="pps_opls",
             charges="iff",
             remove_hydrogens=False
         )
@@ -78,7 +78,7 @@ class TestSystems(BaseTest):
         system = Initializer(
             sys_parms,
             system_type = "pack",
-            forcefield="opls",
+            forcefield="pps_opls",
             charges="antechamber",
             remove_hydrogens=False
         )
@@ -472,7 +472,7 @@ class TestSystems(BaseTest):
             Mw=6.0,
             Mn=5.0,
         )
-        system = Initializer(system_parms, "pack")
+        system = Initializer(system_parms, "pack", forcefield="pps_opls")
 
     def test_too_few_pdi_vals(self):
         with pytest.raises(AssertionError):

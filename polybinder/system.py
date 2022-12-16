@@ -639,17 +639,10 @@ class Initializer:
         """Use foyer to type the system and store forcefield parameters.
         Returns a Parmed structure object.
         """
-        if self.forcefield == "gaff":
-            ff_path = f"{FF_DIR}/gaff.xml"
-            forcefield = foyer.Forcefield(forcefield_files=ff_path)
-        elif self.forcefield == "opls":
-            ff_path = f"{FF_DIR}/oplsaa.xml"
-            forcefield = foyer.Forcefield(forcefield_files=ff_path)
-
+        ff_path = f"{FF_DIR}/{self.forcefield}.xml"
+        forcefield = foyer.Forcefield(forcefield_files=ff_path)
         typed_system = forcefield.apply(
-                untyped_system,
-                verbose=True,
-                assert_dihedral_params=False
+                untyped_system, verbose=True, assert_dihedral_params=True
         )
         # Add charges to parmed struc from mbuild comp
         if self.charges:
