@@ -164,6 +164,7 @@ class Simulation:
             "kinetic_energy",
             "volume",
             "pressure",
+            "degrees_of_freedom",
             "pressure_tensor",
         ]
 
