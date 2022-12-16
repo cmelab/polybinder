@@ -284,13 +284,12 @@ class Initializer:
             system_init = self.stack(**kwargs)
         elif self.system_type == "crystal":
             system_init = self.crystal(**kwargs)
+        elif self.system_type == "fiber":
+            system_init = self.carbon_fiber(**kwargs)
         else:
             raise ValueError(
-                    "Valid system types are:"
-                    "'pack'"
-                    "'stack'"
-                    "'crystal'"
-                    f"You passed in {system_type}"
+                    "Valid system types are: "
+                    "'pack', 'stack', 'crystal', 'fiber' "
             )
 
         if self.forcefield:
@@ -426,6 +425,68 @@ class Initializer:
                 crystal.box.Lz / 2)
         )
         return crystal
+    
+    def carbon_fiber(self, x, y, n_layers, expand_factor=3):
+        """
+        """
+        spacings = [0.425, 0.246, 0.35]
+        angles = [90, 90, 90]
+        points = [[1/6,0,0],[1/2,0,0],[0, 0.5, 0],[2/3, 1/2, 0]]
+        lattice = mb.Lattice(
+                lattice_spacing=spacings,
+                angles=angles,
+                lattice_points={'A' : points}
+        )
+        c = mb.Compound(name='C')
+        fiber = lattice.populate(
+                compound_dict={'A' : c}, x=x, y=y, z=n_layers
+        )
+        fiber.freud_generate_bonds("C", "C", dmin=0.14, dmax=0.145)
+        fiber_box = fiber.get_boundingbox()
+        self.set_target_box(
+                x_constraint=fiber_box.Lx, y_constraint=fiber_box.Ly
+        )
+        # Adjust target box z-value to account for fiber thickness
+        self.target_box[2] += fiber_box.Lz
+        # Create box filled with polymer chains
+        pack_box = mb.box.Box(
+                [fiber_box.Lx, fiber_box.Ly, self.target_box[2]*expand_factor]
+        )
+        polymers = mb.fill_box(
+                compound=self.mb_compounds,
+                n_compounds=[1 for i in self.mb_compounds],
+                box=pack_box,
+                edge=0.5,
+        )
+        # Combine polymers and fiber
+        shift_by = polymers.get_boundingbox().Lz/2 + fiber_box.Lz + 1.0  
+        system = mb.Compound()
+        system.box = mb.box.Box(
+                [
+                    pack_box.Lx,
+                    pack_box.Ly,
+                    pack_box.Lz + fiber_box.Lz + spacings[-1]*2
+                ]
+        )
+        system.add(fiber)
+        system.add(polymers)
+        fiber.translate_to([0,0,0])
+        polymers.translate_to([0,0,0])
+        fiber.translate(
+            [
+                system.box.Lx/2,
+                system.box.Ly/2,
+                fiber_box.Lz/2 
+            ]
+        )
+        polymers.translate(
+            [
+                system.box.Lx/2,
+                system.box.Ly/2,
+                shift_by 
+            ]
+        )
+        return system
 
     def coarse_grain_system(
             self,
