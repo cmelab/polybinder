@@ -5,6 +5,7 @@ from warnings import warn
 import pickle
 import ele
 import foyer
+from gmso.external import from_mbuild, to_parmed
 import gsd
 import gsd.hoomd
 import mbuild as mb
@@ -218,8 +219,7 @@ class Initializer:
     def __init__(
             self,
             system,
-            system_type,
-            forcefield="gaff",
+            forcefield=None,
             charges=None,
             remove_hydrogens=False,
             save_parmed=True,
@@ -264,13 +264,13 @@ class Initializer:
             See the doc strings for each function for allowable args.
         """
         self.system_parms = system
-        self.system_type = system_type
         self.forcefield = forcefield
         self.remove_hydrogens = remove_hydrogens
         self.system_mass = 0
         self.target_box = None
         self.charges = charges
         self.save_parmed = save_parmed
+        self.untyped_system = None
         if self.save_parmed:
             os.makedirs(parmed_dir, exist_ok=True)
             self.pmd_pickle_path = os.path.join(
@@ -279,35 +279,6 @@ class Initializer:
 
         self.mb_compounds = self._generate_compounds()
         self.cg_compounds = [] 
-        if self.system_type == "pack":
-            system_init = self.pack(**kwargs)
-        elif self.system_type == "stack":
-            system_init = self.stack(**kwargs)
-        elif self.system_type == "crystal":
-            system_init = self.crystal(**kwargs)
-        else:
-            raise ValueError(
-                    "Valid system types are:"
-                    "'pack'"
-                    "'stack'"
-                    "'crystal'"
-                    f"You passed in {system_type}"
-            )
-        
-        if self.forcefield or self.cg_compounds:
-            self._load_parmed_structure(untyped_system=system_init)
-            if self.remove_hydrogens:
-                self._remove_hydrogens()
-        else:
-            self.system = system_init
-
-        if self.target_box is None:
-            warn("A target box has not been set for this system. "
-                 "The default cubic volume (Lx=Ly=Lz) will be used. "
-                 "See the `set_target_box()` function to set a non-cubic "
-                 "target box."
-            )
-            self.set_target_box()
 
     def pack(self, expand_factor=7):
         """Uses PACKMOL via mBuild to randomlly fill a box
@@ -334,7 +305,12 @@ class Initializer:
             edge=0.9,
             fix_orientation=True,
         )
-        return system
+        if self.forcefield or self.cg_compounds:
+            self._load_parmed_structure(untyped_system=system)
+            if self.remove_hydrogens:
+                self._remove_hydrogens()
+        else:
+            self.system = system
 
     def stack(self, separation=0.7):
         """This method organizes the polymer chains in a single layer.
@@ -365,7 +341,13 @@ class Initializer:
             system.box.Ly / 2,
             system.box.Lz / 2
         ))
-        return system
+
+        if self.forcefield or self.cg_compounds:
+            self._load_parmed_structure(untyped_system=system)
+            if self.remove_hydrogens:
+                self._remove_hydrogens()
+        else:
+            self.system = system
 
     def crystal(self, a, b, n, vector=[.5, .5, 0], z_adjust=1.0):
         """Creates a system of n x n repeating unit cells
@@ -438,7 +420,13 @@ class Initializer:
                 crystal.box.Ly / 2,
                 crystal.box.Lz / 2)
         )
-        return crystal
+
+        if self.forcefield or self.cg_compounds:
+            self._load_parmed_structure(untyped_system=system)
+            if self.remove_hydrogens:
+                self._remove_hydrogens()
+        else:
+            self.system = system
     
     def coarse_grain_system(
             self, use_monomers=False, use_components=False, bead_mapping=None
