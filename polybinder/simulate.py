@@ -6,6 +6,7 @@ import gsd.hoomd
 import hoomd
 import hoomd.md
 from mbuild.formats.hoomd_forcefield import create_hoomd_forcefield
+from mbuild.formats.hoomd_snapshot import to_hoomdsnapshot
 import numpy as np
 import parmed as pmd
 
@@ -123,24 +124,20 @@ class Simulation:
                         "Autoscaling is not supported for coarse-grain sims. "
                         "Provide the relevant reference units"
             )
+            self.cg_ff_path = f"{FF_DIR}/{cg_potentials_dir}"
             self.cg_system = True
-            if cg_potentials_dir is None:
-                self.cg_ff_path = FF_DIR
-            else:
-                self.cg_ff_path = f"{FF_DIR}/{cg_potentials_dir}"
-
             self.ref_energy = ref_values["energy"]
             self.ref_distance = ref_values["distance"]
             self.ref_mass = ref_values["mass"]
 
         # Non coarse-grained related parameters, system is a pmd.Structure
-        elif isinstance(self.system, pmd.Structure):
+        else:
             self.cg_system = False
             if ref_values and not auto_scale:
                 self.ref_energy = ref_values["energy"]
                 self.ref_distance = ref_values["distance"]
                 self.ref_mass = ref_values["mass"]
-            # Pulled from mBuild hoomd_simulation.py
+            # Pulled from mBuild create_hoomd_forcefield.py
             elif auto_scale and not ref_values:
                 self.ref_mass = max([atom.mass for atom in self.system.atoms])
                 pair_coeffs = list(
@@ -164,6 +161,7 @@ class Simulation:
             "volume",
             "pressure",
             "pressure_tensor",
+            "degrees_of_freedom"
         ]
 
         if self.mode == "cpu":
@@ -654,17 +652,19 @@ class Simulation:
         return gsd_writer, table_file
 
     def _create_hoomd_sim_from_snapshot(self):
-        """Creates needed hoomd objects.
+        """Creates needed hoomd objects for coarse-grained simulations.
 
         Similar to the `create_hoomd_forcefield` function
-        from mBuild, but designed to work when initializing
-        a system from a gsd file rather than a Parmed structure.
-        Created specifically for using table potentials with
-        coarse-grained systems.
+        from mBuild, but designed to work with table potentials. 
 
         """
         if self.restart is None and self.cg_system:
-            init_snap = self.system
+            init_snap, refs = to_hoomdsnapshot(
+                    structure=self.system,
+                    ref_distance=self.ref_distance,
+                    ref_mass=self.ref_mass,
+                    ref_energy=self.ref_energy,
+            )
         else:
             with gsd.hoomd.open(self.restart) as f:
                 init_snap = f[-1]

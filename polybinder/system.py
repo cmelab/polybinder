@@ -269,6 +269,7 @@ class Initializer:
         self.system_mass = 0
         self.target_box = None
         self.charges = charges
+        self.system_type = None
         self.save_parmed = save_parmed
         self.untyped_system = None
         if self.save_parmed:
@@ -311,6 +312,7 @@ class Initializer:
                 self._remove_hydrogens()
         else:
             self.system = system
+        self.system_type = "pack"
 
     def stack(self, separation=0.7):
         """This method organizes the polymer chains in a single layer.
@@ -348,6 +350,7 @@ class Initializer:
                 self._remove_hydrogens()
         else:
             self.system = system
+        self.system_type = "stack"
 
     def crystal(self, a, b, n, vector=[.5, .5, 0], z_adjust=1.0):
         """Creates a system of n x n repeating unit cells
@@ -427,6 +430,7 @@ class Initializer:
                 self._remove_hydrogens()
         else:
             self.system = system
+        self.system_type = "crystal"
     
     def coarse_grain_system(
             self, use_monomers=False, use_components=False, bead_mapping=None
