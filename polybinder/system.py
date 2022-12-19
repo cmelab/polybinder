@@ -294,7 +294,7 @@ class Initializer:
                     f"You passed in {system_type}"
             )
         
-        if self.forcefield or if self.cg_compounds:
+        if self.forcefield or self.cg_compounds:
             self._load_parmed_structure(untyped_system=system_init)
             if self.remove_hydrogens:
                 self._remove_hydrogens()
@@ -446,106 +446,17 @@ class Initializer:
         import polybinderCG.mbuild_cg as mbcg
 
         for comp in self.mb_compounds:
-            cg_comp = mbcg(mb_compound=comp, molecule=self.molecule)
+            cg_comp = mbcg.System(
+                    mb_compound=comp, molecule=self.system_parms.molecule
+            )
             if use_components:
-                for mon in cg_comp.molecules():
+                for mon in cg_comp.monomers():
                     mon.generate_components(index_mapping=bead_mapping)
             self.cg_compounds.append(
                     cg_comp.save(
                         use_monomers=use_monomers, use_components=use_components
                     )
             )
-
-
-    def coarse_grain_system(
-            self,
-            ref_distance,
-            ref_mass,
-            bead_mapping=None,
-            segment_length=None
-    ):
-        """
-        ref_distance : float, required
-            The reference distance to scale particle positions by.
-            Enter the distance in units of angstrom as they are scaled
-            in after mbuild compound is converted to Parmed structure.
-        ref_mass : float, required
-            The reference mass to scale particle masses by.
-            Enter the mass in amu.
-        bead_mapping : str, optional
-            One of the mapping options available in polybinderCG
-            Use this if your coarse-grain mapping is at the component level
-            Provides instructions on how to map beads to atoms
-        segment_length : int, optional
-            The number of monomers in 1 segment
-            Use this if your coarse-grain mapping is at the segment level
-
-        """
-        import hoomd
-        import polybinderCG.coarse_grain as cg
-
-        if self.forcefield is not None:
-            raise ValueError(
-                    "If you want to coarse grain, set forcefield=None"
-                    " when initializing the system."
-            )
-        if self.remove_hydrogens:
-            hydrogens = [h for h in self.system.particles_by_element("H")]
-            for h in hydrogens:
-                self.system.remove(h)
-
-        aa_snap, refs = to_hoomdsnapshot(
-                self.system, ref_distance=ref_distance, ref_mass=ref_mass
-        )
-        # Order the bond group; required by CGing package
-        bond_array = aa_snap.bonds.group
-        sorted_bond_array = bond_array[bond_array[:, 0].argsort()]
-        for idx, bond_group in enumerate(sorted_bond_array):
-            aa_snap.bonds.group[idx] = bond_group
-        # Create a gsd.hoomd.Snapshot() of the atomistic system
-        sim = hoomd.Simulation(device=hoomd.device.auto_select())
-        sim.create_state_from_snapshot(aa_snap)
-        hoomd.write.GSD.write(state=sim.state, filename="atomistic_gsd.gsd")
-        # Use polybinderCG to create a coarse-grained snapshot
-        cg_system = cg.System(
-                gsd_file="atomistic_gsd.gsd",
-                compound=self.system_parms.molecule
-        )
-        for idx, mol in enumerate(cg_system.molecules):
-            mol.sequence = self.system_parms.molecule_sequences[idx]
-            mol.assign_types()
-        if bead_mapping:
-            try:
-                for mon in cg_system.monomers():
-                    mon.generate_components(bead_mapping)
-            except KeyError:
-                    raise ValueError(
-                            f"The index mapping scheme {bead_mapping} for "
-                            f"{self.system_parms.molecule} is not found in "
-                            "polybinderCG."
-                    )
-            use_monomers = False
-            use_segments = False
-            use_components = True
-
-        elif segment_length:
-            raise ValueError(
-                    "Coarse-graining using segments is not yet supported"
-            )
-            use_monomers = False
-            use_segments = True
-            use_components = False
-        else:
-            use_monomers = True
-            use_segments = False
-            use_components = False
-
-        cg_snap = cg_system.coarse_grain_snap(
-                use_monomers=use_monomers,
-                use_segments=use_segments,
-                use_components=use_components
-        )
-        self.system = cg_snap
 
     def set_target_box(
             self,
@@ -721,6 +632,10 @@ class Initializer:
             for atom in parmed_system.atoms:
                 atom.type = atom.name
             self.system = parmed_system
+            if self.pmd_pickle_path:
+                f = open(self.pmd_pickle_path, "wb")
+                pickle.dump(self.system, f)
+                f.close()
 
     def _remove_hydrogens(self):
         # Adjust mass and charge of heavy atoms:
