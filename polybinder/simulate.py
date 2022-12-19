@@ -118,7 +118,7 @@ class Simulation:
         self.ran_shrink = False
 
         # Coarsed-grained related parameters, system is a gsd.hoomd.Snapshot
-        if isinstance(self.system, gsd.hoomd.Snapshot):
+        if cg_potentials_dir:
             assert ref_values != None, (
                         "Autoscaling is not supported for coarse-grain sims. "
                         "Provide the relevant reference units"
@@ -176,7 +176,7 @@ class Simulation:
 
         # Initialize the sim state.
         if not self.cg_system:
-            self.init_snap, self.forcefields, refs = create_hoomd_forcefield(
+            self.init_snap, self.forcefield, refs = create_hoomd_forcefield(
                     structure=self.system,
                     r_cut=self.r_cut,
                     ref_distance=self.ref_distance,
@@ -190,7 +190,7 @@ class Simulation:
             else:
                 self.sim.create_state_from_snapshot(self.init_snap)
         else:
-            self.init_snap, self.forcefields = self._create_hoomd_sim_from_snapshot()
+            self.init_snap, self.forcefield = self._create_hoomd_sim_from_snapshot()
             self.sim.create_state_from_snapshot(self.init_snap)
 
         # Set up wall potentials
@@ -207,23 +207,23 @@ class Simulation:
                     "r_cut": 2.5,
                     "r_extrap": 0
             }
-            self.forcefields.append(self.lj_walls)
+            self.forcefield.append(self.lj_walls)
 
         # Default nlist is Cell, change to Tree if needed
         if isinstance(self.nlist, hoomd.md.nlist.Tree):
-            exclusions = self.forcefields[0].nlist.exclusions
-            self.forcefields[0].nlist = self.nlist(buffer=0.4)
-            self.forcefields[0].nlist.exclusions = exclusions
+            exclusions = self.forcefield[0].nlist.exclusions
+            self.forcefield[0].nlist = self.nlist(buffer=0.4)
+            self.forcefield[0].nlist.exclusions = exclusions
 
         # Set up remaining hoomd objects
         self._all = hoomd.filter.All()
         gsd_writer, table_file, = self._hoomd_writers(
-                group=self._all, sim=self.sim, forcefields=self.forcefields
+                group=self._all, sim=self.sim, forcefield=self.forcefield
         )
         self.sim.operations.writers.append(gsd_writer)
         self.sim.operations.writers.append(table_file)
         self.integrator = hoomd.md.Integrator(dt=self.dt)
-        self.integrator.forces = self.forcefields
+        self.integrator.forces = self.forcefield
         self.sim.operations.add(self.integrator)
 
     def temp_ramp(
@@ -321,9 +321,9 @@ class Simulation:
         """
         # Create Tree nlist for shrink if self.nlist is Cell
         if tree_nlist and isinstance(self.nlist, hoomd.md.nlist.Cell):
-            original_nlist = self.forcefields[0].nlist
+            original_nlist = self.forcefield[0].nlist
             shrink_nlist = hoomd.md.nlist.Tree(buffer=0.4)
-            shrink_nlist.exclusions = self.forcefields[0].nlist.exclusions
+            shrink_nlist.exclusions = self.forcefield[0].nlist.exclusions
             self.sim.operations.integrator.forces[0].nlist = shrink_nlist
 
         # Set up temperature ramp during shrinking
