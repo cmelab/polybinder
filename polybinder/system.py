@@ -426,6 +426,23 @@ class Initializer:
                 crystal.box.Lz / 2)
         )
         return crystal
+    
+    def coarse_grain_system(
+            self, use_monomers=False, use_components=False, bead_mapping=None
+    ):
+        import polybinderCG.mbuild_cg as mbcg
+        cg_compounds = []
+        for comp in self.mb_compounds:
+            cg_comp = mbcg(mb_compound=comp, molecule=self.molecule)
+            if use_components:
+                for mon in cg_comp.molecules():
+                    mon.generate_components(index_mapping=bead_mapping)
+            cg_compounds.append(
+                    cg_comp.save(
+                        use_monomers=use_monomers, use_components=use_components
+                    )
+            )
+
 
     def coarse_grain_system(
             self,
