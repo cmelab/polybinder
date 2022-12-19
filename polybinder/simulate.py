@@ -99,7 +99,8 @@ class Simulation:
         seed=42,
         cg_potentials_dir=None,
         restart=None,
-        wall_time_limit=None
+        wall_time_limit=None,
+        **kwargs,
     ):
         self.r_cut = r_cut
         self.tau_kt = tau_kt
@@ -160,6 +161,7 @@ class Simulation:
             "kinetic_energy",
             "volume",
             "pressure",
+            "degrees_of_freedom",
             "pressure_tensor",
             "degrees_of_freedom"
         ]
@@ -188,7 +190,7 @@ class Simulation:
             else:
                 self.sim.create_state_from_snapshot(self.init_snap)
         else:
-            self.init_snap, self.forcefield = self._create_hoomd_sim_from_snapshot()
+            self.init_snap, self.forcefield = self._create_hoomd_sim_from_snapshot(**kwargs)
             self.sim.create_state_from_snapshot(self.init_snap)
 
         # Set up wall potentials
@@ -616,7 +618,7 @@ class Simulation:
                     state=self.sim.state, mode='wb', filename="restart.gsd"
             )
 
-    def _hoomd_writers(self, group, forcefields, sim):
+    def _hoomd_writers(self, group, forcefield, sim):
         # GSD and Logging:
         if self.restart:
             writemode = "a"
@@ -636,7 +638,7 @@ class Simulation:
         thermo_props = hoomd.md.compute.ThermodynamicQuantities(filter=group)
         sim.operations.computes.append(thermo_props)
         logger.add(thermo_props, quantities=self.log_quantities)
-        for f in forcefields:
+        for f in forcefield:
             if isinstance(f, hoomd.md.external.wall.LJ):
                 continue
             logger.add(f, quantities=["energy"])
@@ -651,7 +653,13 @@ class Simulation:
         )
         return gsd_writer, table_file
 
-    def _create_hoomd_sim_from_snapshot(self):
+    def _create_hoomd_sim_from_snapshot(
+            self,
+            ekk_weight,
+            kek_weight,
+            dihedral_kwargs,
+            nlist_exclusions=("bond", "1-3", "1-4")
+    ):
         """Creates needed hoomd objects for coarse-grained simulations.
 
         Similar to the `create_hoomd_forcefield` function
@@ -671,10 +679,11 @@ class Simulation:
                 print("Simulation initialized from restart file")
         # Create pair table potentials
         nlist = self.nlist(buffer=0.4)
+        nlist.exclusions = nlist_exclusions
         pair_table = hoomd.md.pair.Table(nlist=nlist)
         for pair in [list(i) for i in combo(init_snap.particles.types, r=2)]:
             _pair = "-".join(sorted(pair))
-            pair_pot_file = f"{self.cg_ff_path}/{_pair}.txt"
+            pair_pot_file = f"{self.cg_ff_path}/{_pair}_pair.txt"
             try:
                 assert os.path.exists(pair_pot_file)
             except AssertionError:
@@ -684,8 +693,10 @@ class Simulation:
             pair_data = np.loadtxt(pair_pot_file)
             r_min = pair_data[:,0][0]
             r_cut = pair_data[:,0][-1]
+            pair_U = pair_data[:,1]
+            pair_F = -1.0 * np.gradient(pair_U, (r_cut / (len(pair_U) - 1)))
             pair_table.params[tuple(sorted(pair))] = dict(
-                    r_min=r_min, U=pair_data[:,1], F=pair_data[:,2]
+                    r_min=r_min, U=pair_U, F=pair_F
             )
             pair_table.r_cut[tuple(sorted(pair))] = r_cut
 
@@ -728,8 +739,12 @@ class Simulation:
         angle_pot_files = []
         angle_pot_widths = []
         for angle in init_snap.angles.types:
-            fname = f"{angle}_angle.txt"
-            angle_pot_file = f"{self.cg_ff_path}/{fname}"
+            if angle == "E-K-K":
+                fname = f"{angle}_angle_{ekk_weight}.txt"
+                angle_pot_file = f"{self.cg_ff_path}/{fname}"
+            elif angle == "K-E-K":
+                fname = f"{angle}_angle_{kek_weight}.txt"
+                angle_pot_file = f"{self.cg_ff_path}/{fname}"
             try:
                 assert os.path.exists(angle_pot_file)
             except AssertionError:
@@ -752,11 +767,16 @@ class Simulation:
             angle_table.params[angle] = dict(
                     U=angle_data[:,1], tau=angle_data[:,2]
             )
+        # Repeat same process for Dihedrals
+        harmonic_dihedral = hoomd.md.dihedral.Harmonic()
+        for dihedral in init_snap.dihedrals.types:
+            harmonic_dihedral.params[dihedral] = dihedral_kwargs[dihedral]
 
         hoomd_forces = [
                 pair_table,
                 bond_table,
                 angle_table,
+                harmonic_dihedral
         ]
         return init_snap, hoomd_forces
 

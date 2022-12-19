@@ -603,7 +603,9 @@ class Initializer:
 
     def _load_parmed_structure(self, untyped_system):
         """Loads the parmed structure from file, if exists.
-        Otherwise, creates the parmed structure and saves it to file using pickle.
+        Otherwise, creates the parmed structure and saves it
+        to file using pickle.
+
         """
         if self.pmd_pickle_path and os.path.exists(self.pmd_pickle_path):
             # load parmed from file
