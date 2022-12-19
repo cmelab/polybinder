@@ -278,6 +278,7 @@ class Initializer:
             )
 
         self.mb_compounds = self._generate_compounds()
+        self.cg_compounds = [] 
         if self.system_type == "pack":
             system_init = self.pack(**kwargs)
         elif self.system_type == "stack":
@@ -292,8 +293,8 @@ class Initializer:
                     "'crystal'"
                     f"You passed in {system_type}"
             )
-
-        if self.forcefield:
+        
+        if self.forcefield or if self.cg_compounds:
             self._load_parmed_structure(untyped_system=system_init)
             if self.remove_hydrogens:
                 self._remove_hydrogens()
@@ -319,11 +320,15 @@ class Initializer:
             before passing to PACKMOL to fill.
 
         """
+        if self.cg_compounds:
+            compounds = self.cg_compounds
+        else:
+            compounds = self.mb_compounds
         self.set_target_box()
         pack_box = self.target_box * expand_factor
         system = mb.packing.fill_box(
-            compound=self.mb_compounds,
-            n_compounds=[1 for i in self.mb_compounds],
+            compound=compounds,
+            n_compounds=[1 for i in compounds],
             box=list(pack_box),
             overlap=0.2,
             edge=0.9,
@@ -342,9 +347,13 @@ class Initializer:
             The distances (nm) between individually stacked chains.
 
         """
+        if self.cg_compounds:
+            compounds = self.cg_compounds
+        else:
+            compounds = self.mb_compounds
         self.set_target_box()
         system = mb.Compound()
-        for idx, comp in enumerate(self.mb_compounds):
+        for idx, comp in enumerate(compounds):
             z_axis_transform(comp)
             comp.translate(np.array([0,0,separation])*idx)
             system.add(comp)
@@ -381,7 +390,11 @@ class Initializer:
             used as a multiplier of the bounding box z length.
 
         """
-        if len(self.mb_compounds) != n*n*2:
+        if self.cg_compounds:
+            compounds = self.cg_compounds
+        else:
+            compounds = self.mb_compounds
+        if len(compounds) != n*n*2:
             raise ValueError(
                     "The crystal is built as n x n unit cells "
                     "with each unit cell containing 2 molecules. "
@@ -399,8 +412,8 @@ class Initializer:
             layer = mb.Compound()
             for j in range(n):
                 try:
-                    comp_1 = self.mb_compounds[next_idx]
-                    comp_2 = self.mb_compounds[next_idx+1]
+                    comp_1 = compounds[next_idx]
+                    comp_2 = compounds[next_idx+1]
                     translate_by = np.array(vector)*(b, a, 0)
                     comp_2.translate(translate_by)
                     unit_cell= mb.Compound(subcompounds=[comp_1, comp_2])
@@ -431,13 +444,13 @@ class Initializer:
             self, use_monomers=False, use_components=False, bead_mapping=None
     ):
         import polybinderCG.mbuild_cg as mbcg
-        cg_compounds = []
+
         for comp in self.mb_compounds:
             cg_comp = mbcg(mb_compound=comp, molecule=self.molecule)
             if use_components:
                 for mon in cg_comp.molecules():
                     mon.generate_components(index_mapping=bead_mapping)
-            cg_compounds.append(
+            self.cg_compounds.append(
                     cg_comp.save(
                         use_monomers=use_monomers, use_components=use_components
                     )
@@ -690,16 +703,24 @@ class Initializer:
         Otherwise, creates the parmed structure and saves it to file using pickle.
         """
         if self.pmd_pickle_path and os.path.exists(self.pmd_pickle_path):
-                # load parmed from file
-                f = open(self.pmd_pickle_path, "rb")
-                self.system = pickle.load(f)
-                f.close()
-        else:
+            # load parmed from file
+            f = open(self.pmd_pickle_path, "rb")
+            self.system = pickle.load(f)
+            f.close()
+        elif not self.cg_compounds:
+            # Apply a forcefield to an atomistic system 
             self.system = self._apply_ff(untyped_system)
             if self.pmd_pickle_path:
                 f = open(self.pmd_pickle_path, "wb")
                 pickle.dump(self.system, f)
                 f.close()
+        else:
+            gmso_system = from_mbuild(untyped_system)
+            gmso_system.identify_connections()
+            parmed_system = to_parmed(gmso_system)
+            for atom in parmed_system.atoms:
+                atom.type = atom.name
+            self.system = parmed_system
 
     def _remove_hydrogens(self):
         # Adjust mass and charge of heavy atoms:
