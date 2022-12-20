@@ -79,10 +79,20 @@ class TestSimulate(BaseTest):
 
     def test_tree_nlist(self, peek_system):
         simulation = simulate.Simulation(
-                peek_system, tau_p=0.1, dt=0.0001, mode="cpu", nlist="Tree"
+                peek_system,
+                tau_p=0.1,
+                dt=0.0001,
+                mode="cpu",
+                nlist="Tree"
         )
-        simulation.quench(kT=2, pressure=0.1, n_steps=5e2)
-        assert isinstance(simulation.forcefield[0].nlist, hoomd.md.nlist.Tree)
+        isinstance(
+                simulation.nlist,
+                (hoomd.logging.Loggable, hoomd.md.nlist.Tree)
+        )
+        isinstance(
+                simulation.forcefield[0].nlist,
+                (hoomd.logging.Loggable, hoomd.md.nlist.Tree)
+        )
 
     def test_quench_npt_no_shrink(self, peek_system):
         simulation = simulate.Simulation(
