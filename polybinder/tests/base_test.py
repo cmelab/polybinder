@@ -51,8 +51,6 @@ class BaseTest:
         )
         pekk_sys = Initializer(system_parms, forcefield=None, save_parmed=False)
         pekk_sys.coarse_grain_system(
-                ref_distance=3.39,
-                ref_mass=15.99,
                 use_components=True,
                 bead_mapping="ring_plus_linkage_AA"
         )
@@ -69,11 +67,7 @@ class BaseTest:
                 polymer_lengths=[3],
         )
         pekk_sys = Initializer(system_parms, forcefield=None, save_parmed=False)
-        pekk_sys.coarse_grain_system(
-                ref_distance=3.39,
-                ref_mass=15.99,
-                use_monomers=True,
-        )
+        pekk_sys.coarse_grain_system(use_monomers=True)
         pekk_sys.pack()
         return pekk_sys
 

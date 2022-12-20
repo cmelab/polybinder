@@ -1,8 +1,8 @@
+from base_test import BaseTest
+import pytest
+
 import hoomd
 from polybinder import simulate
-from base_test import BaseTest
-
-import pytest
 
 
 class TestSimulate(BaseTest):
@@ -43,83 +43,55 @@ class TestSimulate(BaseTest):
 
     def test_temp_ramp_nvt(self, pps_system):
         simulation = simulate.Simulation(
-                pps_system,
-                tau_p=0.1,
-                dt=0.0001,
-                mode="cpu"
+                pps_system, tau_p=0.1, dt=0.0001, mode="cpu"
         )
         simulation.temp_ramp(kT_init=0.5, kT_final=1.5, n_steps=5e2)
 
     def test_temp_ramp_nvt(self, pps_system):
         simulation = simulate.Simulation(
-                pps_system,
-                tau_p=0.1,
-                dt=0.0001,
-                mode="cpu"
+                pps_system, tau_p=0.1, dt=0.0001, mode="cpu"
         )
         simulation.temp_ramp(kT_init=0.5, kT_final=1.5, n_steps=5e2)
 
     def test_bad_inputs(self, peek_system, cg_system_monomers):
         simulation = simulate.Simulation(
-                peek_system,
-                tau_p=0.1,
-                dt=0.0001,
-                wall_axis=[1,0,0],
-                mode="cpu"
+                peek_system, tau_p=0.1, dt=0.0001, wall_axis=[1,0,0], mode="cpu"
         )
 
         # Pressure and walls quench
         with pytest.raises(ValueError):
-            simulation.quench(
-                kT=2,
-                pressure=0.1,
-                n_steps=5e2,
-            )
+            simulation.quench(kT=2, pressure=0.1, n_steps=5e2)
+
         # Pressure and walls anneal
         with pytest.raises(ValueError):
             simulation.anneal(
-                kT_init=2,
-                kT_final=1,
-                step_sequence = [5e2, 5e2],
-                pressure=0.1,
+                kT_init=2, kT_final=1, step_sequence = [5e2, 5e2], pressure=0.1
             )
-        # Coarse-grain and auto scale
+
+    def test_bad_inputs_coarse_grain(self, cg_system_monomers):
         with pytest.raises(AssertionError):
             sim = simulate.Simulation(
                     system=cg_system_monomers,
+                    cg_potentials_dir="test",
                     auto_scale=True,
                     ref_values=None
             )
 
     def test_tree_nlist(self, peek_system):
         simulation = simulate.Simulation(
-                peek_system,
-                tau_p=0.1,
-                dt=0.0001,
-                mode="cpu",
-                nlist="Tree"
+                peek_system, tau_p=0.1, dt=0.0001, mode="cpu", nlist="Tree"
         )
-        simulation.quench(
-            kT=2, pressure=0.1, n_steps=5e2,
-        )
+        simulation.quench(kT=2, pressure=0.1, n_steps=5e2)
 
     def test_quench_npt_no_shrink(self, peek_system):
         simulation = simulate.Simulation(
-                peek_system,
-                tau_p=0.1,
-                dt=0.0001,
-                mode="cpu"
+                peek_system, tau_p=0.1, dt=0.0001, mode="cpu"
         )
-        simulation.quench(
-            kT=2, pressure=0.1, n_steps=5e2,
-        )
+        simulation.quench(kT=2, pressure=0.1, n_steps=5e2)
 
     def test_quench_nvt_no_shrink(self, pps_system):
         simulation = simulate.Simulation(
-                pps_system,
-                tau_p=0.1,
-                dt=0.0001,
-                mode="cpu"
+                pps_system, tau_p=0.1, dt=0.0001, mode="cpu"
         )
         simulation.quench(kT=2, n_steps=5e2)
 
@@ -131,16 +103,11 @@ class TestSimulate(BaseTest):
 
     def test_anneal_nvt_no_shrink(self, peek_system):
         simulation = simulate.Simulation(peek_system, dt=0.0001, mode="cpu")
-        simulation.anneal(
-            kT_init=4, kT_final=2, step_sequence=[5e2, 5e2]
-        )
+        simulation.anneal(kT_init=4, kT_final=2, step_sequence=[5e2, 5e2])
 
     def test_shrink_tree_nlist(self, peek_system):
         simulation = simulate.Simulation(
-                peek_system,
-                tau_p=0.1,
-                dt=0.0001,
-                mode="cpu"
+                peek_system, tau_p=0.1, dt=0.0001, mode="cpu"
         )
         assert isinstance(
                 simulation.sim.operations.integrator.forces[0].nlist,
@@ -161,10 +128,7 @@ class TestSimulate(BaseTest):
 
     def test_quench_npt_shrink(self, peek_system):
         simulation = simulate.Simulation(
-                peek_system,
-                tau_p=0.1,
-                dt=0.0001,
-                mode="cpu"
+                peek_system, tau_p=0.1, dt=0.0001, mode="cpu"
         )
         simulation.shrink(n_steps=5e2, kT_init=2, kT_final=2, period=1)
         simulation.quench(kT=2, pressure=0.1, n_steps=5e2)
@@ -176,17 +140,11 @@ class TestSimulate(BaseTest):
 
     def test_anneal_npt_shrink(self, pekk_system):
         simulation = simulate.Simulation(
-                pekk_system,
-                dt=0.0001,
-                tau_p=0.1,
-                mode="cpu"
+                pekk_system, dt=0.0001, tau_p=0.1, mode="cpu"
         )
         simulation.shrink(n_steps=5e2, kT_init=4, kT_final=4, period=1)
         simulation.anneal(
-                kT_init=4,
-                kT_final=2,
-                pressure=0.1,
-                step_sequence=[5e2, 5e2],
+                kT_init=4, kT_final=2, pressure=0.1, step_sequence=[5e2, 5e2]
         )
 
     def test_shrink_ua(self, pps_system_noH):
@@ -199,9 +157,7 @@ class TestSimulate(BaseTest):
 
     def test_anneal_ua(self, peek_system_noH):
         simulation = simulate.Simulation(peek_system_noH, mode="cpu")
-        simulation.anneal(
-            kT_init=4, kT_final=2, step_sequence=[5e2, 5e2],
-        )
+        simulation.anneal(kT_init=4, kT_final=2, step_sequence=[5e2, 5e2])
 
     def test_walls_x_quench(self, pekk_system_noH):
         simulation = simulate.Simulation(
@@ -255,15 +211,13 @@ class TestSimulate(BaseTest):
         simulation = simulate.Simulation(
                 test_interface_y, dt=0.0001, mode="cpu", wall_axis=[0,1,0]
         )
-        simulation.anneal(
-            kT_init=4, kT_final=2, step_sequence=[5e2, 5e2, 5e2]
-        )
+        simulation.anneal(kT_init=4, kT_final=2, step_sequence=[5e2, 5e2, 5e2])
 
     def test_tensile_x(self, test_interface_x):
         simulation = simulate.Simulation(test_interface_x, dt=0.00001, mode="cpu")
         simulation.tensile(
                 kT=2.0,
-                fix_ratio = 0.30,
+                fix_ratio=0.30,
                 strain=0.25,
                 n_steps=5e2,
                 expand_period=10
@@ -291,34 +245,36 @@ class TestSimulate(BaseTest):
                 expand_period=10
         )
 
-    def test_cg_sim_monomers(self, cg_system_monomers):
-        simulation = simulate.Simulation(
-                cg_system_monomers,
-                r_cut=2.5,
-                mode="cpu",
-                ref_values = {"distance": 3.3997, "energy": 0.21, "mass": 15.99},
-                cg_potentials_dir = "test_potentials"
-        )
-        simulation.quench(kT=3.5, n_steps=500)
-
     def test_cg_sim_components(self, cg_system_components):
         simulation = simulate.Simulation(
                 cg_system_components,
                 r_cut=2.5,
                 mode="cpu",
                 ref_values = {"distance": 3.3997, "energy": 0.21, "mass": 15.99},
-                cg_potentials_dir = "test_potentials"
+                cg_potentials_dir="rmax_4_angles2",
+                ekk_weight=1.0,
+                kek_weight=1.0,
+                dihedral_kwargs={
+                    "E-K-K-E": {"k": 20, "d": -1, "n": 1, "phi0": 0.0},
+                    "K-E-K-K": {"k": 13, "d": -1, "n": 1, "phi0": 0.0}
+                }
         )
         simulation.quench(kT=3.5, n_steps=500)
 
-    def test_cg_sim_no_files(self, cg_system_monomers):
+    def test_cg_sim_no_files(self, cg_system_components):
         with pytest.raises(RuntimeError):
             simulation = simulate.Simulation(
-                    cg_system_monomers,
+                    cg_system_components,
                     r_cut=2.5,
                     mode="cpu",
-                    ref_values = {"distance": 3.3997, "energy": 0.21, "mass": 15.99},
-                    cg_potentials_dir = "bad_dir"
+                    ref_values={"distance": 3.3997, "energy": 0.21, "mass": 15.99},
+                    cg_potentials_dir="bad_dir",
+                    ekk_weight=1.0,
+                    kek_weight=1.0,
+                    dihedral_kwargs={
+                        "E-K-K-E": {"k": 20, "d": -1, "n": 1, "phi0": 0.0},
+                        "K-E-K-K": {"k": 13, "d": -1, "n": 1, "phi0": 0.0}
+                    }
             )
             simulation.quench(kT=3.5, n_steps=500)
 
