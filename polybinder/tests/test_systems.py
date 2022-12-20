@@ -241,6 +241,7 @@ class TestSystems(BaseTest):
                 use_components=True, bead_mapping="ring_plus_linkage_AA"
         )
         assert len(system.mb_compounds) == len(system.cg_compounds)
+        system.stack()
 
     def test_coarse_grain_pps(self):
         system_parms = System(
@@ -255,6 +256,7 @@ class TestSystems(BaseTest):
                 use_components=True, bead_mapping="ring_plus_linkage_AA"
         )
         assert len(system.mb_compounds) == len(system.cg_compounds)
+        system.pack()
 
     def test_coarse_grain_with_ff(self):
         system_parms = System(
