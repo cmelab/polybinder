@@ -3,19 +3,19 @@ import os
 import random
 from warnings import warn
 import pickle
+
 import ele
 import foyer
 from gmso.external import from_mbuild, to_parmed
 import gsd
 import gsd.hoomd
 import mbuild as mb
-import numpy as np
-import parmed
-import scipy.optimize
-from foyer import Forcefield
 from mbuild.lib.recipes import Polymer
 from mbuild.coordinate_transform import z_axis_transform
 from mbuild.formats.hoomd_snapshot import to_hoomdsnapshot
+import numpy as np
+import parmed
+import scipy.optimize
 from scipy.special import gamma
 
 from polybinder.library import COMPOUND_DIR, SYSTEM_DIR, FF_DIR
@@ -277,6 +277,8 @@ class Initializer:
             self.pmd_pickle_path = os.path.join(
                     parmed_dir,'parmed.pickle'
             )
+        else:
+            self.pmd_pickle_path = None
 
         self.mb_compounds = self._generate_compounds()
         self.cg_compounds = [] 
@@ -419,17 +421,15 @@ class Initializer:
         crystal.box = mb.box.Box(bounding_box)
         # Center in the box
         crystal.translate_to(
-                (crystal.box.Lx / 2,
-                crystal.box.Ly / 2,
-                crystal.box.Lz / 2)
+                (crystal.box.Lx / 2, crystal.box.Ly / 2, crystal.box.Lz / 2)
         )
 
         if self.forcefield or self.cg_compounds:
-            self._load_parmed_structure(untyped_system=system)
+            self._load_parmed_structure(untyped_system=crystal)
             if self.remove_hydrogens:
                 self._remove_hydrogens()
         else:
-            self.system = system
+            self.system = crystal
         self.system_type = "crystal"
     
     def coarse_grain_system(
@@ -602,7 +602,7 @@ class Initializer:
         return typed_system
 
     def _load_parmed_structure(self, untyped_system):
-        """Loads the parmed structure from file, if exists.
+        """Loads the parmed structure from file, if it exists.
         Otherwise, creates the parmed structure and saves it
         to file using pickle.
 
@@ -619,7 +619,7 @@ class Initializer:
                 f = open(self.pmd_pickle_path, "wb")
                 pickle.dump(self.system, f)
                 f.close()
-        else:
+        else: # Coarse-grain the system
             gmso_system = from_mbuild(untyped_system)
             gmso_system.identify_connections()
             parmed_system = to_parmed(gmso_system)
@@ -634,7 +634,6 @@ class Initializer:
     def _remove_hydrogens(self):
         # Adjust mass and charge of heavy atoms:
         print("Removing hydrogens and adjusting heavy atoms")
-        print("---------------------------------------------------------------")
         init_net_charge = self.net_charge
         hydrogens = [a for a in self.system.atoms if a.element == 1]
         for h in hydrogens:
@@ -649,11 +648,7 @@ class Initializer:
 
 
 class Fused:
-    def __init__(
-            self,
-            gsd_file,
-            ref_distance,
-    ):
+    def __init__(self, gsd_file, ref_distance):
         self.gsd_file = gsd_file
         self.ref_distance = ref_distance
         self.system_type = "interface"
@@ -695,13 +690,7 @@ class Interface:
         "x", "y" or "z"
 
     """
-    def __init__(
-        self,
-        slabs,
-        ref_distance,
-        gap=0.1,
-        weld_axis="x"
-    ):
+    def __init__(self, slabs, ref_distance, gap=0.1, weld_axis="x"):
         self.system_type = "interface"
         self.ref_distance = ref_distance
         if not isinstance(slabs, list):
@@ -717,10 +706,6 @@ class Interface:
                 "z": np.array([0,0,1])
         }
         weld_axis = weld_axis.lower()
-        assert weld_axis in ["x", "y", "z"], (
-                    "Choose the axis of the interface. "
-                    "Valid choices are 'x', 'y', 'z'"
-        )
         trans_axis = axis_dict[weld_axis]
 
         interface = mb.Compound()
@@ -740,7 +725,6 @@ class Interface:
                 f"_L{weld_axis}",
                 current_len + (2*self.ref_distance*1.1225)
         )
-        #system_box._Lx += 2 * self.ref_distance * 1.1225
         interface.box = system_box
         # Center in the adjusted box
         interface.translate_to(
@@ -787,12 +771,7 @@ def _gsd_to_mbuild(gsd_file, ref_distance):
 
 
 def build_molecule(
-        molecule,
-        length,
-        sequence,
-        para_weight,
-        smiles=False,
-        charges=None
+        molecule, length, sequence, para_weight, smiles=False, charges=None
 ):
     """`build_molecule` uses SMILES strings to build up a polymer from monomers.
     The configuration of each monomer is determined by para_weight and the
