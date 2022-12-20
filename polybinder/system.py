@@ -437,6 +437,14 @@ class Initializer:
     ):
         import polybinderCG.mbuild_cg as mbcg
 
+        if self.forcefield:
+            raise ValueError(
+                    "Using foyer forcefield files are not "
+                    "supported with coarse-grained systems. "
+                    "See polybinder.simulate.Simulation() "
+                    "for using coarse model forcefields. "
+            )
+
         for comp in self.mb_compounds:
             cg_comp = mbcg.System(
                     mb_compound=comp, molecule=self.system_parms.molecule
