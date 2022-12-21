@@ -277,7 +277,7 @@ class TestSystems(BaseTest):
             compound = polybinder.system.build_molecule(
                     "PPS",
                     i + 1,
-                    sequence = "random",
+                    sequence="random",
                     para_weight=1.0
             )
 
@@ -286,7 +286,7 @@ class TestSystems(BaseTest):
             compound = polybinder.system.build_molecule(
                     "PEEK",
                     i + 1,
-                    sequence = "random",
+                    sequence="random",
                     para_weight=1.0
             )
 
@@ -360,8 +360,8 @@ class TestSystems(BaseTest):
     def test_weighted_sequence(self):
         para_monomers = System(
                 molecule="PEKK",
-                para_weight = 1.0,
-                n_compounds = [1],
+                para_weight=1.0,
+                n_compounds=[1],
                 polymer_lengths=[10],
                 density=0.1,
         )
@@ -370,12 +370,13 @@ class TestSystems(BaseTest):
 
         random_monomers = System(
                 molecule="PEKK",
-                para_weight = 0.40,
-                n_compounds = [1],
+                para_weight=0.40,
+                n_compounds=[1],
                 polymer_lengths=[20],
                 density=0.1,
         )
-        random_system = Initializer(random_monomers, "pack", expand_factor=10)
+        random_system = Initializer(random_monomers)
+        random_system.pack()
         random.seed(24)
         sequence = polybinder.system.random_sequence(para_weight=0.40, length=20)
         sequence = "".join(sequence)
