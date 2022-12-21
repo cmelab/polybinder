@@ -224,7 +224,6 @@ class Initializer:
             remove_hydrogens=False,
             save_parmed=True,
             parmed_dir="pmd_structures",
-            **kwargs
     ):
         """
         Given a set of system parameters, this class handles
@@ -259,9 +258,7 @@ class Initializer:
             If True, the parmed structure is saved to the file.
         parmed_dir: str, optional, default="pmd_structures"
             Directory for saving the parmed structures.
-        kwargs : dict, optional
-            The kwargs for each of the system initialization functions.
-            See the doc strings for each function for allowable args.
+
         """
         self.system_parms = system
         self.forcefield = forcefield
@@ -445,11 +442,15 @@ class Initializer:
                     "for using coarse model forcefields. "
             )
 
-        for comp in self.mb_compounds:
+        for idx, comp in enumerate(self.mb_compounds):
             cg_comp = mbcg.System(
                     mb_compound=comp, molecule=self.system_parms.molecule
             )
-            if use_components:
+            if use_monomers:
+                for mol in cg_comp:
+                    mol.sequence = self.system_parms.molecule_sequences[idx]
+                    mol.assign_types()
+            elif use_components:
                 for mon in cg_comp.monomers():
                     mon.generate_components(index_mapping=bead_mapping)
             self.cg_compounds.append(
