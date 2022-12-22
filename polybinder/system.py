@@ -447,7 +447,7 @@ class Initializer:
                     mb_compound=comp, molecule=self.system_parms.molecule
             )
             if use_monomers:
-                for mol in cg_comp:
+                for mol in cg_comp.molecules:
                     mol.sequence = self.system_parms.molecule_sequences[idx]
                     mol.assign_types()
             elif use_components:
