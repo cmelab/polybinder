@@ -49,17 +49,12 @@ class BaseTest:
                 n_compounds=[10],
                 polymer_lengths=[3],
         )
-        pekk_sys = Initializer(
-                system_parms,
-                system_type="pack",
-                forcefield=None,
-                remove_hydrogens=True
-        )
+        pekk_sys = Initializer(system_parms, forcefield=None, save_parmed=False)
         pekk_sys.coarse_grain_system(
-                ref_distance=3.39,
-                ref_mass=15.99,
-                bead_mapping="ring_plus_linkage_UA"
+                use_components=True,
+                bead_mapping="ring_plus_linkage_AA"
         )
+        pekk_sys.pack()
         return pekk_sys
 
     @pytest.fixture
@@ -68,20 +63,12 @@ class BaseTest:
                 molecule="PEKK",
                 para_weight=1.0,
                 density=0.08,
-                n_compounds=[5],
-                polymer_lengths=[6],
+                n_compounds=[10],
+                polymer_lengths=[3],
         )
-        pekk_sys = Initializer(
-                system_parms,
-                system_type="pack",
-                forcefield=None,
-                remove_hydrogens=True
-        )
-        pekk_sys.coarse_grain_system(
-                ref_distance=3.39,
-                ref_mass=15.99,
-                bead_mapping=None
-        )
+        pekk_sys = Initializer(system_parms, forcefield=None, save_parmed=False)
+        pekk_sys.coarse_grain_system(use_monomers=True)
+        pekk_sys.pack()
         return pekk_sys
 
     @pytest.fixture
@@ -94,11 +81,9 @@ class BaseTest:
                 polymer_lengths=[2],
         )
         pps_sys = Initializer(
-                system_parms,
-                system_type="pack",
-                forcefield="pps_opls",
-                remove_hydrogens=False
+                system_parms, forcefield="pps_opls", remove_hydrogens=False
         )
+        pps_sys.pack()
         return pps_sys
 
     @pytest.fixture
@@ -112,11 +97,11 @@ class BaseTest:
         )
         pps_sys = Initializer(
             system_parms,
-            system_type = "pack",
             forcefield="pps_opls",
             charges="antechamber",
             remove_hydrogens=False
         )
+        pps_sys.pack()
         return pps_sys
 
     @pytest.fixture
@@ -129,11 +114,9 @@ class BaseTest:
                 polymer_lengths=[3],
         )
         peek_sys = Initializer(
-                system_parms,
-                system_type="pack",
-                forcefield="gaff",
-                remove_hydrogens=False
+                system_parms, forcefield="gaff", remove_hydrogens=False
         )
+        peek_sys.pack()
         return peek_sys
 
     @pytest.fixture
@@ -146,11 +129,9 @@ class BaseTest:
                 polymer_lengths=[3],
         )
         pekk_sys = Initializer(
-                system_parms,
-                system_type="pack",
-                forcefield="gaff",
-                remove_hydrogens=False
+                system_parms, forcefield="gaff", remove_hydrogens=False
         )
+        pekk_sys.pack()
         return pekk_sys
 
     @pytest.fixture
@@ -163,11 +144,9 @@ class BaseTest:
                 polymer_lengths=[3],
         )
         peek_sys = Initializer(
-                system_parms,
-                system_type="pack",
-                forcefield="gaff",
-                remove_hydrogens=True
+                system_parms, forcefield="gaff", remove_hydrogens=True
         )
+        peek_sys.pack()
         return peek_sys
 
     @pytest.fixture
@@ -180,11 +159,9 @@ class BaseTest:
                 polymer_lengths=[2],
         )
         pps_sys = Initializer(
-                system_parms,
-                system_type="pack",
-                forcefield="pps_opls",
-                remove_hydrogens=True
+                system_parms, forcefield="pps_opls", remove_hydrogens=True
         )
+        pps_sys.pack()
         return pps_sys
 
     @pytest.fixture
@@ -197,11 +174,9 @@ class BaseTest:
                 polymer_lengths=[3],
         )
         pekk_sys = Initializer(
-                system_parms,
-                system_type="pack",
-                forcefield="gaff",
-                remove_hydrogens=True
+                system_parms, forcefield="gaff", remove_hydrogens=True
         )
+        pekk_sys.pack()
         return pekk_sys
 
     @pytest.fixture

@@ -6,6 +6,7 @@ import gsd.hoomd
 import hoomd
 import hoomd.md
 from mbuild.formats.hoomd_forcefield import create_hoomd_forcefield
+from mbuild.formats.hoomd_snapshot import to_hoomdsnapshot
 import numpy as np
 import parmed as pmd
 
@@ -98,7 +99,8 @@ class Simulation:
         seed=42,
         cg_potentials_dir=None,
         restart=None,
-        wall_time_limit=None
+        wall_time_limit=None,
+        **kwargs,
     ):
         self.r_cut = r_cut
         self.tau_kt = tau_kt
@@ -118,29 +120,25 @@ class Simulation:
         self.ran_shrink = False
 
         # Coarsed-grained related parameters, system is a gsd.hoomd.Snapshot
-        if isinstance(self.system, gsd.hoomd.Snapshot):
+        if cg_potentials_dir:
             assert ref_values != None, (
                         "Autoscaling is not supported for coarse-grain sims. "
                         "Provide the relevant reference units"
             )
+            self.cg_ff_path = f"{FF_DIR}/{cg_potentials_dir}"
             self.cg_system = True
-            if cg_potentials_dir is None:
-                self.cg_ff_path = FF_DIR
-            else:
-                self.cg_ff_path = f"{FF_DIR}/{cg_potentials_dir}"
-
             self.ref_energy = ref_values["energy"]
             self.ref_distance = ref_values["distance"]
             self.ref_mass = ref_values["mass"]
 
         # Non coarse-grained related parameters, system is a pmd.Structure
-        elif isinstance(self.system, pmd.Structure):
+        else:
             self.cg_system = False
             if ref_values and not auto_scale:
                 self.ref_energy = ref_values["energy"]
                 self.ref_distance = ref_values["distance"]
                 self.ref_mass = ref_values["mass"]
-            # Pulled from mBuild hoomd_simulation.py
+            # Pulled from mBuild create_hoomd_forcefield.py
             elif auto_scale and not ref_values:
                 self.ref_mass = max([atom.mass for atom in self.system.atoms])
                 pair_coeffs = list(
@@ -163,7 +161,9 @@ class Simulation:
             "kinetic_energy",
             "volume",
             "pressure",
+            "degrees_of_freedom",
             "pressure_tensor",
+            "degrees_of_freedom"
         ]
 
         if self.mode == "cpu":
@@ -176,7 +176,7 @@ class Simulation:
 
         # Initialize the sim state.
         if not self.cg_system:
-            self.init_snap, self.forcefields, refs = create_hoomd_forcefield(
+            self.init_snap, self.forcefield, refs = create_hoomd_forcefield(
                     structure=self.system,
                     r_cut=self.r_cut,
                     ref_distance=self.ref_distance,
@@ -190,7 +190,7 @@ class Simulation:
             else:
                 self.sim.create_state_from_snapshot(self.init_snap)
         else:
-            self.init_snap, self.forcefields = self._create_hoomd_sim_from_snapshot()
+            self.init_snap, self.forcefield = self._create_hoomd_sim_from_snapshot(**kwargs)
             self.sim.create_state_from_snapshot(self.init_snap)
 
         # Set up wall potentials
@@ -207,23 +207,23 @@ class Simulation:
                     "r_cut": 2.5,
                     "r_extrap": 0
             }
-            self.forcefields.append(self.lj_walls)
+            self.forcefield.append(self.lj_walls)
 
         # Default nlist is Cell, change to Tree if needed
         if isinstance(self.nlist, hoomd.md.nlist.Tree):
-            exclusions = self.forcefields[0].nlist.exclusions
-            self.forcefields[0].nlist = self.nlist(buffer=0.4)
-            self.forcefields[0].nlist.exclusions = exclusions
+            exclusions = self.forcefield[0].nlist.exclusions
+            self.forcefield[0].nlist = self.nlist(buffer=0.4)
+            self.forcefield[0].nlist.exclusions = exclusions
 
         # Set up remaining hoomd objects
         self._all = hoomd.filter.All()
         gsd_writer, table_file, = self._hoomd_writers(
-                group=self._all, sim=self.sim, forcefields=self.forcefields
+                group=self._all, sim=self.sim, forcefield=self.forcefield
         )
         self.sim.operations.writers.append(gsd_writer)
         self.sim.operations.writers.append(table_file)
         self.integrator = hoomd.md.Integrator(dt=self.dt)
-        self.integrator.forces = self.forcefields
+        self.integrator.forces = self.forcefield
         self.sim.operations.add(self.integrator)
 
     def temp_ramp(
@@ -321,9 +321,9 @@ class Simulation:
         """
         # Create Tree nlist for shrink if self.nlist is Cell
         if tree_nlist and isinstance(self.nlist, hoomd.md.nlist.Cell):
-            original_nlist = self.forcefields[0].nlist
+            original_nlist = self.forcefield[0].nlist
             shrink_nlist = hoomd.md.nlist.Tree(buffer=0.4)
-            shrink_nlist.exclusions = self.forcefields[0].nlist.exclusions
+            shrink_nlist.exclusions = self.forcefield[0].nlist.exclusions
             self.sim.operations.integrator.forces[0].nlist = shrink_nlist
 
         # Set up temperature ramp during shrinking
@@ -618,7 +618,7 @@ class Simulation:
                     state=self.sim.state, mode='wb', filename="restart.gsd"
             )
 
-    def _hoomd_writers(self, group, forcefields, sim):
+    def _hoomd_writers(self, group, forcefield, sim):
         # GSD and Logging:
         if self.restart:
             writemode = "a"
@@ -638,7 +638,7 @@ class Simulation:
         thermo_props = hoomd.md.compute.ThermodynamicQuantities(filter=group)
         sim.operations.computes.append(thermo_props)
         logger.add(thermo_props, quantities=self.log_quantities)
-        for f in forcefields:
+        for f in forcefield:
             if isinstance(f, hoomd.md.external.wall.LJ):
                 continue
             logger.add(f, quantities=["energy"])
@@ -653,28 +653,37 @@ class Simulation:
         )
         return gsd_writer, table_file
 
-    def _create_hoomd_sim_from_snapshot(self):
-        """Creates needed hoomd objects.
+    def _create_hoomd_sim_from_snapshot(
+            self,
+            ekk_weight,
+            kek_weight,
+            dihedral_kwargs,
+            nlist_exclusions=("bond", "1-3", "1-4")
+    ):
+        """Creates needed hoomd objects for coarse-grained simulations.
 
         Similar to the `create_hoomd_forcefield` function
-        from mBuild, but designed to work when initializing
-        a system from a gsd file rather than a Parmed structure.
-        Created specifically for using table potentials with
-        coarse-grained systems.
+        from mBuild, but designed to work with table potentials. 
 
         """
         if self.restart is None and self.cg_system:
-            init_snap = self.system
+            init_snap, refs = to_hoomdsnapshot(
+                    structure=self.system,
+                    ref_distance=self.ref_distance,
+                    ref_mass=self.ref_mass,
+                    ref_energy=self.ref_energy,
+            )
         else:
             with gsd.hoomd.open(self.restart) as f:
                 init_snap = f[-1]
                 print("Simulation initialized from restart file")
         # Create pair table potentials
         nlist = self.nlist(buffer=0.4)
+        nlist.exclusions = nlist_exclusions
         pair_table = hoomd.md.pair.Table(nlist=nlist)
         for pair in [list(i) for i in combo(init_snap.particles.types, r=2)]:
             _pair = "-".join(sorted(pair))
-            pair_pot_file = f"{self.cg_ff_path}/{_pair}.txt"
+            pair_pot_file = f"{self.cg_ff_path}/{_pair}_pair.txt"
             try:
                 assert os.path.exists(pair_pot_file)
             except AssertionError:
@@ -684,8 +693,10 @@ class Simulation:
             pair_data = np.loadtxt(pair_pot_file)
             r_min = pair_data[:,0][0]
             r_cut = pair_data[:,0][-1]
+            pair_U = pair_data[:,1]
+            pair_F = -1.0 * np.gradient(pair_U, (r_cut / (len(pair_U) - 1)))
             pair_table.params[tuple(sorted(pair))] = dict(
-                    r_min=r_min, U=pair_data[:,1], F=pair_data[:,2]
+                    r_min=r_min, U=pair_U, F=pair_F
             )
             pair_table.r_cut[tuple(sorted(pair))] = r_cut
 
@@ -728,8 +739,12 @@ class Simulation:
         angle_pot_files = []
         angle_pot_widths = []
         for angle in init_snap.angles.types:
-            fname = f"{angle}_angle.txt"
-            angle_pot_file = f"{self.cg_ff_path}/{fname}"
+            if angle == "E-K-K":
+                fname = f"{angle}_angle_{ekk_weight}.txt"
+                angle_pot_file = f"{self.cg_ff_path}/{fname}"
+            elif angle == "K-E-K":
+                fname = f"{angle}_angle_{kek_weight}.txt"
+                angle_pot_file = f"{self.cg_ff_path}/{fname}"
             try:
                 assert os.path.exists(angle_pot_file)
             except AssertionError:
@@ -752,11 +767,16 @@ class Simulation:
             angle_table.params[angle] = dict(
                     U=angle_data[:,1], tau=angle_data[:,2]
             )
+        # Repeat same process for Dihedrals
+        harmonic_dihedral = hoomd.md.dihedral.Harmonic()
+        for dihedral in init_snap.dihedrals.types:
+            harmonic_dihedral.params[dihedral] = dihedral_kwargs[dihedral]
 
         hoomd_forces = [
                 pair_table,
                 bond_table,
                 angle_table,
+                harmonic_dihedral
         ]
         return init_snap, hoomd_forces
 

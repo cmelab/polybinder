@@ -3,18 +3,19 @@ import os
 import random
 from warnings import warn
 import pickle
+
 import ele
 import foyer
+from gmso.external import from_mbuild, to_parmed
 import gsd
 import gsd.hoomd
 import mbuild as mb
-import numpy as np
-import parmed
-import scipy.optimize
-from foyer import Forcefield
 from mbuild.lib.recipes import Polymer
 from mbuild.coordinate_transform import z_axis_transform
 from mbuild.formats.hoomd_snapshot import to_hoomdsnapshot
+import numpy as np
+import parmed
+import scipy.optimize
 from scipy.special import gamma
 
 from polybinder.library import COMPOUND_DIR, SYSTEM_DIR, FF_DIR
@@ -218,13 +219,11 @@ class Initializer:
     def __init__(
             self,
             system,
-            system_type,
-            forcefield="gaff",
+            forcefield=None,
             charges=None,
             remove_hydrogens=False,
             save_parmed=True,
             parmed_dir="pmd_structures",
-            **kwargs
     ):
         """
         Given a set of system parameters, this class handles
@@ -259,54 +258,27 @@ class Initializer:
             If True, the parmed structure is saved to the file.
         parmed_dir: str, optional, default="pmd_structures"
             Directory for saving the parmed structures.
-        kwargs : dict, optional
-            The kwargs for each of the system initialization functions.
-            See the doc strings for each function for allowable args.
+
         """
         self.system_parms = system
-        self.system_type = system_type
         self.forcefield = forcefield
         self.remove_hydrogens = remove_hydrogens
         self.system_mass = 0
         self.target_box = None
         self.charges = charges
+        self.system_type = None
         self.save_parmed = save_parmed
+        self.untyped_system = None
         if self.save_parmed:
             os.makedirs(parmed_dir, exist_ok=True)
             self.pmd_pickle_path = os.path.join(
                     parmed_dir,'parmed.pickle'
             )
+        else:
+            self.pmd_pickle_path = None
 
         self.mb_compounds = self._generate_compounds()
-        if self.system_type == "pack":
-            system_init = self.pack(**kwargs)
-        elif self.system_type == "stack":
-            system_init = self.stack(**kwargs)
-        elif self.system_type == "crystal":
-            system_init = self.crystal(**kwargs)
-        else:
-            raise ValueError(
-                    "Valid system types are:"
-                    "'pack'"
-                    "'stack'"
-                    "'crystal'"
-                    f"You passed in {system_type}"
-            )
-
-        if self.forcefield:
-            self._load_parmed_structure(untyped_system=system_init)
-            if self.remove_hydrogens:
-                self._remove_hydrogens()
-        else:
-            self.system = system_init
-
-        if self.target_box is None:
-            warn("A target box has not been set for this system. "
-                 "The default cubic volume (Lx=Ly=Lz) will be used. "
-                 "See the `set_target_box()` function to set a non-cubic "
-                 "target box."
-            )
-            self.set_target_box()
+        self.cg_compounds = [] 
 
     def pack(self, expand_factor=7):
         """Uses PACKMOL via mBuild to randomlly fill a box
@@ -319,17 +291,27 @@ class Initializer:
             before passing to PACKMOL to fill.
 
         """
+        if self.cg_compounds:
+            compounds = self.cg_compounds
+        else:
+            compounds = self.mb_compounds
         self.set_target_box()
         pack_box = self.target_box * expand_factor
         system = mb.packing.fill_box(
-            compound=self.mb_compounds,
-            n_compounds=[1 for i in self.mb_compounds],
+            compound=compounds,
+            n_compounds=[1 for i in compounds],
             box=list(pack_box),
             overlap=0.2,
             edge=0.9,
             fix_orientation=True,
         )
-        return system
+        if self.forcefield or self.cg_compounds:
+            self._load_parmed_structure(untyped_system=system)
+            if self.remove_hydrogens:
+                self._remove_hydrogens()
+        else:
+            self.system = system
+        self.system_type = "pack"
 
     def stack(self, separation=0.7):
         """This method organizes the polymer chains in a single layer.
@@ -342,9 +324,13 @@ class Initializer:
             The distances (nm) between individually stacked chains.
 
         """
+        if self.cg_compounds:
+            compounds = self.cg_compounds
+        else:
+            compounds = self.mb_compounds
         self.set_target_box()
         system = mb.Compound()
-        for idx, comp in enumerate(self.mb_compounds):
+        for idx, comp in enumerate(compounds):
             z_axis_transform(comp)
             comp.translate(np.array([0,0,separation])*idx)
             system.add(comp)
@@ -356,7 +342,14 @@ class Initializer:
             system.box.Ly / 2,
             system.box.Lz / 2
         ))
-        return system
+
+        if self.forcefield or self.cg_compounds:
+            self._load_parmed_structure(untyped_system=system)
+            if self.remove_hydrogens:
+                self._remove_hydrogens()
+        else:
+            self.system = system
+        self.system_type = "stack"
 
     def crystal(self, a, b, n, vector=[.5, .5, 0], z_adjust=1.0):
         """Creates a system of n x n repeating unit cells
@@ -381,7 +374,11 @@ class Initializer:
             used as a multiplier of the bounding box z length.
 
         """
-        if len(self.mb_compounds) != n*n*2:
+        if self.cg_compounds:
+            compounds = self.cg_compounds
+        else:
+            compounds = self.mb_compounds
+        if len(compounds) != n*n*2:
             raise ValueError(
                     "The crystal is built as n x n unit cells "
                     "with each unit cell containing 2 molecules. "
@@ -399,8 +396,8 @@ class Initializer:
             layer = mb.Compound()
             for j in range(n):
                 try:
-                    comp_1 = self.mb_compounds[next_idx]
-                    comp_2 = self.mb_compounds[next_idx+1]
+                    comp_1 = compounds[next_idx]
+                    comp_2 = compounds[next_idx+1]
                     translate_by = np.array(vector)*(b, a, 0)
                     comp_2.translate(translate_by)
                     unit_cell= mb.Compound(subcompounds=[comp_1, comp_2])
@@ -421,101 +418,46 @@ class Initializer:
         crystal.box = mb.box.Box(bounding_box)
         # Center in the box
         crystal.translate_to(
-                (crystal.box.Lx / 2,
-                crystal.box.Ly / 2,
-                crystal.box.Lz / 2)
+                (crystal.box.Lx / 2, crystal.box.Ly / 2, crystal.box.Lz / 2)
         )
-        return crystal
 
-    def coarse_grain_system(
-            self,
-            ref_distance,
-            ref_mass,
-            bead_mapping=None,
-            segment_length=None
-    ):
-        """
-        ref_distance : float, required
-            The reference distance to scale particle positions by.
-            Enter the distance in units of angstrom as they are scaled
-            in after mbuild compound is converted to Parmed structure.
-        ref_mass : float, required
-            The reference mass to scale particle masses by.
-            Enter the mass in amu.
-        bead_mapping : str, optional
-            One of the mapping options available in polybinderCG
-            Use this if your coarse-grain mapping is at the component level
-            Provides instructions on how to map beads to atoms
-        segment_length : int, optional
-            The number of monomers in 1 segment
-            Use this if your coarse-grain mapping is at the segment level
-
-        """
-        import hoomd
-        import polybinderCG.coarse_grain as cg
-
-        if self.forcefield is not None:
-            raise ValueError(
-                    "If you want to coarse grain, set forcefield=None"
-                    " when initializing the system."
-            )
-        if self.remove_hydrogens:
-            hydrogens = [h for h in self.system.particles_by_element("H")]
-            for h in hydrogens:
-                self.system.remove(h)
-
-        aa_snap, refs = to_hoomdsnapshot(
-                self.system, ref_distance=ref_distance, ref_mass=ref_mass
-        )
-        # Order the bond group; required by CGing package
-        bond_array = aa_snap.bonds.group
-        sorted_bond_array = bond_array[bond_array[:, 0].argsort()]
-        for idx, bond_group in enumerate(sorted_bond_array):
-            aa_snap.bonds.group[idx] = bond_group
-        # Create a gsd.hoomd.Snapshot() of the atomistic system
-        sim = hoomd.Simulation(device=hoomd.device.auto_select())
-        sim.create_state_from_snapshot(aa_snap)
-        hoomd.write.GSD.write(state=sim.state, filename="atomistic_gsd.gsd")
-        # Use polybinderCG to create a coarse-grained snapshot
-        cg_system = cg.System(
-                gsd_file="atomistic_gsd.gsd",
-                compound=self.system_parms.molecule
-        )
-        for idx, mol in enumerate(cg_system.molecules):
-            mol.sequence = self.system_parms.molecule_sequences[idx]
-            mol.assign_types()
-        if bead_mapping:
-            try:
-                for mon in cg_system.monomers():
-                    mon.generate_components(bead_mapping)
-            except KeyError:
-                    raise ValueError(
-                            f"The index mapping scheme {bead_mapping} for "
-                            f"{self.system_parms.molecule} is not found in "
-                            "polybinderCG."
-                    )
-            use_monomers = False
-            use_segments = False
-            use_components = True
-
-        elif segment_length:
-            raise ValueError(
-                    "Coarse-graining using segments is not yet supported"
-            )
-            use_monomers = False
-            use_segments = True
-            use_components = False
+        if self.forcefield or self.cg_compounds:
+            self._load_parmed_structure(untyped_system=crystal)
+            if self.remove_hydrogens:
+                self._remove_hydrogens()
         else:
-            use_monomers = True
-            use_segments = False
-            use_components = False
+            self.system = crystal
+        self.system_type = "crystal"
+    
+    def coarse_grain_system(
+            self, use_monomers=False, use_components=False, bead_mapping=None
+    ):
+        import polybinderCG.mbuild_cg as mbcg
 
-        cg_snap = cg_system.coarse_grain_snap(
-                use_monomers=use_monomers,
-                use_segments=use_segments,
-                use_components=use_components
-        )
-        self.system = cg_snap
+        if self.forcefield:
+            raise ValueError(
+                    "Using foyer forcefield files are not "
+                    "supported with coarse-grained systems. "
+                    "See polybinder.simulate.Simulation() "
+                    "for using coarse model forcefields. "
+            )
+
+        for idx, comp in enumerate(self.mb_compounds):
+            cg_comp = mbcg.System(
+                    mb_compound=comp, molecule=self.system_parms.molecule
+            )
+            if use_monomers:
+                for mol in cg_comp.molecules:
+                    mol.sequence = self.system_parms.molecule_sequences[idx]
+                    mol.assign_types()
+            elif use_components:
+                for mon in cg_comp.monomers():
+                    mon.generate_components(index_mapping=bead_mapping)
+            self.cg_compounds.append(
+                    cg_comp.save(
+                        use_monomers=use_monomers, use_components=use_components
+                    )
+            )
 
     def set_target_box(
             self,
@@ -669,16 +611,30 @@ class Initializer:
         return typed_system
 
     def _load_parmed_structure(self, untyped_system):
-        """Loads the parmed structure from file, if exists.
-        Otherwise, creates the parmed structure and saves it to file using pickle.
+        """Loads the parmed structure from file, if it exists.
+        Otherwise, creates the parmed structure and saves it
+        to file using pickle.
+
         """
         if self.pmd_pickle_path and os.path.exists(self.pmd_pickle_path):
-                # load parmed from file
-                f = open(self.pmd_pickle_path, "rb")
-                self.system = pickle.load(f)
-                f.close()
-        else:
+            # load parmed from file
+            f = open(self.pmd_pickle_path, "rb")
+            self.system = pickle.load(f)
+            f.close()
+        elif not self.cg_compounds:
+            # Apply a forcefield to an atomistic system 
             self.system = self._apply_ff(untyped_system)
+            if self.pmd_pickle_path:
+                f = open(self.pmd_pickle_path, "wb")
+                pickle.dump(self.system, f)
+                f.close()
+        else: # Coarse-grain the system
+            gmso_system = from_mbuild(untyped_system)
+            gmso_system.identify_connections()
+            parmed_system = to_parmed(gmso_system)
+            for atom in parmed_system.atoms:
+                atom.type = atom.name
+            self.system = parmed_system
             if self.pmd_pickle_path:
                 f = open(self.pmd_pickle_path, "wb")
                 pickle.dump(self.system, f)
@@ -687,7 +643,6 @@ class Initializer:
     def _remove_hydrogens(self):
         # Adjust mass and charge of heavy atoms:
         print("Removing hydrogens and adjusting heavy atoms")
-        print("---------------------------------------------------------------")
         init_net_charge = self.net_charge
         hydrogens = [a for a in self.system.atoms if a.element == 1]
         for h in hydrogens:
@@ -702,11 +657,7 @@ class Initializer:
 
 
 class Fused:
-    def __init__(
-            self,
-            gsd_file,
-            ref_distance,
-    ):
+    def __init__(self, gsd_file, ref_distance):
         self.gsd_file = gsd_file
         self.ref_distance = ref_distance
         self.system_type = "interface"
@@ -748,13 +699,7 @@ class Interface:
         "x", "y" or "z"
 
     """
-    def __init__(
-        self,
-        slabs,
-        ref_distance,
-        gap=0.1,
-        weld_axis="x"
-    ):
+    def __init__(self, slabs, ref_distance, gap=0.1, weld_axis="x"):
         self.system_type = "interface"
         self.ref_distance = ref_distance
         if not isinstance(slabs, list):
@@ -770,10 +715,6 @@ class Interface:
                 "z": np.array([0,0,1])
         }
         weld_axis = weld_axis.lower()
-        assert weld_axis in ["x", "y", "z"], (
-                    "Choose the axis of the interface. "
-                    "Valid choices are 'x', 'y', 'z'"
-        )
         trans_axis = axis_dict[weld_axis]
 
         interface = mb.Compound()
@@ -793,7 +734,6 @@ class Interface:
                 f"_L{weld_axis}",
                 current_len + (2*self.ref_distance*1.1225)
         )
-        #system_box._Lx += 2 * self.ref_distance * 1.1225
         interface.box = system_box
         # Center in the adjusted box
         interface.translate_to(
@@ -840,12 +780,7 @@ def _gsd_to_mbuild(gsd_file, ref_distance):
 
 
 def build_molecule(
-        molecule,
-        length,
-        sequence,
-        para_weight,
-        smiles=False,
-        charges=None
+        molecule, length, sequence, para_weight, smiles=False, charges=None
 ):
     """`build_molecule` uses SMILES strings to build up a polymer from monomers.
     The configuration of each monomer is determined by para_weight and the

@@ -25,11 +25,11 @@ class TestSystems(BaseTest):
 
         system = Initializer(
             sys_parms,
-            system_type = "pack",
             forcefield=None,
             charges=None,
             remove_hydrogens=False
         )
+        system.pack()
         with pytest.warns(UserWarning):
             system.net_charge
 
@@ -45,11 +45,11 @@ class TestSystems(BaseTest):
 
             system = Initializer(
                 sys_parms,
-                system_type = "pack",
                 forcefield=None,
                 charges="iff",
                 remove_hydrogens=True
             )
+            system.pack()
 
     def test_pps_iff(self):
         sys_parms = System(
@@ -61,11 +61,11 @@ class TestSystems(BaseTest):
         )
         system = Initializer(
             sys_parms,
-            system_type = "pack",
             forcefield="pps_opls",
             charges="iff",
             remove_hydrogens=False
         )
+        system.pack()
 
     def test_pps_antechamber(self):
         sys_parms = System(
@@ -77,11 +77,11 @@ class TestSystems(BaseTest):
         )
         system = Initializer(
             sys_parms,
-            system_type = "pack",
             forcefield="pps_opls",
             charges="antechamber",
             remove_hydrogens=False
         )
+        system.pack()
 
     def test_pekk_antechamber(self):
         sys_parms = System(
@@ -93,11 +93,11 @@ class TestSystems(BaseTest):
         )
         system = Initializer(
             sys_parms,
-            system_type = "pack",
             forcefield="gaff",
             charges="antechamber",
             remove_hydrogens=False
         )
+        system.pack()
 
     def test_fused(self):
         fused = Fused(
@@ -124,7 +124,8 @@ class TestSystems(BaseTest):
 
     def test_interface_z(self):
         interface = Interface(
-                slabs=[os.path.join(ASSETS_DIR, "test_slab_zwall.gsd"), 
+                slabs=[
+                    os.path.join(ASSETS_DIR, "test_slab_zwall.gsd"), 
                     os.path.join(ASSETS_DIR, "test_slab_zwall.gsd")
                 ],
                 ref_distance=0.33997,
@@ -139,7 +140,8 @@ class TestSystems(BaseTest):
                     n_compounds=10,
                     polymer_lengths=5
                 )
-        system = Initializer(system_params, system_type="pack")
+        system = Initializer(system_params)
+        system.pack()
         init_box = system.target_box
         system.set_target_box(x_constraint = init_box[0]/2)
         new_box = system.target_box
@@ -161,7 +163,8 @@ class TestSystems(BaseTest):
                         n_compounds=10,
                         polymer_lengths=[5, 5],
                     )
-            system = Initializer(system_params, system_type="wrong")
+            system = Initializer(system_params)
+            system.pack()
 
     def test_bad_para_weight(self):
         with pytest.raises(ValueError):
@@ -180,17 +183,6 @@ class TestSystems(BaseTest):
                     n_compounds=10
             )
 
-    def test_bad_system_type(self):
-        with pytest.raises(ValueError):
-            system_params = System(
-                        density=0.7,
-                        molecule="PEKK",
-                        para_weight=0.50,
-                        n_compounds=10,
-                        polymer_lengths=5,
-                    )
-            system = Initializer(system_params, system_type="wrong")
-
     def test_pack(self):
         system_parms = System(
                 molecule="PEEK",
@@ -199,8 +191,8 @@ class TestSystems(BaseTest):
                 n_compounds=[10],
                 polymer_lengths=[5],
             )
-        system = Initializer(system_parms, system_type="pack", expand_factor=10)
-
+        system = Initializer(system_parms)
+        system.pack()
 
     def test_stack(self):
         system_parms = System(
@@ -210,7 +202,8 @@ class TestSystems(BaseTest):
                 n_compounds=[10],
                 polymer_lengths=[5],
         )
-        system = Initializer(system_parms, system_type="stack", separation=1.0)
+        system = Initializer(system_parms)
+        system.stack()
 
     def test_crystal(self):
         system_parms = System(
@@ -220,13 +213,8 @@ class TestSystems(BaseTest):
                 n_compounds=[8],
                 polymer_lengths=[5],
         )
-        system = Initializer(
-                system_parms,
-                system_type="crystal",
-                a = 1.5,
-                b = 0.9,
-                n=2
-        )
+        system = Initializer(system_parms)
+        system.crystal(a=1.5, b=1.0, n=2)
 
     def test_crystal_bad_n(self):
         system_parms = System(
@@ -237,15 +225,10 @@ class TestSystems(BaseTest):
                 polymer_lengths=[5],
         )
         with pytest.raises(ValueError):
-            system = Initializer(
-                system_parms,
-                system_type="crystal",
-                a = 1.5,
-                b = 0.9,
-                n=2
-            )
+            system = Initializer(system_parms)
+            system.crystal(a=1.5, b=1.0, n=2)
 
-    def test_coarse_grain(self):
+    def test_coarse_grain_pekk(self):
         system_parms = System(
                 molecule="PEKK",
                 para_weight=0.50,
@@ -253,14 +236,27 @@ class TestSystems(BaseTest):
                 n_compounds=[10],
                 polymer_lengths=[5],
         )
-        system = Initializer(
-                system_parms,
-                system_type="pack",
-                expand_factor=10,
-                remove_hydrogens=True,
-                forcefield=None
+        system = Initializer(system_parms)
+        system.coarse_grain_system(
+                use_components=True, bead_mapping="ring_plus_linkage_AA"
         )
-        system.coarse_grain_system(ref_distance=3.39, ref_mass=15.99)
+        assert len(system.mb_compounds) == len(system.cg_compounds)
+        system.stack()
+
+    def test_coarse_grain_pps(self):
+        system_parms = System(
+                molecule="PPS",
+                para_weight=1.0,
+                density=0.7,
+                n_compounds=[10],
+                polymer_lengths=[5],
+        )
+        system = Initializer(system_parms)
+        system.coarse_grain_system(
+                use_components=True, bead_mapping="ring_plus_linkage_AA"
+        )
+        assert len(system.mb_compounds) == len(system.cg_compounds)
+        system.pack()
 
     def test_coarse_grain_with_ff(self):
         system_parms = System(
@@ -270,22 +266,18 @@ class TestSystems(BaseTest):
                 n_compounds=[10],
                 polymer_lengths=[5],
         )
-        system = Initializer(
-                system_parms,
-                system_type="pack",
-                expand_factor=10,
-                remove_hydrogens=True,
-                forcefield="gaff"
-        )
+        system = Initializer(system_parms, forcefield="gaff")
         with pytest.raises(ValueError):
-            system.coarse_grain_system(ref_distance=3.39, ref_mass=15.99)
+            system.coarse_grain_system(
+                    use_components=True, bead_mapping="ring_plus_linkage_AA"
+            )
 
     def test_build_pps(self):
         for i in range(5):
             compound = polybinder.system.build_molecule(
                     "PPS",
                     i + 1,
-                    sequence = "random",
+                    sequence="random",
                     para_weight=1.0
             )
 
@@ -294,7 +286,7 @@ class TestSystems(BaseTest):
             compound = polybinder.system.build_molecule(
                     "PEEK",
                     i + 1,
-                    sequence = "random",
+                    sequence="random",
                     para_weight=1.0
             )
 
@@ -368,8 +360,8 @@ class TestSystems(BaseTest):
     def test_weighted_sequence(self):
         para_monomers = System(
                 molecule="PEKK",
-                para_weight = 1.0,
-                n_compounds = [1],
+                para_weight=1.0,
+                n_compounds=[1],
                 polymer_lengths=[10],
                 density=0.1,
         )
@@ -378,26 +370,17 @@ class TestSystems(BaseTest):
 
         random_monomers = System(
                 molecule="PEKK",
-                para_weight = 0.40,
-                n_compounds = [1],
+                para_weight=0.40,
+                n_compounds=[1],
                 polymer_lengths=[20],
                 density=0.1,
         )
-        random_system = Initializer(random_monomers, "pack", expand_factor=10)
+        random_system = Initializer(random_monomers)
+        random_system.pack()
         random.seed(24)
         sequence = polybinder.system.random_sequence(para_weight=0.40, length=20)
         sequence = "".join(sequence)
         assert random_monomers.molecule_sequences[0] == sequence
-
-    def test_load_forcefiled(self):
-        system_parms = System(
-            molecule="PEEK",
-            para_weight=1.0,
-            density=.1,
-            n_compounds=[1],
-            polymer_lengths=[2],
-        )
-        simple_system = Initializer(system_parms, "pack", forcefield="gaff")
 
     def test_remove_hydrogens(self):
         system_parms = System(
@@ -408,8 +391,9 @@ class TestSystems(BaseTest):
             polymer_lengths=[2],
         )
         system = Initializer(
-                system_parms, "pack", forcefield="gaff", remove_hydrogens=True
+                system_parms, forcefield="gaff", remove_hydrogens=True
         )
+        system.pack()
         post_remove_h = system.system
         assert sum([int(item.type == "H") for item in post_remove_h.atoms]) == 0
 
@@ -421,7 +405,8 @@ class TestSystems(BaseTest):
             n_compounds=[5, 4, 3, 2, 1],
             polymer_lengths=[2, 4, 5, 11, 22],
         )
-        system = Initializer(system_parms, "pack")
+        system = Initializer(system_parms)
+        system.pack()
 
     def test_pdi_mw(self):
         system_parms = System(
@@ -433,7 +418,8 @@ class TestSystems(BaseTest):
             pdi=1.2,
             Mw=6.0,
         )
-        system = Initializer(system_parms, "pack")
+        system = Initializer(system_parms)
+        system.pack()
 
     def test_pdi_mn(self):
         system_parms = System(
@@ -445,8 +431,8 @@ class TestSystems(BaseTest):
             pdi=1.2,
             Mn=5.0,
         )
-        system = Initializer(system_parms, "pack")
-
+        system = Initializer(system_parms)
+        system.pack()
 
     def test_mw_mn(self):
         system_parms = System(
@@ -458,8 +444,8 @@ class TestSystems(BaseTest):
             Mn=5.0,
             Mw=6.0,
         )
-        system = Initializer(system_parms, "pack")
-
+        system = Initializer(system_parms)
+        system.pack()
 
     def test_pdi_mn_mw(self):
         system_parms = System(
@@ -472,7 +458,8 @@ class TestSystems(BaseTest):
             Mw=6.0,
             Mn=5.0,
         )
-        system = Initializer(system_parms, "pack", forcefield="pps_opls")
+        system = Initializer(system_parms, forcefield="pps_opls")
+        system.pack()
 
     def test_too_few_pdi_vals(self):
         with pytest.raises(AssertionError):
