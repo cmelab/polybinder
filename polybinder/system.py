@@ -699,9 +699,10 @@ class Interface:
         "x", "y" or "z"
 
     """
-    def __init__(self, slabs, ref_distance, gap=0.1, weld_axis="x"):
+    def __init__(self, slabs, ref_distance, forcefield, gap=0.1, weld_axis="x"):
         self.system_type = "interface"
         self.ref_distance = ref_distance
+        self.forcefield = forcefield
         if not isinstance(slabs, list):
             slabs = [slabs]
         if len(slabs) == 2:
@@ -742,6 +743,7 @@ class Interface:
                 interface.box.Lz / 2,]
         )
 
+        ff_path = f"{FF_DIR}/{self.forcefield}-nosmarts.xml"
         ff_path = f"{FF_DIR}/gaff-nosmarts.xml"
         forcefield = foyer.Forcefield(forcefield_files=ff_path)
         self.system = forcefield.apply(interface)
