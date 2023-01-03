@@ -755,6 +755,12 @@ def _gsd_to_mbuild(gsd_file, ref_distance):
         "c": "C",
         "ho": "H",
         "ha": "H",
+        "opls_204": "H",
+        "opls_145": "C",
+        "opls_202": "S",
+        "opls_146": "H",
+        "opls_200": "S",
+
     }
     snap = trajectory = gsd.hoomd.open(gsd_file)[-1]
     pos_wrap = snap.particles.position * ref_distance
