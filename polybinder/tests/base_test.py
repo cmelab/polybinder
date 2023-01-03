@@ -16,6 +16,7 @@ class BaseTest:
             slabs=os.path.join(ASSETS_DIR, "test_slab_xwall.gsd"),
             ref_distance=0.33997,
             gap=0.1,
+            forcefield="gaff",
             weld_axis="x"
         )
         return slab
@@ -26,6 +27,7 @@ class BaseTest:
             slabs=os.path.join(ASSETS_DIR, "test_slab_ywall.gsd"),
             ref_distance=0.33997,
             gap=0.1,
+            forcefield="gaff",
             weld_axis="y"
         )
         return slab
@@ -36,7 +38,8 @@ class BaseTest:
             slabs=os.path.join(ASSETS_DIR, "test_slab_zwall.gsd"),
             ref_distance=0.33997,
             gap=0.1,
-            weld_axis="z"
+            weld_axis="z",
+            forcefield="gaff",
         )
         return slab
 

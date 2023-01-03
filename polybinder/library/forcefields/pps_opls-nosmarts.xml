@@ -1,10 +1,10 @@
 <ForceField name="OPLS-AA" version="0.0.3" combining_rule="geometric">
 	<AtomTypes>
-		<Type name="opls_204" class="HS" element="H" mass="1.008" def="_opls_204" desc="H in any Thiol" overrides=""/>
-		<Type name="opls_145" class="CA" element="C" mass="12.011" def="_opls_145" desc="" overrides=""/>
-		<Type name="opls_202" class="S" element="S" mass="32.06" def="_opls_202" desc="S in any sulfide" overrides=""/>
-		<Type name="opls_146" class="HA" element="H" mass="1.008" def="_opls_146" desc="benzene H" overrides=""/>
-		<Type name="opls_200" class="SH" element="S" mass="32.06" def="_opls_200" desc="S in any Thiol" overrides="opls_202"/>
+		<Type name="hs" class="HS" element="_hs" mass="1.008" def="_hs" desc="H in any Thiol (opls_204)" overrides=""/>
+		<Type name="ca" class="CA" element="_ca" mass="12.011" def="_ca" desc="opls_145" overrides=""/>
+		<Type name="s" class="S" element="_s" mass="32.06" def="_s" desc="S in any sulfide (opls_202)" overrides=""/>
+		<Type name="ha" class="HA" element="_ha" mass="1.008" def="_ha" desc="benzene H (opls_146)" overrides=""/>
+		<Type name="sh" class="SH" element="_sh" mass="32.06" def="_sh" desc="S in any Thiol (opls_200)" overrides="s"/>
 	</AtomTypes>
 	<HarmonicBondForce>
 		<Bond class1="S" class2="CA" length="0.176" k="209200.0"/>
@@ -39,10 +39,10 @@
 		<Proper class1="CA" class2="CA" class3="SH" class4="HS" c0="4.6024" c1="0.0" c2="-4.6024" c3="0.0" c4="0.0" c5="0.0"/>
 	</RBTorsionForce>
 	<NonbondedForce coulomb14scale="0.5" lj14scale="0.5">
-		<Atom type="opls_204" charge="0.155" sigma="0.0" epsilon="0.0"/>
-		<Atom type="opls_145" charge="-0.115" sigma="0.355" epsilon="0.29288"/>
-		<Atom type="opls_202" charge="-0.335" sigma="0.36" epsilon="1.48532"/>
-		<Atom type="opls_146" charge="0.115" sigma="0.242" epsilon="0.12552"/>
-		<Atom type="opls_200" charge="-0.335" sigma="0.36" epsilon="1.7782"/>
+		<Atom type="hs" charge="0.155" sigma="0.0" epsilon="0.0"/>
+		<Atom type="ca" charge="-0.115" sigma="0.355" epsilon="0.29288"/>
+		<Atom type="s" charge="-0.335" sigma="0.36" epsilon="1.48532"/>
+		<Atom type="ha" charge="0.115" sigma="0.242" epsilon="0.12552"/>
+		<Atom type="sh" charge="-0.335" sigma="0.36" epsilon="1.7782"/>
 	</NonbondedForce>
 </ForceField>

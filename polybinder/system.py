@@ -763,6 +763,9 @@ def _gsd_to_mbuild(gsd_file, ref_distance):
         "opls_202": "S",
         "opls_146": "H",
         "opls_200": "S",
+        "hs": "H",
+        "s": "S",
+        "sh": "S",
 
     }
     snap = trajectory = gsd.hoomd.open(gsd_file)[-1]
