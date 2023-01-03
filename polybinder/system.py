@@ -657,10 +657,12 @@ class Initializer:
 
 
 class Fused:
-    def __init__(self, gsd_file, ref_distance):
+    def __init__(self, gsd_file, ref_distance, forcefield):
         self.gsd_file = gsd_file
         self.ref_distance = ref_distance
+        self.forcefield = forcefield
         self.system_type = "interface"
+
         system = _gsd_to_mbuild(self.gsd_file, self.ref_distance)
         system.box = mb.box.Box.from_mins_maxs_angles(
                 mins=(0,0,0),
@@ -673,7 +675,7 @@ class Fused:
                 system.box.Lz / 2,]
         )
 
-        ff_path = f"{FF_DIR}/gaff-nosmarts.xml"
+        ff_path = f"{FF_DIR}/{self.forcefield}-nosmarts.xml"
         forcefield = foyer.Forcefield(forcefield_files=ff_path)
         self.system = forcefield.apply(system)
 
@@ -744,7 +746,6 @@ class Interface:
         )
 
         ff_path = f"{FF_DIR}/{self.forcefield}-nosmarts.xml"
-        ff_path = f"{FF_DIR}/gaff-nosmarts.xml"
         forcefield = foyer.Forcefield(forcefield_files=ff_path)
         self.system = forcefield.apply(interface)
 
