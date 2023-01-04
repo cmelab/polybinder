@@ -654,15 +654,21 @@ class Initializer:
 
 
 class Fused:
-    def __init__(self, gsd_file, ref_distance, ref_energy, forcefield):
+    def __init__(
+            self, gsd_file, ref_distance, ref_energy, ref_mass, forcefield
+    ):
         self.gsd_file = gsd_file
         self.ref_distance = ref_distance
         self.ref_energy = ref_energy
+        self.ref_mass = ref_mass
         self.forcefield = forcefield
         self.system_type = "interface"
 
         system_mb = _gsd_to_mbuild(
-                self.gsd_file, self.ref_distance, self.ref_energy
+                gsd_file=self.gsd_file,
+                ref_distance=self.ref_distance,
+                ref_energy=self.ref_energy,
+                ref_mass=self.ref_mass
         )
         system_mb.box = mb.box.Box.from_mins_maxs_angles(
                 mins=(0,0,0),
@@ -680,6 +686,7 @@ class Fused:
         self.system = forcefield.apply(system_mb)
         for p, a in zip(system_mb.particles(), self.system.atoms):
             a.charge = p.charge
+            a.mass = p.mass
         net_charge = sum([a.charge for a in self.system.atoms])
         n_particles = system_mb.n_particles
         print("-----------------------------------------------------------")
@@ -718,6 +725,7 @@ class Interface:
             slabs,
             ref_distance,
             ref_energy,
+            ref_mass,
             forcefield,
             gap=0.1,
             weld_axis="x"
@@ -725,6 +733,7 @@ class Interface:
         self.system_type = "interface"
         self.ref_distance = ref_distance
         self.ref_energy = ref_energy
+        self.ref_mass = ref_mass
         self.forcefield = forcefield
 
         if not isinstance(slabs, list):
@@ -745,10 +754,16 @@ class Interface:
 
         interface = mb.Compound()
         slab_1 = _gsd_to_mbuild(
-                slab_files[0], self.ref_distance, self.ref_energy
+                gsd_file=slab_files[0],
+                ref_distance=self.ref_distance,
+                ref_energy=self.ref_energy,
+                ref_mass=self.ref_mass
         )
         slab_2 = _gsd_to_mbuild(
-                slab_files[1], self.ref_distance, self.ref_energy
+                gsd_file=slab_files[1],
+                ref_distance=self.ref_distance,
+                ref_energy=self.ref_energy,
+                ref_mass=self.ref_mass
         )
         interface.add(new_child=slab_1, label="left")
         interface.add(new_child=slab_2, label="right")
@@ -778,13 +793,14 @@ class Interface:
         self.system = forcefield.apply(interface)
         for p, a in zip(interface.particles(), self.system.atoms):
             a.charge = p.charge
+            a.mass = p.mass
         net_charge = sum([a.charge for a in self.system.atoms])
         n_particles = interface.n_particles
         print("-----------------------------------------------------------")
         print(f"Net charge of {net_charge} for {n_particles} particles")
 
 
-def _gsd_to_mbuild(gsd_file, ref_distance, ref_energy):
+def _gsd_to_mbuild(gsd_file, ref_distance, ref_energy, ref_mass):
     """Creates an mbuild.Compound system from a hoomd GSD file.
     Assumes that the positions and charges stored in the gsd file
     are the reduced values used during the simulation.
@@ -808,14 +824,15 @@ def _gsd_to_mbuild(gsd_file, ref_distance, ref_energy):
     charge_factor = (4.0 * np.pi * e0 * ref_distance * ref_energy) ** 0.5
     pos_wrap = snap.particles.position * ref_distance
     charges = snap.particles.charge * charge_factor
+    masses = snap.particles.mass * ref_mass
     atom_types = [snap.particles.types[i] for i in snap.particles.typeid]
     elements = [element_mapping[i] for i in atom_types]
 
     comp = mb.Compound()
-    for pos, charge, element, atom_type in zip(
-            pos_wrap, charges, elements, atom_types):
+    for pos, charge, mass, element, atom_type in zip(
+            pos_wrap, charges, masses, elements, atom_types):
         child = mb.Compound(
-                name=f"_{atom_type}", pos=pos, charge=charge, element=element
+                name=f"_{atom_type}", pos=pos, charge=charge, mass=mass, element=element
         )
         comp.add(child)
 
