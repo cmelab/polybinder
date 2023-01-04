@@ -15,6 +15,8 @@ class BaseTest:
         slab = Interface(
             slabs=os.path.join(ASSETS_DIR, "test_slab_xwall.gsd"),
             ref_distance=0.33997,
+            ref_energy=0.21,
+            ref_mass=15.98,
             gap=0.1,
             forcefield="gaff",
             weld_axis="x"
@@ -26,6 +28,8 @@ class BaseTest:
         slab = Interface(
             slabs=os.path.join(ASSETS_DIR, "test_slab_ywall.gsd"),
             ref_distance=0.33997,
+            ref_energy=0.21,
+            ref_mass=15.98,
             gap=0.1,
             forcefield="gaff",
             weld_axis="y"
@@ -37,6 +41,8 @@ class BaseTest:
         slab = Interface(
             slabs=os.path.join(ASSETS_DIR, "test_slab_zwall.gsd"),
             ref_distance=0.33997,
+            ref_energy=0.21,
+            ref_mass=15.98,
             gap=0.1,
             weld_axis="z",
             forcefield="gaff",
