@@ -661,23 +661,29 @@ class Fused:
         self.forcefield = forcefield
         self.system_type = "interface"
 
-        system = _gsd_to_mbuild(
+        system_mb = _gsd_to_mbuild(
                 self.gsd_file, self.ref_distance, self.ref_energy
         )
-        system.box = mb.box.Box.from_mins_maxs_angles(
+        system_mb.box = mb.box.Box.from_mins_maxs_angles(
                 mins=(0,0,0),
-                maxs=system.get_boundingbox().lengths,
+                maxs=system_mb.get_boundingbox().lengths,
                 angles = (90, 90, 90)
         )
-        system.translate_to(
-                [system.box.Lx / 2,
-                system.box.Ly / 2,
-                system.box.Lz / 2,]
+        system_mb.translate_to(
+                [system_mb.box.Lx / 2,
+                system_mb.box.Ly / 2,
+                system_mb.box.Lz / 2,]
         )
 
         ff_path = f"{FF_DIR}/{self.forcefield}-nosmarts.xml"
         forcefield = foyer.Forcefield(forcefield_files=ff_path)
-        self.system = forcefield.apply(system)
+        self.system = forcefield.apply(system_mb)
+        for p, a in zip(system_mb.particles(), self.system.atoms):
+            a.charge = p.charge
+        net_charge = sum([a.charge for a in self.system.atoms])
+        n_particles = system_mb.n_particles
+        print("-----------------------------------------------------------")
+        print(f"Net charge of {net_charge} for {n_particles} particles")
 
 
 class Interface:
@@ -792,11 +798,6 @@ def _gsd_to_mbuild(gsd_file, ref_distance, ref_energy):
         "c": "C",
         "ho": "H",
         "ha": "H",
-        "opls_204": "H",
-        "opls_145": "C",
-        "opls_202": "S",
-        "opls_146": "H",
-        "opls_200": "S",
         "hs": "H",
         "s": "S",
         "sh": "S",
@@ -806,7 +807,7 @@ def _gsd_to_mbuild(gsd_file, ref_distance, ref_energy):
     e0 = 2.396452e-04
     charge_factor = (4.0 * np.pi * e0 * ref_distance * ref_energy) ** 0.5
     pos_wrap = snap.particles.position * ref_distance
-    charges = snap.particles.charges * charge_factor
+    charges = snap.particles.charge * charge_factor
     atom_types = [snap.particles.types[i] for i in snap.particles.typeid]
     elements = [element_mapping[i] for i in atom_types]
 
