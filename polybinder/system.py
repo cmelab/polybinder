@@ -605,6 +605,11 @@ class Initializer:
             print(f"Resulting net charge of {net_charge}")
             print("-----------------------------------------------------------")
             print()
+        # Can't have zero charges in opls-type FFs (Parmed issue)
+        # Iterate and zero the charges here.
+        else:
+            for a in typed_system.atoms:
+                a.charge = 0
         return typed_system
 
     def _load_parmed_structure(self, untyped_system):
