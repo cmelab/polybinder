@@ -865,14 +865,16 @@ def _gsd_to_mbuild(
     atom_types = [snap.particles.types[i] for i in snap.particles.typeid]
     if not coarse_grain:
         elements = [element_mapping[i] for i in atom_types]
+        names = [f"_{type}" for type in atom_types]
     else:
         elements = [None for i in atom_types]
+        names = atom_types
 
     comp = mb.Compound()
-    for pos, charge, mass, element, atom_type in zip(
-            pos_wrap, charges, masses, elements, atom_types):
+    for pos, charge, mass, element, name in zip(
+            pos_wrap, charges, masses, elements, names):
         child = mb.Compound(
-                name=f"_{atom_type}", pos=pos, charge=charge, mass=mass, element=element
+                name=name, pos=pos, charge=charge, mass=mass, element=element
         )
         comp.add(child)
 
