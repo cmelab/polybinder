@@ -660,7 +660,13 @@ class Initializer:
 
 class Fused:
     def __init__(
-            self, gsd_file, ref_distance, ref_energy, ref_mass, forcefield
+            self,
+            gsd_file,
+            ref_distance,
+            ref_energy,
+            ref_mass,
+            forcefield,
+            coarse_grain=False
     ):
         self.gsd_file = gsd_file
         self.ref_distance = ref_distance
@@ -685,17 +691,25 @@ class Fused:
                 system_mb.box.Ly / 2,
                 system_mb.box.Lz / 2,]
         )
-
-        ff_path = f"{FF_DIR}/{self.forcefield}-nosmarts.xml"
-        forcefield = foyer.Forcefield(forcefield_files=ff_path)
-        self.system = forcefield.apply(system_mb)
-        for p, a in zip(system_mb.particles(), self.system.atoms):
-            a.charge = p.charge
-            a.mass = p.mass
-        net_charge = sum([a.charge for a in self.system.atoms])
-        n_particles = system_mb.n_particles
-        print("-----------------------------------------------------------")
-        print(f"Net charge of {net_charge} for {n_particles} particles")
+        
+        if not coarse_grain:
+            ff_path = f"{FF_DIR}/{self.forcefield}-nosmarts.xml"
+            forcefield = foyer.Forcefield(forcefield_files=ff_path)
+            self.system = forcefield.apply(system_mb)
+            for p, a in zip(system_mb.particles(), self.system.atoms):
+                a.charge = p.charge
+                a.mass = p.mass
+            net_charge = sum([a.charge for a in self.system.atoms])
+            n_particles = system_mb.n_particles
+            print("-----------------------------------------------------------")
+            print(f"Net charge of {net_charge} for {n_particles} particles")
+        else:
+            gmso_system = from_mbuild(system_mb)
+            gmso_system.identify_connections()
+            parmed_system = to_parmed(gmso_system)
+            for atom in parmed_system.atoms:
+                atom.type = atom.name
+            self.system = parmed_system
 
 
 class Interface:
@@ -733,7 +747,8 @@ class Interface:
             ref_mass,
             forcefield,
             gap=0.1,
-            weld_axis="x"
+            weld_axis="x",
+            coarse_grain=False,
     ):
         self.system_type = "interface"
         self.ref_distance = ref_distance
@@ -793,16 +808,24 @@ class Interface:
                 interface.box.Lz / 2,]
         )
 
-        ff_path = f"{FF_DIR}/{self.forcefield}-nosmarts.xml"
-        forcefield = foyer.Forcefield(forcefield_files=ff_path)
-        self.system = forcefield.apply(interface)
-        for p, a in zip(interface.particles(), self.system.atoms):
-            a.charge = p.charge
-            a.mass = p.mass
-        net_charge = sum([a.charge for a in self.system.atoms])
-        n_particles = interface.n_particles
-        print("-----------------------------------------------------------")
-        print(f"Net charge of {net_charge} for {n_particles} particles")
+        if not coarse_grain:
+            ff_path = f"{FF_DIR}/{self.forcefield}-nosmarts.xml"
+            forcefield = foyer.Forcefield(forcefield_files=ff_path)
+            self.system = forcefield.apply(interface)
+            for p, a in zip(interface.particles(), self.system.atoms):
+                a.charge = p.charge
+                a.mass = p.mass
+            net_charge = sum([a.charge for a in self.system.atoms])
+            n_particles = interface.n_particles
+            print("-----------------------------------------------------------")
+            print(f"Net charge of {net_charge} for {n_particles} particles")
+        else:
+            gmso_system = from_mbuild(interface)
+            gmso_system.identify_connections()
+            parmed_system = to_parmed(gmso_system)
+            for atom in parmed_system.atoms:
+                atom.type = atom.name
+            self.system = parmed_system
 
 
 def _gsd_to_mbuild(gsd_file, ref_distance, ref_energy, ref_mass):
