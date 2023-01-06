@@ -679,7 +679,8 @@ class Fused:
                 gsd_file=self.gsd_file,
                 ref_distance=self.ref_distance,
                 ref_energy=self.ref_energy,
-                ref_mass=self.ref_mass
+                ref_mass=self.ref_mass,
+                coarse_grain=coarse_grain
         )
         system_mb.box = mb.box.Box.from_mins_maxs_angles(
                 mins=(0,0,0),
@@ -777,13 +778,15 @@ class Interface:
                 gsd_file=slab_files[0],
                 ref_distance=self.ref_distance,
                 ref_energy=self.ref_energy,
-                ref_mass=self.ref_mass
+                ref_mass=self.ref_mass,
+                coarse_grain=coarse_grain
         )
         slab_2 = _gsd_to_mbuild(
                 gsd_file=slab_files[1],
                 ref_distance=self.ref_distance,
                 ref_energy=self.ref_energy,
-                ref_mass=self.ref_mass
+                ref_mass=self.ref_mass,
+                coarse_grain=coarse_grain
         )
         interface.add(new_child=slab_1, label="left")
         interface.add(new_child=slab_2, label="right")
@@ -828,7 +831,13 @@ class Interface:
             self.system = parmed_system
 
 
-def _gsd_to_mbuild(gsd_file, ref_distance, ref_energy, ref_mass):
+def _gsd_to_mbuild(
+        gsd_file,
+        ref_distance,
+        ref_energy,
+        ref_mass,
+        coarse_grain=False
+):
     """Creates an mbuild.Compound system from a hoomd GSD file.
     Assumes that the positions and charges stored in the gsd file
     are the reduced values used during the simulation.
@@ -854,7 +863,10 @@ def _gsd_to_mbuild(gsd_file, ref_distance, ref_energy, ref_mass):
     charges = snap.particles.charge * charge_factor
     masses = snap.particles.mass * ref_mass
     atom_types = [snap.particles.types[i] for i in snap.particles.typeid]
-    elements = [element_mapping[i] for i in atom_types]
+    if not coarse_grain:
+        elements = [element_mapping[i] for i in atom_types]
+    else:
+        elements = [None for i in atom_types]
 
     comp = mb.Compound()
     for pos, charge, mass, element, atom_type in zip(
