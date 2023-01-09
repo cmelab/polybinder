@@ -430,7 +430,13 @@ class Initializer:
         self.system_type = "crystal"
     
     def coarse_grain_system(
-            self, use_monomers=False, use_components=False, bead_mapping=None
+            self,
+            ref_distance,
+            ref_mass,
+            use_monomers=False,
+            use_components=False,
+            bead_mapping=None,
+
     ):
         import polybinderCG.mbuild_cg as mbcg
 
@@ -444,7 +450,10 @@ class Initializer:
 
         for idx, comp in enumerate(self.mb_compounds):
             cg_comp = mbcg.System(
-                    mb_compound=comp, molecule=self.system_parms.molecule
+                    mb_compound=comp,
+                    molecule=self.system_parms.molecule,
+                    ref_distanc=ref_distance,
+                    ref_mass=ref_mass
             )
             if use_monomers:
                 for mol in cg_comp.molecules:
