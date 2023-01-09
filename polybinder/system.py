@@ -452,7 +452,7 @@ class Initializer:
             cg_comp = mbcg.System(
                     mb_compound=comp,
                     molecule=self.system_parms.molecule,
-                    ref_distanc=ref_distance,
+                    ref_distance=ref_distance,
                     ref_mass=ref_mass
             )
             if use_monomers:
