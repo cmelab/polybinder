@@ -293,7 +293,7 @@ class Initializer:
             )
 
         if self.forcefield:
-            self._load_parmed_structure(untyped_system=system_init)
+            self._load_parmed_structure(untyped_system=system_init, assert_dihedrals=(not remove_hydrogens))
             if self.remove_hydrogens:
                 self._remove_hydrogens()
         else:
@@ -441,7 +441,7 @@ class Initializer:
         fiber = lattice.populate(
                 compound_dict={'A' : c}, x=x, y=y, z=n_layers
         )
-        fiber.freud_generate_bonds("C", "C", dmin=0.14, dmax=0.145)
+        fiber.freud_generate_bonds('C', 'C', dmin=0.14, dmax=0.145)
         fiber_box = fiber.get_boundingbox()
         self.set_target_box(
                 x_constraint=fiber_box.Lx, y_constraint=fiber_box.Ly
@@ -460,33 +460,31 @@ class Initializer:
         )
         # Combine polymers and fiber
         shift_by = polymers.get_boundingbox().Lz/2 + fiber_box.Lz + 1.0  
-        system = mb.Compound()
-        system.box = mb.box.Box(
+        polymers.box = mb.box.Box(
                 [
                     pack_box.Lx,
                     pack_box.Ly,
                     pack_box.Lz + fiber_box.Lz + spacings[-1]*2
                 ]
         )
-        system.add(fiber)
-        system.add(polymers)
-        fiber.translate_to([0,0,0])
         polymers.translate_to([0,0,0])
-        fiber.translate(
-            [
-                system.box.Lx/2,
-                system.box.Ly/2,
-                fiber_box.Lz/2 
-            ]
-        )
         polymers.translate(
             [
-                system.box.Lx/2,
-                system.box.Ly/2,
+                polymers.box.Lx/2,
+                polymers.box.Ly/2,
                 shift_by 
             ]
         )
-        return system
+        polymers.add(fiber, containment=False)
+        fiber.translate_to([0,0,0])
+        fiber.translate(
+            [
+                fiber_box.Lx/2,
+                fiber_box.Ly/2,
+                fiber_box.Lz/2 
+            ]
+        )
+        return polymers 
 
     def coarse_grain_system(
             self,
@@ -696,14 +694,14 @@ class Initializer:
             self.system_mass += mass  # amu
         return mb_compounds
 
-    def _apply_ff(self, untyped_system):
+    def _apply_ff(self, untyped_system, assert_dihedral_params=True):
         """Use foyer to type the system and store forcefield parameters.
         Returns a Parmed structure object.
         """
         ff_path = f"{FF_DIR}/{self.forcefield}.xml"
         forcefield = foyer.Forcefield(forcefield_files=ff_path)
         typed_system = forcefield.apply(
-                untyped_system, verbose=True, assert_dihedral_params=True
+                untyped_system, verbose=True, assert_dihedral_params=assert_dihedral_params
         )
         # Add charges to parmed struc from mbuild comp
         if self.charges:
@@ -729,7 +727,7 @@ class Initializer:
                 a.charge = 0
         return typed_system
 
-    def _load_parmed_structure(self, untyped_system):
+    def _load_parmed_structure(self, untyped_system, assert_dihedrals=True):
         """Loads the parmed structure from file, if exists.
         Otherwise, creates the parmed structure and saves it to file using pickle.
         """
@@ -739,7 +737,7 @@ class Initializer:
                 self.system = pickle.load(f)
                 f.close()
         else:
-            self.system = self._apply_ff(untyped_system)
+            self.system = self._apply_ff(untyped_system, assert_dihedrals)
             if self.pmd_pickle_path:
                 f = open(self.pmd_pickle_path, "wb")
                 pickle.dump(self.system, f)
