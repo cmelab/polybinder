@@ -430,7 +430,8 @@ class Initializer:
         self.system_type = "crystal"
     
     def coarse_grain_system(
-            self, use_monomers=False, use_components=False, bead_mapping=None
+            self, use_monomers=False, use_components=False, bead_mapping=None,
+
     ):
         import polybinderCG.mbuild_cg as mbcg
 
@@ -444,7 +445,7 @@ class Initializer:
 
         for idx, comp in enumerate(self.mb_compounds):
             cg_comp = mbcg.System(
-                    mb_compound=comp, molecule=self.system_parms.molecule
+                    mb_compound=comp, molecule=self.system_parms.molecule,
             )
             if use_monomers:
                 for mol in cg_comp.molecules:
@@ -583,6 +584,7 @@ class Initializer:
         """
         ff_path = f"{FF_DIR}/{self.forcefield}.xml"
         forcefield = foyer.Forcefield(forcefield_files=ff_path)
+        print("Applying a focefield:")
         typed_system = forcefield.apply(
                 untyped_system, verbose=True, assert_dihedral_params=True
         )
@@ -592,7 +594,6 @@ class Initializer:
             abs_net = sum([abs(p.charge) for p in untyped_system.particles()])
             n_particles = untyped_system.n_particles
             adjust = abs(net_charge) / n_particles
-            print("Applying a focefield:")
             print("-----------------------------------------------------------")
             print(f"Net charge of {net_charge} for {n_particles} particles")
             print(f"Adjusting each charge by +/- {adjust}")
@@ -605,7 +606,9 @@ class Initializer:
             print(f"Resulting net charge of {net_charge}")
             print("-----------------------------------------------------------")
             print()
-        elif not self.charges and self.forcefield == "opls":
+        # Can't have zero charges in opls-type FFs (Parmed issue)
+        # Iterate and zero the charges here.
+        else:
             for a in typed_system.atoms:
                 a.charge = 0
         return typed_system
@@ -657,25 +660,58 @@ class Initializer:
 
 
 class Fused:
-    def __init__(self, gsd_file, ref_distance):
+    def __init__(
+            self,
+            gsd_file,
+            ref_distance,
+            ref_energy,
+            ref_mass,
+            forcefield,
+            coarse_grain=False
+    ):
         self.gsd_file = gsd_file
         self.ref_distance = ref_distance
+        self.ref_energy = ref_energy
+        self.ref_mass = ref_mass
+        self.forcefield = forcefield
         self.system_type = "interface"
-        system = _gsd_to_mbuild(self.gsd_file, self.ref_distance)
-        system.box = mb.box.Box.from_mins_maxs_angles(
+
+        system_mb = _gsd_to_mbuild(
+                gsd_file=self.gsd_file,
+                ref_distance=self.ref_distance,
+                ref_energy=self.ref_energy,
+                ref_mass=self.ref_mass,
+                coarse_grain=coarse_grain
+        )
+        system_mb.box = mb.box.Box.from_mins_maxs_angles(
                 mins=(0,0,0),
-                maxs=system.get_boundingbox().lengths,
+                maxs=system_mb.get_boundingbox().lengths,
                 angles = (90, 90, 90)
         )
-        system.translate_to(
-                [system.box.Lx / 2,
-                system.box.Ly / 2,
-                system.box.Lz / 2,]
+        system_mb.translate_to(
+                [system_mb.box.Lx / 2,
+                system_mb.box.Ly / 2,
+                system_mb.box.Lz / 2,]
         )
-
-        ff_path = f"{FF_DIR}/gaff-nosmarts.xml"
-        forcefield = foyer.Forcefield(forcefield_files=ff_path)
-        self.system = forcefield.apply(system)
+        
+        if not coarse_grain:
+            ff_path = f"{FF_DIR}/{self.forcefield}-nosmarts.xml"
+            forcefield = foyer.Forcefield(forcefield_files=ff_path)
+            self.system = forcefield.apply(system_mb)
+            for p, a in zip(system_mb.particles(), self.system.atoms):
+                a.charge = p.charge
+                a.mass = p.mass
+            net_charge = sum([a.charge for a in self.system.atoms])
+            n_particles = system_mb.n_particles
+            print("-----------------------------------------------------------")
+            print(f"Net charge of {net_charge} for {n_particles} particles")
+        else:
+            gmso_system = from_mbuild(system_mb)
+            gmso_system.identify_connections()
+            parmed_system = to_parmed(gmso_system)
+            for atom in parmed_system.atoms:
+                atom.type = atom.name
+            self.system = parmed_system
 
 
 class Interface:
@@ -689,9 +725,15 @@ class Interface:
         Path to the .gsd files to be used in creating an interface
     ref_distance : float
         The reference distance used to convert from simulation
-        distance units to mBuild units (nanometers)
+        distance units to mBuild units (nm)
+    ref_energy : float
+        The reference energy used to convert from simulation energy units
+        to the energy values used in the foyer forcefield (kJ/mol).
+        Required for correctly setting the charge values
+    forcefield : str
+        Name of the focefield file used in the slab-generating simulations
     gap : float
-        The size of the gap between interfaces in nanometers.
+        The size of the gap between interfaces (nm).
     weld_axis : str
         Set the axis to translate the slabs along.
         This should be the same axis used when setting the wall potentials
@@ -699,9 +741,23 @@ class Interface:
         "x", "y" or "z"
 
     """
-    def __init__(self, slabs, ref_distance, gap=0.1, weld_axis="x"):
+    def __init__(
+            self,
+            slabs,
+            ref_distance,
+            ref_energy,
+            ref_mass,
+            forcefield,
+            gap=0.1,
+            weld_axis="x",
+            coarse_grain=False,
+    ):
         self.system_type = "interface"
         self.ref_distance = ref_distance
+        self.ref_energy = ref_energy
+        self.ref_mass = ref_mass
+        self.forcefield = forcefield
+
         if not isinstance(slabs, list):
             slabs = [slabs]
         if len(slabs) == 2:
@@ -715,11 +771,24 @@ class Interface:
                 "z": np.array([0,0,1])
         }
         weld_axis = weld_axis.lower()
+        # Axis to translate slab systems along to create interface
         trans_axis = axis_dict[weld_axis]
 
         interface = mb.Compound()
-        slab_1 = _gsd_to_mbuild(slab_files[0], self.ref_distance)
-        slab_2 = _gsd_to_mbuild(slab_files[1], self.ref_distance)
+        slab_1 = _gsd_to_mbuild(
+                gsd_file=slab_files[0],
+                ref_distance=self.ref_distance,
+                ref_energy=self.ref_energy,
+                ref_mass=self.ref_mass,
+                coarse_grain=coarse_grain
+        )
+        slab_2 = _gsd_to_mbuild(
+                gsd_file=slab_files[1],
+                ref_distance=self.ref_distance,
+                ref_energy=self.ref_energy,
+                ref_mass=self.ref_mass,
+                coarse_grain=coarse_grain
+        )
         interface.add(new_child=slab_1, label="left")
         interface.add(new_child=slab_2, label="right")
         _len = getattr(interface.get_boundingbox(), f"L{weld_axis}")
@@ -730,6 +799,7 @@ class Interface:
                 angles = (90, 90, 90)
         )
         current_len = getattr(system_box, f"L{weld_axis}")
+        # Adjust interface box; account for LJ walls on ends of the weld axis
         setattr(system_box,
                 f"_L{weld_axis}",
                 current_len + (2*self.ref_distance*1.1225)
@@ -742,11 +812,38 @@ class Interface:
                 interface.box.Lz / 2,]
         )
 
-        ff_path = f"{FF_DIR}/gaff-nosmarts.xml"
-        forcefield = foyer.Forcefield(forcefield_files=ff_path)
-        self.system = forcefield.apply(interface)
+        if not coarse_grain:
+            ff_path = f"{FF_DIR}/{self.forcefield}-nosmarts.xml"
+            forcefield = foyer.Forcefield(forcefield_files=ff_path)
+            self.system = forcefield.apply(interface)
+            for p, a in zip(interface.particles(), self.system.atoms):
+                a.charge = p.charge
+                a.mass = p.mass
+            net_charge = sum([a.charge for a in self.system.atoms])
+            n_particles = interface.n_particles
+            print("-----------------------------------------------------------")
+            print(f"Net charge of {net_charge} for {n_particles} particles")
+        else:
+            gmso_system = from_mbuild(interface)
+            gmso_system.identify_connections()
+            parmed_system = to_parmed(gmso_system)
+            for atom in parmed_system.atoms:
+                atom.type = atom.name
+            self.system = parmed_system
 
-def _gsd_to_mbuild(gsd_file, ref_distance):
+
+def _gsd_to_mbuild(
+        gsd_file,
+        ref_distance,
+        ref_energy,
+        ref_mass,
+        coarse_grain=False
+):
+    """Creates an mbuild.Compound system from a hoomd GSD file.
+    Assumes that the positions and charges stored in the gsd file
+    are the reduced values used during the simulation.
+
+    """
     element_mapping = {
         "oh": "O",
         "ca": "C",
@@ -755,23 +852,38 @@ def _gsd_to_mbuild(gsd_file, ref_distance):
         "c": "C",
         "ho": "H",
         "ha": "H",
+        "hs": "H",
+        "s": "S",
+        "sh": "S",
+
     }
     snap = trajectory = gsd.hoomd.open(gsd_file)[-1]
+    e0 = 2.396452e-04
+    charge_factor = (4.0 * np.pi * e0 * ref_distance * ref_energy) ** 0.5
     pos_wrap = snap.particles.position * ref_distance
+    charges = snap.particles.charge * charge_factor
+    masses = snap.particles.mass * ref_mass
     atom_types = [snap.particles.types[i] for i in snap.particles.typeid]
-    elements = [element_mapping[i] for i in atom_types]
+    if not coarse_grain:
+        elements = [element_mapping[i] for i in atom_types]
+        names = [f"_{type}" for type in atom_types]
+    else:
+        elements = [None for i in atom_types]
+        names = atom_types
 
     comp = mb.Compound()
-    for pos, element, atom_type in zip(pos_wrap, elements, atom_types):
-        child = mb.Compound(name=f"_{atom_type}", pos=pos, element=element)
+    for pos, charge, mass, element, name in zip(
+            pos_wrap, charges, masses, elements, names):
+        child = mb.Compound(
+                name=name, pos=pos, charge=charge, mass=mass, element=element
+        )
         comp.add(child)
-
-    bonds = [(i, j) for (i, j) in snap.bonds.group]
 
     particle_dict = {}
     for idx, particle in enumerate(comp.particles()):
         particle_dict[idx] = particle
-
+    
+    bonds = [(i, j) for (i, j) in snap.bonds.group]
     for (i, j) in bonds:
         atom1 = particle_dict[i]
         atom2 = particle_dict[j]

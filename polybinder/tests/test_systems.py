@@ -102,7 +102,10 @@ class TestSystems(BaseTest):
     def test_fused(self):
         fused = Fused(
                 gsd_file=os.path.join(ASSETS_DIR, "test_slab_xwall.gsd"),
-                ref_distance=0.33997
+                ref_distance=0.33997,
+                ref_energy=0.21,
+                ref_mass=15.98,
+                forcefield="gaff",
             )
 
     def test_interface_2_files(self):
@@ -110,7 +113,10 @@ class TestSystems(BaseTest):
                 slabs=[os.path.join(ASSETS_DIR, "test_slab_xwall.gsd"), 
                     os.path.join(ASSETS_DIR, "test_slab_xwall.gsd")
                 ],
-                ref_distance=0.33997
+                ref_distance=0.33997,
+                ref_energy=0.21,
+                ref_mass=15.98,
+                forcefield="gaff",
             )
 
     def test_interface_y(self):
@@ -119,6 +125,9 @@ class TestSystems(BaseTest):
                     os.path.join(ASSETS_DIR, "test_slab_ywall.gsd")
                 ],
                 ref_distance=0.33997,
+                ref_energy=0.21,
+                ref_mass=15.98,
+                forcefield="gaff",
                 weld_axis="y"
             )
 
@@ -129,6 +138,9 @@ class TestSystems(BaseTest):
                     os.path.join(ASSETS_DIR, "test_slab_zwall.gsd")
                 ],
                 ref_distance=0.33997,
+                ref_energy=0.21,
+                ref_mass=15.98,
+                forcefield="gaff",
                 weld_axis="z"
             )
 
@@ -501,7 +513,10 @@ class TestSystems(BaseTest):
     def test_gsd_to_mbuild(self):
         gsd_file = os.path.join(ASSETS_DIR, "test_slab_xwall.gsd")
         mb_comp = polybinder.system._gsd_to_mbuild(
-                gsd_file=gsd_file, ref_distance=3.39
+                gsd_file=gsd_file,
+                ref_distance=3.39,
+                ref_energy=0.21,
+                ref_mass=15.98
             )
         mb_pos = [i.xyz for i in mb_comp.particles()]
         with gsd.hoomd.open(gsd_file) as traj:
