@@ -94,6 +94,7 @@ class Simulation:
         auto_scale=True,
         ref_values=None,
         mode="auto",
+        e_factor=None,
         gsd_write=1e4,
         log_write=1e3,
         seed=42,
@@ -111,6 +112,7 @@ class Simulation:
         self.auto_scale = auto_scale
         self.ref_values = ref_values
         self.mode = mode.lower()
+        self.e_factor = e_factor
         self.gsd_write = gsd_write
         self.log_write = log_write
         self.seed = seed
@@ -185,6 +187,15 @@ class Simulation:
                     auto_scale=self.auto_scale,
                     pppm_kwargs = {"Nx": 16, "Ny": 16, "Nz": 16, }
             )
+            if self.e_factor and self.e_factor != 1.0:
+                print("Epsilon values scaled by an e_factor of {self.e_factor}")
+                for param in self.forcefield[0].params:
+                    init_epsilon = self.forcefield[0].params[param]['epsilon']
+                    new_epsilon = init_epsilon * self.e_factor 
+                    self.forcefield[0].params[param]['epsilon'] = new_epsilon
+                    print(param)
+                    print(f"{init_epsilon} changed to {new_epsilon}")
+                    print()
             if self.restart:
                 self.sim.create_state_from_gsd(self.restart)
             else:
