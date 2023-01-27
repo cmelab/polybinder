@@ -94,7 +94,7 @@ class Simulation:
         auto_scale=True,
         ref_values=None,
         mode="auto",
-        e_factor=None,
+        e_factor=1.0,
         gsd_write=1e4,
         log_write=1e3,
         seed=42,
@@ -187,7 +187,7 @@ class Simulation:
                     auto_scale=self.auto_scale,
                     pppm_kwargs = {"Nx": 16, "Ny": 16, "Nz": 16, }
             )
-            if self.e_factor and self.e_factor != 1.0:
+            if self.e_factor != 1.0:
                 print("Epsilon values scaled by an e_factor of {self.e_factor}")
                 for param in self.forcefield[0].params:
                     init_epsilon = self.forcefield[0].params[param]['epsilon']
