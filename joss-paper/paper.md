@@ -8,13 +8,15 @@ tags:
   - HOOMD-blue # TODO: check this
 authors:
   - name: Chris Jones
-    orcid: 0000-0000-0000-0000
+    orcid: 0000-0002-6196-5274
     equal-contrib: true
     affiliation: 1
   - name: Rainier Barrett
+    orcid: 0000-0002-5728-9074
     equal-contrib: true
     affiliation: 1
   - name: Eric Jankowski
+    orcid: 0000-0002-3267-1410
     corresponding: true 
     affiliation: 1
 affiliations:
