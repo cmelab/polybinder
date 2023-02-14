@@ -29,11 +29,41 @@ bibliography: paper.bib
 
 # Summary
 
-Summary of software goes here.
+Polybinder is a Python package that uses the Foyer, mbuild, and signac packages from
+the MoSDeF suite of tools to quickly, easily, and reproducibly initialize and run polymer
+simulations in HOOMD-blue. This package allows for a variety of simulation types of interest,
+such as slab melts, annealing, welding interfaces, and tensile testing.
+Presently Polybinder supports three polymer types: polyether ether ketone (PEEK),
+polyether ketone ketone (PEKK), and polyphenylene sulfide (PPS), but is designed
+such that any monomer units can be implemented.
+Polybinder was made with the TRUE principles in mind [cite TRUE paper], allowing ease
+of use and adoption, and reducing the learning curve for starting simulations.
 
 # Statement of need
 
+One of the steeper learning curves in molecular dynamics simulations is system and simulation initialization.
+It is hard to start and hard to keep track of different simulations,
+especially when scanning over various state points.
+It's harder still to produce TRUE simulations with reliable reults. [cite some reproducibility papers]
+In particular, when we want to probe for process control variables in a material
+manufacture process, we need to look at a large number of large-volume, high-number,
+long-time simulations, many of which will not be relevant, complicating the search.
+Hence, there is a more-and-more common use of coarse grain modeling for polymer
+simulations [cite some of those].
+To produce a CG model of a given polymer that is transferable across state points,
+many simulations at those state points must be run and managed, increasing the
+desirability of a reliable and easy way to keep track of these, particularly
+for MSIBI.
+
+
 Why did we make polybinder?
+* CG of polymers is hard
+* Even just setting up sims to train a CG FF is hard
+* Polybinder helps with that
+
+# Accessing the Software
+
+Polybinder is freely available under the GNU General Public License (version 3) on [github](https://github.com/cmelab/polybinder).
 
 # Mathematics
 
