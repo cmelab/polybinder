@@ -5,7 +5,7 @@ tags:
   - materials science
   - molecular dynamics
   - polymers
-  - HOOMD-blue # TODO: check this
+  - HOOMD-blue
 authors:
   - name: Chris Jones
     orcid: 0000-0002-6196-5274
@@ -33,27 +33,36 @@ Polybinder is a Python package that uses the Foyer, mbuild, and signac packages 
 the MoSDeF suite of tools to quickly, easily, and reproducibly initialize and run polymer
 simulations in HOOMD-blue. This package allows for a variety of simulation types of interest,
 such as slab melts, annealing, welding interfaces, and tensile testing.
-Presently Polybinder supports three polymer types: polyether ether ketone (PEEK),
-polyether ketone ketone (PEKK), and polyphenylene sulfide (PPS), but is designed
-such that any monomer units can be implemented.
-Polybinder was made with the TRUE principles in mind [cite TRUE paper], allowing ease
+Presently Polybinder supports three polymer chemistries: polyether ether ketone (PEEK),
+polyether ketone ketone (PEKK), and polyphenylene sulfide (PPS), but it is designed
+such that any monomer units can be implemented and added to the internal library of available
+structures.
+Polybinder was made with the TRUE principles in mind [cite TRUE paper], with the goal of allowing ease
 of use and adoption, and reducing the learning curve for starting simulations.
 
 # Statement of need
 
-One of the steeper learning curves in molecular dynamics simulations is system and simulation initialization.
+One of the steeper learning curves in molecular dynamics simulations is
+the initialization of particle positions and parameters.
 It is hard to start and hard to keep track of different simulations,
 especially when scanning over various state points.
 It's harder still to produce TRUE simulations with reliable reults. [cite some reproducibility papers]
-In particular, when we want to probe for process control variables in a material
+In particular, when we want to probe process control variables in a material
 manufacture process, we need to look at a large number of large-volume, high-number,
 long-time simulations, many of which will not be relevant, complicating the search.
-Hence, there is a more-and-more common use of coarse grain modeling for polymer
-simulations [cite some of those].
+Because of this, the use of coarse grain modeling[cite CG?] for polymer simulations
+[cite some of those] is becoming more common.
 To produce a CG model of a given polymer that is transferable across state points,
-many simulations at those state points must be run and managed, increasing the
+many simulations at various state points must be run and managed, increasing the
 desirability of a reliable and easy way to keep track of these, particularly
-for MSIBI.
+for the multi-state iterative Boltzmann inversion (MSIBI) method of parameterization.
+
+The suite of tools introduced here in polybinder enables newer scientists
+in molecular simulation to quickly and reproducibly simulate
+large, coarse-grained, complex polymer systems to investigate scientific questions about
+their properties with a much lower barrier to entry than before. Because it is designed
+with modularity in mind, it will also ease adoption by other research groups,
+quickening the investigation process.
 
 
 Why did we make polybinder?
