@@ -27,7 +27,35 @@ bibliography: paper.bib
 
 ---
 
+# Statement of need
+
+One of the steeper learning curves in molecular dynamics simulations is
+the initialization of particle positions and parameters.
+Besides being difficult to start, another part of the cognitive load involved in
+learning to perform MD simulations is that it can be hard to keep track of different simulations,
+especially when scanning over a wide range of thermodynamic state points, chemical systems, etc.
+It is harder still to produce TRUE simulations with reliable results. `@JankowskiTRUE2020`
+In particular, when we want to probe complex variable spaces,
+such as process control variables in a material manufacture process,
+we need to run a large number of large-volume, high-density,
+long-time simulations, many of which may not turn out to impart relevant information for process control.
+This further delays the search process due to the increasing time required to simulate such large systems.
+A common solution for the problem of scale in MD is coarse grain modeling, where atomistic accuracy is traded for speed.
+To produce a CG model of a given polymer that is transferable across state points,
+many simulations at various state points must be run and managed, increasing the
+desirability of a reliable and easy way to keep track of these, particularly
+for the multi-state iterative Boltzmann inversion (MSIBI)`@MooreMSIBI2014` method of parameterization.
+All these aspects complicate and prolong the algready time- and labor-intensive process of training new researchers
+to perform sufficiently many simulations to meaningfully investigate polymer systems.
+
 # Summary
+
+The suite of tools introduced here in polybinder was built to enable scientists
+in molecular simulation to quickly and reproducibly simulate
+large, coarse- or fine-grained polymer systems to investigate scientific questions about
+their properties, all with a much lower barrier to entry than starting from scratch. Because it is designed
+with modularity in mind, it will also ease adoption by other research groups,
+and quicken the investigation process of new materials systems.
 
 Polybinder is a Python package that uses the [foyer](https://github.com/mosdef-hub/foyer/),
 [mbuild](https://github.com/mosdef-hub/mbuild/), and [signac](https://github.com/mosdef-hub/signac) packages from
@@ -40,32 +68,6 @@ polyether ketone ketone (PEKK), and polyphenylene sulfide (PPS). However, it is 
 such that any monomer units can be implemented and added to the internal library of available structures.
 Polybinder was made with the TRUE principles in mind `@JankowskiTRUE2020`, with the goal of allowing ease
 of use and adoption, and reducing the learning curve for starting simulations.
-
-# Statement of need
-
-One of the steeper learning curves in molecular dynamics simulations is
-the initialization of particle positions and parameters.
-It is difficult to start and hard to keep track of different simulations,
-especially when scanning over various state points.
-It's harder still to produce TRUE simulations with reliable reults. [cite some reproducibility papers]
-In particular, when we want to probe complex variable spaces,
-such as process control variables in a material manufacture process,
-we need to run a large number of large-volume, high-density,
-long-time simulations, many of which may not turn out to be relevant
-This further delays the search process due to the increasing time required to simulate such systems.
-A common solution for this is coarse grain modeling, where atomistic accuracy is traded for speed.
-To produce a CG model of a given polymer that is transferable across state points,
-many simulations at various state points must be run and managed, increasing the
-desirability of a reliable and easy way to keep track of these, particularly
-for the multi-state iterative Boltzmann inversion (MSIBI) method of parameterization.
-
-The suite of tools introduced here in polybinder enables scientists
-in molecular simulation to quickly and reproducibly simulate
-large, coarse-grained, complex polymer systems to investigate scientific questions about
-their properties with a much lower barrier to entry than starting from scratch. Because it is designed
-with modularity in mind, it will also ease adoption by other research groups,
-and quicken the investigation process of new materials systems.
-
 
 # Accessing the Software
 
