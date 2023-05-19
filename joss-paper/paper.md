@@ -29,24 +29,46 @@ bibliography: paper.bib
 
 # Statement of need
 
-One of the steeper learning curves in molecular dynamics simulations is
-the initialization of particle positions and parameters.
-Besides being difficult to start, another part of the cognitive load involved in
-learning to perform MD simulations is that it can be hard to keep track of different simulations,
-especially when scanning over a wide range of thermodynamic state points, chemical systems, etc.
-It is harder still to produce TRUE simulations with reliable results. `@JankowskiTRUE2020`
+One of the steeper learning curves on the road to using molecular dynamics (MD) simulations
+in scientific research is
+the initialization of particle positions, topology, and force field parameters.
+Especially for researchers new to the computational community, generating particle
+positions and initializing their velocities alone can be a daunting task, let alone
+specifying bond topology. The concept of a force field file and how it interacts with
+different MD engines is also non-trivial to understand.
+Further, besides being difficult to start simulations, another part of the cognitive
+load involved in learning to perform informative MD investigations is that it can be
+difficult to keep track of many simulations, especially when scanning over a wide
+range of thermodynamic state points, chemical systems, etc.
+These wide scans can quickly create an unmanageable amount of data to analyze,
+or even store, requiring further learning of data management skills on top of an already
+cumbersome training process.
+Moreover, even with a high-throughput workflow and good grasp of theory, it can still
+prove difficult to produce TRUE (standing for "Transparent, Reproducible, Usable, and
+Extensible") MD simulations with reliable, accurate results. `@JankowskiTRUE2020`
+
 In particular, when we want to probe complex variable spaces,
 such as process control variables in a material manufacture process,
-we need to run a large number of large-volume, high-density,
-long-time simulations, many of which may not turn out to impart relevant information for process control.
-This further delays the search process due to the increasing time required to simulate such large systems.
-A common solution for the problem of scale in MD is coarse grain modeling, where atomistic accuracy is traded for speed.
-To produce a CG model of a given polymer that is transferable across state points,
-many simulations at various state points must be run and managed, increasing the
-desirability of a reliable and easy way to keep track of these, particularly
-for the multi-state iterative Boltzmann inversion (MSIBI)`@MooreMSIBI2014` method of parameterization.
-All these aspects complicate and prolong the algready time- and labor-intensive process of training new researchers
+we need to run several large-volume, high-density, long-time simulations,
+many of which may not turn out to reveal relevant information for process control.
+This further delays the search process due to the increasing time required to
+simulate such large systems. A common solution for this problem of scale in MD
+is coarse grain (CG) modeling, where atomistic accuracy is traded for speed.
+This likewise comes with some subtle barriers between concept and practice.
+For instance, to produce a CG model of a given polymer that is transferable across
+state points, many simulations at various state points must be run and managed,
+increasing the desirability of a reliable and easy way to keep track of these,
+particularly for the multi-state iterative Boltzmann inversion (MSIBI)`@MooreMSIBI2014`
+method of parameterization. All these aspects complicate and prolong the algready time-
+and labor-intensive process of training new researchers
 to perform sufficiently many simulations to meaningfully investigate polymer systems.
+
+These factors indicate a need for a streamlined tool for creating (optionally CG)
+MD polymer systems, launching one or many simulations across state points and/or
+system type, and managing and analyzing the results. Ideally such a tool should be
+approachable for novice programmers, to maximize time spent investigating research
+questions and minimize the learning curve for new researchers, while preserving
+the accuracy and rigor of the resultant research.
 
 # Summary
 
