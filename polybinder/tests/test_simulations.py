@@ -6,6 +6,18 @@ from polybinder import simulate
 
 
 class TestSimulate(BaseTest):
+    def test_efactor(self, pps_system_charges):
+        simulation = simulate.Simulation(
+                pps_system_charges,
+                tau_p=0.1,
+                e_factor=0.5,
+                dt=0.0001,
+                mode="cpu"
+        )
+        for param in simulation.forcefield[0].params:
+            assert simulation.forcefield[0].params[param]['epsilon'] < 1.0
+        simulation.quench(kT=1.0, n_steps=500)
+
     def test_charges_sim(self, pps_system_charges):
         simulation = simulate.Simulation(
                 pps_system_charges,
