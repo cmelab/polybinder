@@ -12,6 +12,6 @@ COPY polybinder/ ./polybinder/polybinder/
 
 COPY setup.py ./polybinder/
 
-RUN ls -la
+WORKDIR polybinder
 
-RUN pip install polybinder polybinder/ 
+RUN python -m pip install .

@@ -10,12 +10,9 @@ COPY polybinder/ ./polybinder/polybinder/
 
 COPY setup.py ./polybinder/
 
-RUN ls -la ./polybinder
+WORKDIR polybinder
 
-RUN cd polybinder && \
-	ls
-
-RUN pip install . 
+RUN python -m pip install .
 
 RUN pytest -vx
 
