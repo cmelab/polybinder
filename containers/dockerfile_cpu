@@ -1,5 +1,7 @@
 FROM mambaorg/micromamba:0.15.2
 
+USER root
+
 COPY --chown=micromamba:micromamba environment-cpu.yml /tmp/env.yml
 
 RUN micromamba install -y -n base -c conda-forge git && \
@@ -12,8 +14,6 @@ COPY setup.py ./polybinder/
 
 WORKDIR polybinder
 
-RUN python -m pip install --user .
+RUN python -m pip install .
 
 RUN pytest -vx
-
-USER root
