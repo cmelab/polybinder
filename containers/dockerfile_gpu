@@ -1,7 +1,5 @@
 FROM cmelab/gpuconda:latest
 
-USER root
-
 ENV CONDA_OVERRIDE_CUDA=10.2
 COPY environment-gpu.yml ./
 
@@ -16,4 +14,4 @@ COPY setup.py ./polybinder/
 
 WORKDIR polybinder
 
-RUN python -m pip install --user .
+RUN python -m pip install --user -e .
