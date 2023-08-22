@@ -1,5 +1,7 @@
 FROM mambaorg/micromamba:0.15.2
 
+USER micromamba
+
 COPY --chown=micromamba:micromamba environment-cpu.yml /tmp/env.yml
 
 RUN micromamba install -y -n base -c conda-forge git && \

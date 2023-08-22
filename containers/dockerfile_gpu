@@ -1,6 +1,9 @@
 FROM cmelab/gpuconda:latest
 
 ENV CONDA_OVERRIDE_CUDA=10.2
+
+USER micromamba
+
 COPY environment-gpu.yml ./
 
 # Install in base environment
