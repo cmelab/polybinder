@@ -88,6 +88,7 @@ def find_package_files(root_directory):
     return paths
 
 # Where the magic happens:
+other_files = find_package_files('library')
 setup(
     name=NAME,
     version=about['__version__'],
@@ -97,9 +98,8 @@ setup(
     python_requires=REQUIRES_PYTHON,
     url=URL,
     packages=find_packages(exclude=('tests', 'docs',)),
-    other_files = find_package_files('library')
     package_data = {"polybinder":
-                    other_files}
+                    other_files},
     install_requires=REQUIRED,
     include_package_data=True,
     license='MIT',
