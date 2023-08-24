@@ -78,6 +78,15 @@ class UploadCommand(Command):
         sys.exit()
 
 
+def find_package_files(root_directory):
+    '''Given a starting directory name, recursively walk down it and collect
+       all the paths underneath it.'''
+    paths = []
+    for (path, directories, filenames) in os.walk(root_directory):
+        for filename in filenames:
+            paths.append(os.path.join('..', path, filename))
+    return paths
+
 # Where the magic happens:
 setup(
     name=NAME,
@@ -88,19 +97,9 @@ setup(
     python_requires=REQUIRES_PYTHON,
     url=URL,
     packages=find_packages(exclude=('tests', 'docs',)),
-    # If your package is a single module, use this instead of 'packages':
-    # py_modules=['mypackage'],
-
-    # entry_points={
-    #     'console_scripts': ['mycli=mymodule:cli'],
-    # },
-    package_data={"polybinder": [
-        "library/compounds/*",
-        "library/forcefields/*",
-        "library/forcefields/test_potentials/*",
-        "library/systems/*",
-        "library/assets/*"
-        ]},
+    other_files = find_package_files('library')
+    package_data = {"polybinder":
+                    other_files}
     install_requires=REQUIRED,
     include_package_data=True,
     license='MIT',
