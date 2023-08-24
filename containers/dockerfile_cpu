@@ -8,9 +8,9 @@ RUN micromamba install -y -n base -c conda-forge git && \
     micromamba install -y -n base -f /tmp/env.yml && \
     micromamba clean --all --yes
 
-COPY polybinder/ ./polybinder/polybinder/
+COPY --chown=micromamba:micromamba polybinder/ ./polybinder/polybinder/
 
-COPY setup.py ./polybinder/
+COPY --chown=micromamba:micromamba setup.py ./polybinder/
 
 WORKDIR polybinder
 

@@ -4,16 +4,16 @@ ENV CONDA_OVERRIDE_CUDA=10.2
 
 USER micromamba
 
-COPY environment-gpu.yml ./
+COPY --chown=micromamba:micromamba environment-gpu.yml ./
 
 # Install in base environment
 RUN conda install -y -n base -c conda-forge git && \
 	conda env update -n base -f environment-gpu.yml && \
     conda clean --all --yes -f 
 
-COPY polybinder/ ./polybinder/polybinder/
+COPY --chown=micromamba:micromamba polybinder/ ./polybinder/polybinder/
 
-COPY setup.py ./polybinder/
+COPY --chown=micromamba:micromamba setup.py ./polybinder/
 
 WORKDIR polybinder
 
